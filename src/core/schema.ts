@@ -12,7 +12,14 @@ export type Step =
   | { id: string; type: "copyBySelector"; selector: string }
   | { id: string; type: "readBySelector"; selector: string; saveAs?: string }
   | { id: string; type: "inputToSelector"; selector: string; value: string }
+  | { id: string; type: "typeToSelector"; selector: string; value: string }
+  | { id: string; type: "focusBySelector"; selector: string }
   | { id: string; type: "clickBySelector"; selector: string }
+  // Goes to whatever has focus — pair with focusBySelector to aim it.
+  | { id: string; type: "pressKey"; key: string }
+  | { id: string; type: "wait"; ms: number }
+  // timeoutMs defaults to 5000; the step fails if the element never shows.
+  | { id: string; type: "waitForSelector"; selector: string; timeoutMs?: number }
   | { id: string; type: "popup"; title?: string; body: string }
   | { id: string; type: "popupJson"; title?: string; body: string }
   | { id: string; type: "openUrlInNewTab"; url: string }
