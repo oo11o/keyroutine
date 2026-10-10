@@ -1,4 +1,5 @@
 import type { Stack, Step } from "../core/schema";
+import type { StackSection } from "../core/match";
 import { MAX_VARS, seedSecrets, type RunContext } from "../core/context";
 import { seedBuiltins } from "../page/builtins";
 import { navigateHere } from "../page/navigate";
@@ -33,9 +34,9 @@ export type Resume = Pick<ResumeRecord, "nextStep" | "vars" | "notes">;
 
 // The context is created here and dies with this function — no global
 // store, so a value cannot leak between runs or between stacks.
-// `allStacks` is only there for the $stacks builtin (the cheatsheet popup
-// lists them); it defaults to this stack alone so callers that don't care
-// can ignore it.
+// `sections` is only there for the $stacks builtin (the cheatsheet popup lists
+// them under their scope headings); it defaults to this stack alone so callers
+// that don't care can ignore it.
 // `resume` continues a stack that navigated away mid-run: its step-written
 // variables and notes are restored, while builtins and secrets are seeded
 // fresh — builtins because they describe the page, and this is a different
@@ -43,13 +44,13 @@ export type Resume = Pick<ResumeRecord, "nextStep" | "vars" | "notes">;
 // Returns one note per step that reported something, in run order.
 export async function runStack(
   stack: Stack,
-  allStacks: Stack[] = [stack],
+  sections: StackSection[] = [{ level: "common", label: "Everywhere", stacks: [stack] }],
   secrets: Record<string, string> = {},
   resume?: Resume
 ): Promise<string[]> {
   const ctx: RunContext = new Map();
   // Before step 1, so every step can read them.
-  seedBuiltins(ctx, allStacks, stack);
+  seedBuiltins(ctx, sections, stack);
   seedSecrets(ctx, secrets);
   const seeded = ctx.size; // builtins + secrets are not charged to the step budget
 

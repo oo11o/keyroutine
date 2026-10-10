@@ -1,5 +1,7 @@
 import type { Config, Stack } from "../core/schema";
 import { matches } from "../core/keys";
+import { loadConfig } from "../core/configStore";
+import { applicableSections, applicableStacks, type StackSection } from "../core/match";
 
 function isTypingTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -8,18 +10,13 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
 }
 
-// Exported for the resume path, which needs the same config but is not
-// driven by a keystroke (content/resumePending.ts).
-export async function loadConfig(): Promise<Config> {
-  const url = chrome.runtime.getURL("config/stacks.json");
-  const res = await fetch(url, { cache: "no-store" });
-  return res.json();
-}
-
-// A matched stack plus every stack in the config — the latter is only for
-// the $stacks builtin (the cheatsheet popup lists them), carried alongside
-// so the executor doesn't need a second fetch of its own.
-export type Route = { stack: Stack; allStacks: Stack[] };
+// A matched stack plus what applies on this page, grouped into its three tiers
+// (everywhere / this domain / these URLs). The sections are only for the $stacks
+// builtin — the cheatsheet popup shows them under those headings — and are
+// carried alongside so the executor needs no second read of its own. Scoped to
+// what applies here on purpose: a cheatsheet listing another site's chords is
+// worse than no cheatsheet.
+export type Route = { stack: Stack; sections: StackSection[] };
 
 // The config could not be read at all, so no chord can match and every
 // hotkey is dead. Returned as data rather than shown from here: resolving
@@ -31,9 +28,8 @@ export function isConfigError(r: Route | ConfigError | null): r is ConfigError {
 }
 
 // Only worth reporting a broken config when the keystroke plausibly was a
-// chord. Without this, every character typed on a page would raise a toast,
-// since stacks.json is re-read on every keydown. Shift is excluded on
-// purpose — Shift+letter is ordinary typing, not a hotkey.
+// chord. Without this, every character typed on a page would raise a toast.
+// Shift is excluded on purpose — Shift+letter is ordinary typing, not a hotkey.
 function looksLikeChord(e: KeyboardEvent): boolean {
   return e.ctrlKey || e.altKey || e.metaKey;
 }
@@ -46,20 +42,19 @@ export async function resolveStack(e: KeyboardEvent): Promise<Route | ConfigErro
 
   let config: Config;
   try {
+    // Reads chrome.storage.local, memoized in core/configStore.ts — a keydown
+    // no longer costs a fetch. Invalid content throws; missing content is an
+    // empty config, which simply matches nothing.
     config = await loadConfig();
   } catch (err) {
-    // A missing config is normal (nothing configured yet); a malformed one
-    // is a mistake worth showing. Both land here, so the message carries
-    // the distinction rather than the control flow.
+    // A stored config that cannot be parsed is a mistake worth showing. The
+    // message carries the detail rather than the control flow.
     return looksLikeChord(e) ? { configError: (err as Error).message } : null;
   }
 
-  // Parsed, but not the shape we expect — `config.stacks.find` below would
-  // throw inside a keydown listener, where nothing catches it.
-  if (!Array.isArray(config?.stacks)) {
-    return looksLikeChord(e) ? { configError: 'no "stacks" array in the config' } : null;
-  }
-
-  const stack = config.stacks.find((s) => s.enabled && matches(e, s.binding));
-  return stack ? { stack, allStacks: config.stacks } : null;
+  // applicableStacks() returns the narrowest scope first, which is what makes a
+  // URL-specific stack beat a domain one and a domain one beat a common one on
+  // the same chord — this lookup does not need to know that sites exist.
+  const stack = applicableStacks(config, location.href).find((s) => matches(e, s.binding));
+  return stack ? { stack, sections: applicableSections(config, location.href) } : null;
 }

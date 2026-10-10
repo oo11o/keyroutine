@@ -2,6 +2,11 @@ import { resolveStack, isConfigError } from "./stackResolver";
 import { executeStack } from "./stackExecutor";
 import { resumePending } from "./resumePending";
 import { showConfigErrorToast } from "../ui/toast";
+import { watchConfigChanges } from "../core/configStore";
+
+// The config is memoized after the first keydown; this is what makes a Save in
+// the builder take effect on the next keystroke instead of on the next reload.
+watchConfigChanges();
 
 document.addEventListener(
   "keydown",
@@ -19,7 +24,7 @@ document.addEventListener(
     e.preventDefault();
     e.stopPropagation();
 
-    await executeStack(result.stack, result.allStacks);
+    await executeStack(result.stack, result.sections);
   },
   true
 );

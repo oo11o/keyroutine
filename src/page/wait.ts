@@ -1,10 +1,10 @@
 // Waiting — for the clock, or for the DOM to catch up. Touches `document`,
 // so it lives in page/ alongside dom.ts and keyboard.ts.
 
-// Nothing in a hotkey macro should block the page for minutes: a typo like
-// 600000 would otherwise wedge the stack with no way out but a reload.
-export const MAX_WAIT_MS = 30_000;
-export const DEFAULT_TIMEOUT_MS = 5_000;
+// The caps live in core/limits.ts, where the builder form can read them
+// without importing a DOM-touching module. Re-exported here so handlers keep
+// importing their waiting policy from the same place as their waiting code.
+export { MAX_WAIT_MS, DEFAULT_TIMEOUT_MS } from "../core/limits";
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

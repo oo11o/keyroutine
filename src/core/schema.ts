@@ -26,15 +26,34 @@ export type Step =
   | { id: string; type: "openUrlInCurrentTab"; url: string }
   | { id: string; type: "fetchUrl"; url: string; saveAs?: string };
 
+// A named set of URL patterns. Stacks point at one of these to stop being
+// global — see core/match.ts for what a pattern may look like.
+export type Site = {
+  id: string;
+  name: string; // "test.dzo.com.ua", "prozorro" — the label shown in the builder
+  patterns: string[]; // ["https://test.dzo.com.ua/*", "*://*.prozorro.gov.ua/*"]
+};
+
 export type Stack = {
   id: string;
   name: string;
   binding: Binding;
   enabled: boolean;
   steps: Step[]; // array from day one, even though v0 runs exactly one
+  // Which site this stack belongs to; absent or null means "common" — it
+  // applies everywhere. One site, not a list: a site-scoped stack beats a
+  // common one on the same chord, and that precedence is only decidable
+  // while each stack has a single owner.
+  siteId?: string | null;
 };
 
-export type Config = { schemaVersion: 1; stacks: Stack[] };
+export const SCHEMA_VERSION = 2;
+
+export type Config = {
+  schemaVersion: typeof SCHEMA_VERSION;
+  stacks: Stack[];
+  sites: Site[];
+};
 
 export type ToastVerbosity = "none" | "min" | "max";
 
