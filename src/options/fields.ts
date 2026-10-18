@@ -1,12 +1,18 @@
 import { h } from "./el";
+import { icon } from "./icons";
 import type { FieldSpec } from "../core/stepMeta";
 import type { AvailableVar } from "../core/vars";
 import { referencedVars } from "../core/vars";
-import { varButton } from "./varPicker";
+import * as probe from "./probe";
 
-// One FieldSpec becomes one labelled control. Every step form in the builder is
-// this function in a loop — which is the point of core/stepMeta.ts: a new step
-// type gets a working editor without a line of UI written for it.
+// One FieldSpec becomes one labelled control. Every action form in the builder
+// is this function in a loop — which is the point of core/stepMeta.ts: a new
+// step type gets a working editor without a line of UI written for it.
+//
+// Three shapes, because three different things go wrong in them. A selector is
+// wrong when the page has no such element, so it gets Pick and Test. A template
+// is wrong when it names a variable nothing produces, so it gets the list of
+// variables that exist at that point. Everything else is just a value.
 
 const MULTILINE: FieldSpec["kind"][] = ["multiline"];
 const INTERPOLATED: FieldSpec["kind"][] = ["template", "url", "multiline"];
@@ -16,25 +22,20 @@ export type FieldContext = {
   value: unknown;
   onChange(value: string): void;
   // Only consulted for interpolated fields, and lazily — the list depends on
-  // where the step sits, which can change while the form is open.
+  // where the action sits, which can change while the form is open.
   vars(): AvailableVar[];
+  // Identifies this field's selector test (see options/probe.ts). Results are
+  // per field, not per action: an action can have two selectors.
+  testKey: string;
 };
 
 export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
   const field = h("div", { class: "field" });
   const id = `f-${spec.name}`;
-
-  field.append(
-    h(
-      "label",
-      { for: id },
-      spec.label,
-      spec.required ? h("span", { class: "req", text: " *" }) : null
-    )
-  );
+  field.append(h("label", { class: "label", for: id, text: spec.label }));
 
   const current = ctx.value === undefined || ctx.value === null ? "" : String(ctx.value);
-  const mono = MONO.includes(spec.kind) ? "mono" : "";
+  const mono = MONO.includes(spec.kind) ? "input mono" : "input";
   const input = MULTILINE.includes(spec.kind)
     ? h("textarea", { id, class: mono, value: current, placeholder: spec.placeholder ?? "", rows: 6 })
     : h("input", {
@@ -47,12 +48,18 @@ export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
         max: spec.max
       });
 
-  const problem = h("div", { class: "bad", hidden: true });
+  const problem = h("div", { class: "errtext", hidden: true });
 
+  // Two different wrongs share one red border: a value that breaks the field's
+  // own rules, and a $name nothing produces. The second is spelled out next to
+  // the chips that fix it rather than here, but the input still has to look it.
   const check = (): void => {
-    const message = validate(spec, input.value, ctx.vars());
+    const message = validate(spec, input.value);
     problem.textContent = message ?? "";
     problem.hidden = message === null;
+    const unknown =
+      INTERPOLATED.includes(spec.kind) && unknownIn(input.value, ctx.vars()).length > 0;
+    input.classList.toggle("is-err", message !== null || unknown);
   };
 
   input.addEventListener("input", () => {
@@ -60,20 +67,157 @@ export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
     check();
   });
 
-  const control = h("div", { class: "control" }, input);
-  if (INTERPOLATED.includes(spec.kind)) control.append(varButton(input, ctx.vars));
-  field.append(control);
+  if (spec.kind === "selector") {
+    // A test result is about one spelling of the selector; editing it makes the
+    // result a statement about the past.
+    input.addEventListener("input", () => probe.forgetTest(ctx.testKey));
+    field.append(selectorControls(input as HTMLInputElement, ctx));
+    field.append(problem);
+    const result = probe.testResult(ctx.testKey);
+    if (result) field.append(matchPill(result));
+    field.append(h("span", { class: "hint", text: spec.help ?? "" }));
+    check();
+    return field;
+  }
 
-  if (spec.help) field.append(h("div", { class: "help", text: spec.help }));
-  field.append(problem);
+  field.append(input, problem);
+
+  if (INTERPOLATED.includes(spec.kind)) field.append(variableRow(input, ctx));
+
+  if (spec.help) field.append(h("span", { class: "hint", text: spec.help }));
   check();
   return field;
 }
 
+/* ── selectors ─────────────────────────────────────────────────────────── */
+
+function selectorControls(input: HTMLInputElement, ctx: FieldContext): HTMLElement {
+  // Picking means the user is on the other tab, so the label says so until they
+  // come back. Testing is a round trip measured in milliseconds and needs no
+  // such ceremony — but neither should start while the other is in flight.
+  const picking = probe.isBusy(`pick:${ctx.testKey}`);
+  const testing = probe.isBusy(`test:${ctx.testKey}`);
+  return h(
+    "div",
+    { class: "fieldrow" },
+    input,
+    h(
+      "button",
+      {
+        type: "button",
+        class: "btn",
+        disabled: picking || testing,
+        onClick: () =>
+          void probe.pickSelector(ctx.testKey, (selector) => ctx.onChange(selector))
+      },
+      icon("crosshair", 16),
+      picking ? "Waiting for your click…" : "Pick"
+    ),
+    h("button", {
+      type: "button",
+      class: "btn",
+      text: testing ? "Testing…" : "Test",
+      disabled: picking || testing,
+      onClick: () => void probe.testSelector(ctx.testKey, input.value)
+    })
+  );
+}
+
+// How many elements the selector hit, on the page the user is actually working
+// on. One is the answer they want; the other two are the two ways a selector is
+// wrong, and they are worth different words.
+function matchPill(result: probe.TestResult): HTMLElement {
+  if ("error" in result) {
+    return h("span", { class: "res res-err" }, icon("close", 14), result.error);
+  }
+  if (result.count === 1) {
+    return h("span", { class: "res res-ok" }, icon("check", 14), "1 match on this page");
+  }
+  if (result.count === 0) {
+    return h("span", { class: "res res-err" }, icon("close", 14), "Nothing on this page matches");
+  }
+  return h(
+    "span",
+    { class: "res res-warn" },
+    icon("warn", 14),
+    `${result.count} matches — make the selector more specific`
+  );
+}
+
+/* ── variables ─────────────────────────────────────────────────────────── */
+
+function unknownIn(value: string, vars: AvailableVar[]): string[] {
+  const known = new Set(vars.map((v) => v.name));
+  return referencedVars(value).filter((name) => !known.has(name));
+}
+
+// The variables that exist by the time this action runs, as chips that insert
+// themselves. It replaces remembering that the fetch two actions up was called
+// "response" — which is exactly the kind of thing a builder should know on the
+// user's behalf.
+function variableRow(
+  input: HTMLInputElement | HTMLTextAreaElement,
+  ctx: FieldContext
+): HTMLElement {
+  const available = ctx.vars();
+  const unknown = unknownIn(input.value, available);
+  const wrap = h("div", { class: "field" });
+
+  if (unknown.length > 0) {
+    wrap.append(
+      h("span", {
+        class: "errtext",
+        text: `$${unknown[0]} isn't set by any action above. Pick one of the variables below.`
+      })
+    );
+  }
+
+  const row = h("div", { class: "varrow" }, h("span", { class: "hint", text: "Available here:" }));
+  if (available.length === 0) {
+    row.append(
+      h("span", {
+        class: "hint",
+        text: "nothing yet — actions above that return a result add variables here."
+      })
+    );
+  }
+  for (const v of available) {
+    row.append(
+      h("button", {
+        type: "button",
+        class: "varchip mono",
+        text: `$${v.name}`,
+        title: v.note,
+        "aria-label": `Insert $${v.name}`,
+        onClick: () => insertAtCaret(input, `$${v.name}`)
+      })
+    );
+  }
+  wrap.append(row);
+  return wrap;
+}
+
+// Inserts at the caret rather than appending: a URL is usually edited in the
+// middle, and the value belongs where the cursor is.
+function insertAtCaret(input: HTMLInputElement | HTMLTextAreaElement, text: string): void {
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? start;
+  input.value = input.value.slice(0, start) + text + input.value.slice(end);
+  const caret = start + text.length;
+  input.setSelectionRange(caret, caret);
+  input.focus();
+  // The field's own listener is what writes to the draft, so the edit has to
+  // look like typing.
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+/* ── per-field rules ───────────────────────────────────────────────────── */
+
 // Per-field feedback as you type. The authority is still core/configStore.ts's
 // parseConfig at save time — this is the same rules, said earlier and next to
-// the thing that is wrong.
-function validate(spec: FieldSpec, value: string, vars: AvailableVar[]): string | null {
+// the thing that is wrong. Unknown $vars are deliberately not here: they are
+// reported next to the chips that fix them.
+function validate(spec: FieldSpec, value: string): string | null {
   const trimmed = value.trim();
   if (trimmed === "") return spec.required ? `${spec.label} is required` : null;
 
@@ -88,14 +232,6 @@ function validate(spec: FieldSpec, value: string, vars: AvailableVar[]): string 
   if (spec.kind === "varName" && !/^\w+$/.test(trimmed)) {
     // $my-var would resolve as $my — core/context.ts's regex is \w+.
     return "letters, digits and _ only, so it can be used as $name";
-  }
-
-  if (INTERPOLATED.includes(spec.kind)) {
-    const known = new Set(vars.map((v) => v.name));
-    const unknown = referencedVars(value).filter((name) => !known.has(name));
-    if (unknown.length > 0) {
-      return `${unknown.map((n) => `$${n}`).join(", ")} — no such value here`;
-    }
   }
 
   if (spec.kind === "url") {

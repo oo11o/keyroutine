@@ -115,11 +115,25 @@ describe("adding things", () => {
     expect(store.addStack("Log out").id).toBe("log-out-3");
   });
 
-  it("numbers steps from the first free id, not from the count", async () => {
+  it("names a producing step after what it holds, and keeps it unique", async () => {
     await open();
     store.selectStack("copy-id");
 
-    store.addStep("fetchUrl"); // s1 is taken
+    // The id is the name a later action reads the result by ($response), so it
+    // comes from the type rather than from a counter.
+    store.addStep("fetchUrl");
+    expect(store.currentStep()?.id).toBe("response");
+    store.addStep("fetchUrl");
+    expect(store.currentStep()?.id).toBe("response2");
+    store.addStep("readBySelector");
+    expect(store.currentStep()?.id).toBe("text");
+  });
+
+  it("numbers steps that hold nothing from the first free id, not from the count", async () => {
+    await open();
+    store.selectStack("copy-id");
+
+    store.addStep("popup"); // s1 is taken by the seed's copy step
     expect(store.currentStep()?.id).toBe("s2");
 
     store.deleteStep("s1");
@@ -187,15 +201,15 @@ describe("editing steps", () => {
     expect(store.currentStep()?.id).toBe("s1");
   });
 
-  it("names the later steps a step-id rename would break", async () => {
+  it("names the later steps a variable rename would break", async () => {
     await open();
     store.selectStack("copy-id");
     store.addStep("fetchUrl");
-    store.patchStep("s2", { url: "https://api.test/t/$s1" });
+    store.patchStep("response", { url: "https://api.test/t/$s1" });
 
     const breaks = store.renamesBreak(store.currentStack()!, "s1");
 
-    expect(breaks).toMatchObject([{ stepId: "s2" }]);
+    expect(breaks).toMatchObject([{ stepId: "response" }]);
     expect(breaks[0].message).toContain("$s1");
   });
 
@@ -312,7 +326,7 @@ describe("saving", () => {
     await open();
     store.selectStack("copy-id");
     store.addStep("fetchUrl");
-    store.patchStep("s2", { url: "https://api.test/t/$tender" });
+    store.patchStep("response", { url: "https://api.test/t/$tender" });
 
     const result = await store.save();
 
@@ -320,7 +334,7 @@ describe("saving", () => {
     if (result.ok) return;
     expect(result.problems[0].message).toContain("$tender");
     expect(result.problems[0].message).toContain("url");
-    expect(result.problems[0].stepId).toBe("s2");
+    expect(result.problems[0].stepId).toBe("response");
   });
 
   it("accepts the same $var once the step it comes from exists", async () => {
@@ -328,7 +342,7 @@ describe("saving", () => {
     store.selectStack("copy-id");
     store.patchStep("s1", { saveAs: "tender" });
     store.addStep("fetchUrl");
-    store.patchStep("s2", { url: "https://api.test/t/$tender" });
+    store.patchStep("response", { url: "https://api.test/t/$tender" });
 
     await expect(store.save()).resolves.toEqual({ ok: true });
   });
@@ -337,10 +351,10 @@ describe("saving", () => {
     await open(null, ["runToken"]);
     store.selectStack("copy-id");
     store.addStep("fetchUrl");
-    store.patchStep("s2", { url: "https://api.test/?run=$secret_runToken" });
+    store.patchStep("response", { url: "https://api.test/?run=$secret_runToken" });
     await expect(store.save()).resolves.toEqual({ ok: true });
 
-    store.patchStep("s2", { url: "https://api.test/?run=$secret_nope" });
+    store.patchStep("response", { url: "https://api.test/?run=$secret_nope" });
     await expect(store.save()).resolves.toMatchObject({ ok: false });
   });
 });

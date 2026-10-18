@@ -9,10 +9,10 @@ const rows = h("div", { id: "secret-rows" });
 const status = h("span", { class: "status" });
 
 function addRow(name = "", value = ""): void {
-  const nameEl = h("input", { class: "name mono", type: "text", placeholder: "runToken", value: name });
-  const valueEl = h("input", { class: "value mono", type: "text", placeholder: "value", value });
+  const nameEl = h("input", { class: "name input mono", type: "text", placeholder: "runToken", value: name });
+  const valueEl = h("input", { class: "value input mono", type: "text", placeholder: "value", value });
   const row = h("div", { class: "secret-row" }, nameEl, valueEl);
-  row.append(iconButton("✕", "Remove", () => row.remove()));
+  row.append(iconButton("close", "Remove", () => row.remove()));
   rows.append(row);
 }
 
@@ -81,8 +81,8 @@ export async function renderSecrets(pane: HTMLElement, onSaved: (names: string[]
     h(
       "div",
       { class: "actions" },
-      h("button", { type: "button", text: "Add secret", onClick: () => addRow() }),
-      h("button", { type: "button", class: "primary", text: "Save", onClick: () => void save(onSaved) }),
+      h("button", { type: "button", class: "btn", text: "Add secret", onClick: () => addRow() }),
+      h("button", { type: "button", class: "btn btn-primary", text: "Save", onClick: () => void save(onSaved) }),
       status
     )
   );

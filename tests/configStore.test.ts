@@ -90,7 +90,7 @@ describe("parseConfig — errors as data", () => {
 
   it("names a required field that is missing or blank", () => {
     const raw = { stacks: [{ ...V1.stacks[0], steps: [{ id: "s1", type: "copyBySelector" }] }] };
-    expect(errorsOf(raw)).toContain('stack "copy-id" step #1: copyBySelector needs "Selector"');
+    expect(errorsOf(raw)).toContain('stack "copy-id" step #1: copyBySelector needs "Element"');
 
     const blank = { stacks: [{ ...V1.stacks[0], steps: [{ id: "s1", type: "fetchUrl", url: "" }] }] };
     expect(errorsOf(blank)).toContain('stack "copy-id" step #1: fetchUrl needs "URL"');
@@ -107,7 +107,7 @@ describe("parseConfig — errors as data", () => {
       stacks: [{ ...V1.stacks[0], steps: [{ id: "s1", type: "readBySelector", selector: "#x", saveAs: "my-var" }] }]
     };
     expect(errorsOf(raw)).toContain(
-      'stack "copy-id" step #1: "Save as" may only use letters, digits and _'
+      'stack "copy-id" step #1: "Also available as" may only use letters, digits and _'
     );
   });
 

@@ -1,5 +1,6 @@
 import { clear, h } from "./el";
 import * as store from "./store";
+import * as probe from "./probe";
 import { renderSites } from "./sitesPane";
 import { renderStacks } from "./stacksPane";
 import { renderSteps } from "./stepsPane";
@@ -15,8 +16,18 @@ const tabs = document.getElementById("tabs") as HTMLElement;
 const topActions = document.getElementById("topbar-actions") as HTMLElement;
 
 const status = h("span", { class: "status" });
-const dirtyDot = h("span", { class: "dirty", text: "● unsaved", hidden: true });
-const saveButton = h("button", { type: "button", class: "primary", text: "Save", disabled: true });
+const dirtyDot = h(
+  "span",
+  { class: "dirty", hidden: true },
+  h("span", { class: "dot" }),
+  "Unsaved changes"
+);
+const saveButton = h("button", {
+  type: "button",
+  class: "btn btn-primary",
+  text: "Save",
+  disabled: true
+});
 const problems = h("div", { class: "problems", hidden: true });
 
 type Tab = "builder" | "secrets";
@@ -102,7 +113,14 @@ async function save(): Promise<void> {
   const result = await store.save();
   if (result.ok) {
     problems.hidden = true;
-    setStatus("Saved — your hotkeys are live");
+    // A shared hotkey is not an error — one of the two simply never fires —
+    // but saving is the moment it starts mattering.
+    const clashes = store.chordConflicts().length;
+    setStatus(
+      clashes === 0
+        ? "Saved — your hotkeys are live"
+        : `Saved — but ${clashes} stack${clashes === 1 ? "" : "s"} share a hotkey with another`
+    );
     return;
   }
   problems.replaceChildren(
@@ -118,10 +136,30 @@ saveButton.addEventListener("click", () => void save());
 topActions.append(
   status,
   dirtyDot,
-  h("button", { type: "button", text: "Export…", onClick: () => openExport() }),
-  h("button", { type: "button", text: "Import…", onClick: () => openImport(() => setStatus("Loaded into the draft — Save to apply")) }),
+  h("button", {
+    type: "button",
+    class: "btn",
+    text: "Import",
+    onClick: () =>
+      openImport(() => {
+        // The old match counts and run report describe a config that is gone.
+        probe.forgetAll();
+        setStatus("Loaded into the draft — Save to apply");
+      })
+  }),
+  h("button", { type: "button", class: "btn", text: "Export", onClick: () => openExport() }),
   saveButton
 );
+
+// ⌘S / Ctrl+S, because this page is an editor and that is what an editor does
+// with that chord. Only when there is something to save, so the browser's own
+// "save page" still works on a clean draft.
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "s" || !(e.metaKey || e.ctrlKey)) return;
+  if (!store.isDirty()) return;
+  e.preventDefault();
+  void save();
+});
 
 /* ── boot ──────────────────────────────────────────────────────────────── */
 
@@ -143,6 +181,9 @@ async function boot(): Promise<void> {
   renderTabs();
   builder.before(problems);
   store.subscribe(render);
+  // A match count or a run report changes what the columns show without
+  // changing the draft, so it needs its own way to ask for a redraw.
+  probe.subscribe(render);
   const [url, secretNames] = await Promise.all([currentPageUrl(), loadSecretNames()]);
   await store.init(url, secretNames);
 }

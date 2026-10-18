@@ -1,25 +1,39 @@
-import { h, iconButton, row } from "./el";
+import { columnHead, h, iconButton } from "./el";
+import { icon } from "./icons";
 import type { Step } from "../core/schema";
-import { STEP_GROUPS, STEP_META, STEP_TYPES } from "../core/stepMeta";
-import { availableVars } from "../core/vars";
+import type { ActionResult } from "../core/builderProtocol";
+import { STEP_GROUPS, STEP_META, STEP_TYPES, formFields, templateFields } from "../core/stepMeta";
+import { availableVars, referencedVars } from "../core/vars";
 import * as store from "./store";
+import * as probe from "./probe";
 import { renderField } from "./fields";
+import { keyCaps } from "./chordInput";
 
-// Group 3. The steps of the open stack, in run order, and the form for the one
-// being edited. Nothing here knows what a step type is — the list of types comes
+// Column 3 — what. The actions of the open stack as a pipeline: the hotkey that
+// starts it, one card per action in run order, and the point where another one
+// is added. Nothing here knows what an action type is — the list of types comes
 // from STEP_META and each form is its `fields` run through renderField, so a new
-// step type appears here the moment it is registered.
+// type appears here the moment it is registered.
+//
+// "Actions" is the UI's word for steps. The stored config still says steps; see
+// core/stepMeta.ts.
 
 export function renderSteps(pane: HTMLElement): void {
   const stack = store.currentStack();
+  pane.className = "c-act";
 
   pane.append(
-    h(
-      "h2",
-      { class: "group-head" },
-      "Steps",
-      stack ? h("span", { class: "sub", text: stack.name }) : null
-    )
+    columnHead({
+      id: "h-actions",
+      tone: "act",
+      glyph: "play",
+      eyebrow: "3 · What",
+      title: "Actions",
+      count: stack?.steps.length ?? 0,
+      sub: stack
+        ? ["In ", h("strong", { text: stack.name }), " · run top to bottom"]
+        : ["Pick a stack on the left"]
+    })
   );
 
   if (!stack) {
@@ -27,117 +41,245 @@ export function renderSteps(pane: HTMLElement): void {
     return;
   }
 
-  if (stack.steps.length === 0) {
-    pane.append(h("div", { class: "empty", text: "No steps yet — a stack with no steps does nothing." }));
-  }
+  const results = probe.runReport(stack.id);
+  pane.append(runBar(stack.id, results));
+
+  const pipeline = h("div", { class: "pipeline" });
+  pipeline.append(triggerRow());
 
   const current = store.currentStep();
-  const rows = h("div", { class: "rows" });
-
   stack.steps.forEach((step, index) => {
-    const meta = STEP_META[step.type];
-    rows.append(
-      row(
-        {
-          class: `step-row ${current?.id === step.id ? "selected" : ""}`.trim(),
-          onClick: () => store.selectStep(step.id)
-        },
-        h("span", { class: "idx", text: String(index + 1) }),
-        h(
-          "span",
-          { class: "body" },
-          h("div", { class: "label", text: meta.label }),
-          h("div", { class: "summary", text: meta.summary(step) }),
-          // What this step makes available to the ones after it — the link
-          // between "copy some id" and the $s1 in the next step's URL.
-          meta.produces ? h("div", { class: "exposes", text: exposes(step) }) : null
-        ),
-        h(
-          "span",
-          { class: "step-tools" },
-          iconButton("↑", "Move up", () => store.moveStep(step.id, -1)),
-          iconButton("↓", "Move down", () => store.moveStep(step.id, 1)),
-          iconButton("⧉", "Duplicate", () => store.duplicateStep(step.id)),
-          iconButton("✕", "Delete", () => store.deleteStep(step.id))
-        )
-      )
-    );
-  });
-  pane.append(rows);
-
-  pane.append(addStepMenu(pane));
-  if (current) pane.append(stepForm(current));
-}
-
-function exposes(step: Step): string {
-  const saveAs = (step as { saveAs?: string }).saveAs;
-  return `→ $${step.id}${saveAs ? `, $${saveAs}` : ""}, $value`;
-}
-
-// A disclosure rather than a <select>: the types are grouped and each carries a
-// line of help, which is what makes the list browsable by someone who does not
-// already know the vocabulary.
-function addStepMenu(pane: HTMLElement): HTMLElement {
-  const wrap = h("div", { class: "add" });
-  const toggle = h("button", { type: "button", text: "+ Add step ▾" });
-  let menu: HTMLElement | null = null;
-
-  toggle.addEventListener("click", () => {
-    if (menu) {
-      menu.remove();
-      menu = null;
-      return;
-    }
-    menu = h("div", { class: "type-menu" });
-    for (const { group, label } of STEP_GROUPS) {
-      const types = STEP_TYPES.filter((t) => STEP_META[t].group === group);
-      if (types.length === 0) continue;
-      menu.append(h("div", { class: "cat", text: label }));
-      for (const type of types) {
-        menu.append(
-          h(
-            "button",
-            { type: "button", onClick: () => store.addStep(type) },
-            h("div", { text: STEP_META[type].label }),
-            h("div", { class: "note", text: STEP_META[type].help })
-          )
-        );
-      }
-    }
-    wrap.append(menu);
+    pipeline.append(actionRow(step, index, stack.steps.length, results?.[index], current?.id === step.id));
   });
 
-  wrap.append(toggle);
-  return wrap;
+  pipeline.append(addRow());
+  pane.append(pipeline);
 }
 
-function stepForm(step: Step): HTMLElement {
+/* ── the run bar ───────────────────────────────────────────────────────── */
+
+// Running the stack on the page the user was last on. The hotkey is the real
+// test, but pressing it means leaving the builder, remembering what to look at,
+// and coming back — so the stack can also be run from here, once, on demand.
+function runBar(stackId: string, results: ActionResult[] | null): HTMLElement {
   const stack = store.currentStack()!;
-  const meta = STEP_META[step.type];
-  const index = stack.steps.findIndex((s) => s.id === step.id);
-  // Lazily, and per call: what a step may read depends on where it sits, and it
-  // can be moved while its form is open.
-  const vars = () => availableVars(stack, index, store.getSecretNames());
-
-  const form = h(
+  const running = probe.isBusy(`run:${stackId}`);
+  const bar = h(
     "div",
-    { class: "editor" },
-    h("h3", { text: meta.label }),
-    h("div", { class: "help", text: meta.help })
+    { class: "runbar" },
+    h(
+      "button",
+      {
+        type: "button",
+        class: "btn btn-run",
+        disabled: running || stack.steps.length === 0,
+        onClick: () => void probe.runOnCurrentTab(store.currentStack()!)
+      },
+      icon("play", 16),
+      running ? "Running…" : "Run on current tab"
+    )
   );
 
-  const plain = meta.fields.filter((f) => !f.advanced);
-  const advanced = meta.fields.filter((f) => f.advanced);
-
-  for (const spec of plain) {
-    form.append(
-      renderField(spec, {
-        value: (step as unknown as Record<string, unknown>)[spec.name],
-        onChange: (value) => store.patchStep(step.id, { [spec.name]: coerce(spec.kind, value) }),
-        vars
+  const trouble = probe.lastTrouble();
+  if (trouble) {
+    bar.append(h("span", { class: "runsum runsum-err", text: trouble }));
+  } else if (results) {
+    bar.append(runSummary(results));
+  } else {
+    bar.append(
+      h("span", {
+        class: "hint",
+        text: "Runs these actions once, right now, so you can check them without the hotkey."
       })
     );
   }
+  return bar;
+}
+
+function runSummary(results: ActionResult[]): HTMLElement {
+  const failed = results.findIndex((r) => r.outcome === "fail");
+  const total = results.length;
+  if (failed < 0) {
+    return h("span", {
+      class: "runsum runsum-ok",
+      text: `✓ Ran just now — all ${total} action${total === 1 ? "" : "s"} finished`
+    });
+  }
+  return h("span", {
+    class: "runsum runsum-err",
+    text: `✕ Ran just now — stopped at action ${failed + 1} of ${total}: ${results[failed].note}`
+  });
+}
+
+/* ── the pipeline ──────────────────────────────────────────────────────── */
+
+function rail(...children: (Node | string | null)[]): HTMLElement {
+  return h("div", { class: "rail" }, ...(children.filter(Boolean) as Node[]));
+}
+
+// What starts the stack, said in one line. It is the only place the hotkey and
+// the site appear together, which is also the only way to see that a stack is
+// bound to a chord on a site where it can never fire.
+function triggerRow(): HTMLElement {
+  const stack = store.currentStack()!;
+  const where = stack.siteId == null ? "any site" : store.siteName(stack.siteId);
+
+  const body = h(
+    "div",
+    { class: "prow-body trigger-body" },
+    h(
+      "div",
+      { class: "triggerline" },
+      h("span", { class: "soft", text: "When you press" }),
+      keyCaps(stack.binding),
+      h("span", { class: "soft", text: "on" }),
+      h("span", { class: "where", text: where })
+    )
+  );
+  if (!stack.enabled) {
+    body.append(
+      h("div", { class: "warn", text: "This stack is off — the hotkey does nothing right now." })
+    );
+  }
+
+  return h(
+    "div",
+    { class: "prow" },
+    rail(h("span", { class: "node node-trigger" }, icon("bolt")), h("span", { class: "line" })),
+    body
+  );
+}
+
+const OUTCOME_ICON = { ok: "check", fail: "close", skip: "minus" } as const;
+
+function actionRow(
+  step: Step,
+  index: number,
+  total: number,
+  result: ActionResult | undefined,
+  open: boolean
+): HTMLElement {
+  const node = h("span", { class: `node ${result ? `node-${result.outcome}` : ""}`.trim() });
+  if (result) node.append(icon(OUTCOME_ICON[result.outcome]));
+  else node.textContent = String(index + 1);
+
+  return h(
+    "div",
+    { class: "prow" },
+    rail(
+      h("span", { class: "seg", style: "height:14px" }),
+      node,
+      h("span", { class: "line" })
+    ),
+    h("div", { class: "prow-body" }, actionCard(step, index, total, result, open))
+  );
+}
+
+function actionCard(
+  step: Step,
+  index: number,
+  total: number,
+  result: ActionResult | undefined,
+  open: boolean
+): HTMLElement {
+  const stack = store.currentStack()!;
+  const meta = STEP_META[step.type];
+  const card = h("div", { class: `card step ${open ? "is-open" : ""}`.trim() });
+
+  const text = h(
+    "span",
+    { class: "steptext" },
+    h("span", { class: "steptitle", text: meta.label }),
+    h("span", { class: "stepsum", text: meta.summary(step) })
+  );
+  if (result) {
+    text.append(h("span", { class: `runnote run-${result.outcome}`, text: result.note }));
+  }
+
+  const head = h(
+    "button",
+    {
+      type: "button",
+      class: "stephead",
+      "aria-expanded": open ? "true" : "false",
+      onClick: () => store.toggleStep(step.id)
+    },
+    h("span", { class: "typeicon" }, icon(meta.icon)),
+    text
+  );
+
+  const missing = missingVars(step, index);
+  if (missing) head.append(h("span", { class: "errchip mono", text: `$${missing} undefined` }));
+  if (meta.produces) head.append(h("span", { class: "outchip mono", text: `→ $${step.id}` }));
+
+  card.append(
+    h(
+      "div",
+      { class: "stephead-row" },
+      head,
+      h(
+        "div",
+        { class: "steptools" },
+        iconButton("up", "Move up", () => move(step.id, -1), { disabled: index === 0 }),
+        iconButton("down", "Move down", () => move(step.id, 1), { disabled: index === total - 1 }),
+        iconButton("copy", "Duplicate action", () => {
+          store.duplicateStep(step.id);
+          probe.forgetRun();
+        }),
+        iconButton("trash", "Delete action", () => {
+          store.deleteStep(step.id);
+          probe.forgetRun();
+        })
+      )
+    )
+  );
+
+  if (open) card.append(actionBody(step, index));
+  return card;
+}
+
+function move(id: string, delta: number): void {
+  store.moveStep(id, delta);
+  // The results were about this order of actions, and they are numbered.
+  probe.forgetRun();
+}
+
+// The first $name this action references that will not exist by the time it
+// runs — the chip on the header, which is how an unknown variable is visible
+// without opening every card.
+function missingVars(step: Step, index: number): string | null {
+  const stack = store.currentStack()!;
+  const known = new Set(availableVars(stack, index, store.getSecretNames()).map((v) => v.name));
+  for (const spec of templateFields(step.type)) {
+    const value = (step as unknown as Record<string, unknown>)[spec.name];
+    if (typeof value !== "string") continue;
+    const unknown = referencedVars(value).find((name) => !known.has(name));
+    if (unknown) return unknown;
+  }
+  return null;
+}
+
+function actionBody(step: Step, index: number): HTMLElement {
+  const stack = store.currentStack()!;
+  const meta = STEP_META[step.type];
+  // Lazily, and per call: what an action may read depends on where it sits, and
+  // it can be moved while its form is open.
+  const vars = () => availableVars(stack, index, store.getSecretNames());
+
+  const body = h("div", { class: "cardbody" }, h("p", { class: "stepdesc", text: meta.help }));
+
+  const fields = formFields(step.type);
+  const plain = fields.filter((f) => !f.advanced);
+  const advanced = fields.filter((f) => f.advanced);
+
+  const context = (spec: { name: string; kind: string }) => ({
+    value: (step as unknown as Record<string, unknown>)[spec.name],
+    onChange: (value: string) => store.patchStep(step.id, { [spec.name]: coerce(spec.kind, value) }),
+    vars,
+    testKey: probe.testKey(stack.id, step.id, spec.name)
+  });
+
+  for (const spec of plain) body.append(renderField(spec, context(spec)));
 
   if (advanced.length > 0) {
     const details = h("details", { class: "advanced" }, h("summary", { text: "Advanced" }));
@@ -146,51 +288,85 @@ function stepForm(step: Step): HTMLElement {
     for (const spec of advanced) {
       const value = (step as unknown as Record<string, unknown>)[spec.name];
       if (value !== undefined && value !== "" && value !== spec.default) anySet = true;
-      details.append(
-        renderField(spec, {
-          value,
-          onChange: (v) => store.patchStep(step.id, { [spec.name]: coerce(spec.kind, v) }),
-          vars
-        })
-      );
+      details.append(renderField(spec, context(spec)));
     }
     if (anySet) details.open = true;
-    form.append(details);
+    body.append(details);
   }
 
-  form.append(stepIdField(step));
-  return form;
+  body.append(resultBox(step));
+  return body;
 }
 
-// The step's own id, editable but deliberately last: it is a variable name as
-// well as a label ($<id>), so renaming it can break a later template. The
-// rename is applied on blur, not per keystroke, or every intermediate spelling
-// would count as a rename.
-function stepIdField(step: Step): HTMLElement {
+/* ── the Result box ────────────────────────────────────────────────────── */
+
+// What the action leaves behind. For a producer that is a variable, and naming
+// it is the single most useful thing the builder can ask for: $contractId reads
+// where $s2 has to be remembered. For everything else there is no variable at
+// all, and saying so is what stops people looking for one.
+function resultBox(step: Step): HTMLElement {
+  const meta = STEP_META[step.type];
+  const box = h(
+    "div",
+    { class: "outbox" },
+    h("div", { class: "outbox-head", text: "Result" })
+  );
+
+  if (!meta.produces) {
+    box.append(h("div", { class: "outnote", text: meta.outNote }));
+    return box;
+  }
+
+  box.append(
+    h(
+      "div",
+      { class: "outline" },
+      h("span", { text: "Later actions can use it as" }),
+      h("span", { class: "outchip mono", text: `$${step.id}` })
+    ),
+    varNameField(step),
+    h("div", { class: "hint", text: meta.outNote })
+  );
+
+  const saveAs = (step as { saveAs?: string }).saveAs;
+  if (saveAs) {
+    box.append(
+      h(
+        "div",
+        { class: "outline" },
+        h("span", { class: "hint", text: "Also available as" }),
+        h("span", { class: "outchip mono", text: `$${saveAs}` })
+      )
+    );
+  }
+  return box;
+}
+
+// The variable's name is the action's id — $<id> is how the runner binds it —
+// so renaming it can break a later template. The rename is applied on blur, not
+// per keystroke, or every intermediate spelling would count as a rename.
+function varNameField(step: Step): HTMLElement {
   const stack = store.currentStack()!;
-  const input = h("input", { id: "step-id", class: "mono", type: "text", value: step.id });
-  const problem = h("div", { class: "bad", hidden: true });
+  const input = h("input", { id: "step-var", class: "input mono", type: "text", value: step.id });
+  const problem = h("div", { class: "errtext", hidden: true });
+
+  const refuse = (message: string): void => {
+    problem.textContent = message;
+    problem.hidden = false;
+    input.value = step.id;
+  };
 
   const commit = (): void => {
     const next = input.value.trim();
     if (next === step.id) return;
-    if (!/^\w+$/.test(next)) {
-      problem.textContent = "letters, digits and _ only — it is used as $name";
-      problem.hidden = false;
-      input.value = step.id;
-      return;
-    }
-    if (stack.steps.some((s) => s.id === next)) {
-      problem.textContent = `step "${next}" already exists`;
-      problem.hidden = false;
-      input.value = step.id;
-      return;
-    }
+    if (!/^\w+$/.test(next)) return refuse("letters, digits and _ only — it is used as $name");
+    if (stack.steps.some((s) => s.id === next)) return refuse(`"${next}" is already taken in this stack`);
+
     const breaks = store.renamesBreak(stack, step.id);
     if (breaks.length > 0) {
       const ok = confirm(
         `${breaks.map((b) => b.message).join("\n")}\n\n` +
-          `Renaming this step will not update those. Rename anyway?`
+          `Renaming this variable will not update those. Rename anyway?`
       );
       if (!ok) {
         input.value = step.id;
@@ -206,12 +382,75 @@ function stepIdField(step: Step): HTMLElement {
   });
 
   return h(
-    "div",
+    "label",
     { class: "field" },
-    h("label", { for: "step-id", text: "Step id" }),
+    h("span", { class: "label", text: "Variable name" }),
     input,
-    h("div", { class: "help", text: `Later steps can read this step's result as $${step.id}.` }),
+    h("span", { class: "hint", text: "Name it after what it holds, so later actions read clearly." }),
     problem
+  );
+}
+
+/* ── adding an action ──────────────────────────────────────────────────── */
+
+function addRow(): HTMLElement {
+  const wrap = h("div", { class: "prow-body" });
+  const toggle = h(
+    "button",
+    { type: "button", class: "btn btn-dashed", style: "justify-content:space-between;padding:0 16px" },
+    "Add action",
+    icon("chevronDown")
+  );
+  let menu: HTMLElement | null = null;
+
+  // A disclosure rather than a <select>: the types are grouped and each carries
+  // a line of help, which is what makes the list browsable by someone who does
+  // not already know the vocabulary.
+  toggle.addEventListener("click", () => {
+    if (menu) {
+      menu.remove();
+      menu = null;
+      toggle.setAttribute("aria-expanded", "false");
+      return;
+    }
+    menu = h("div", { class: "type-menu" });
+    for (const { group, label } of STEP_GROUPS) {
+      const types = STEP_TYPES.filter((t) => STEP_META[t].group === group);
+      if (types.length === 0) continue;
+      menu.append(h("div", { class: "cat", text: label }));
+      for (const type of types) {
+        const meta = STEP_META[type];
+        menu.append(
+          h(
+            "button",
+            {
+              type: "button",
+              onClick: () => {
+                store.addStep(type);
+                probe.forgetRun();
+              }
+            },
+            h("span", { class: "typeicon" }, icon(meta.icon)),
+            h(
+              "span",
+              {},
+              h("div", { class: "name", text: meta.label }),
+              h("div", { class: "note", text: meta.help })
+            )
+          )
+        );
+      }
+    }
+    toggle.setAttribute("aria-expanded", "true");
+    wrap.append(menu);
+  });
+
+  wrap.append(toggle);
+  return h(
+    "div",
+    { class: "prow" },
+    rail(h("span", { class: "seg", style: "height:6px" }), h("span", { class: "node node-add" }, icon("plus"))),
+    wrap
   );
 }
 

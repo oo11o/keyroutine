@@ -6,6 +6,7 @@ import {
   STEP_TYPES,
   blankStep,
   isStepType,
+  formFields,
   templateFields
 } from "../src/core/stepMeta";
 import { handlers } from "../src/steps";
@@ -46,6 +47,26 @@ describe("STEP_META", () => {
     }
   });
 
+  it("gives every step an icon and a line about what it leaves behind", () => {
+    for (const type of STEP_TYPES) {
+      const meta = STEP_META[type];
+      expect(meta.icon, type).toBeTruthy();
+      expect(meta.outNote, type).toBeTruthy();
+      // The variable name a producer's result arrives under, which is also the
+      // step's default id. A step that produces nothing must not suggest one.
+      expect(Boolean(meta.varName), type).toBe(meta.produces);
+      if (meta.varName) expect(meta.varName, type).toMatch(/^\w+$/);
+    }
+  });
+
+  it("keeps the result's own name out of the form fields", () => {
+    // saveAs names the result rather than configuring the step, so the builder
+    // edits it in the Result box. It stays in `fields` — an imported config may
+    // carry one, and parseConfig reads this list.
+    expect(formFields("fetchUrl").map((f) => f.name)).toEqual(["url"]);
+    expect(STEP_META.fetchUrl.fields.map((f) => f.name)).toEqual(["url", "saveAs"]);
+  });
+
   it("never marks a required field as advanced — nothing mandatory may hide", () => {
     for (const type of STEP_TYPES) {
       for (const f of STEP_META[type].fields) {
@@ -75,9 +96,14 @@ describe("STEP_META", () => {
       expect(() => STEP_META[type].summary(empty), type).not.toThrow();
       expect(STEP_META[type].summary(empty), type).toBeTruthy();
     }
+    // The summary sits under the action's title in a mono line, so it carries
+    // the thing that varies and nothing else — the title already said "Fetch".
     expect(STEP_META.fetchUrl.summary({ id: "s2", type: "fetchUrl", url: "https://a.test/$s1" })).toBe(
-      "fetch https://a.test/$s1"
+      "https://a.test/$s1"
     );
+    expect(
+      STEP_META.typeToSelector.summary({ id: "s2", type: "typeToSelector", selector: "#q", value: "$text" })
+    ).toBe("$text → #q");
   });
 
   it("recognises a step type only when it really is one", () => {

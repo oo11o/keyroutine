@@ -1,3 +1,5 @@
+import { icon, type IconName } from "./icons";
+
 // The smallest thing that keeps the panes from being createElement soup. Not a
 // framework and not a step towards one: the builder re-renders whole columns
 // from a config that is a few kilobytes, so there is nothing here to diff.
@@ -42,18 +44,60 @@ export function row(attrs: Attrs = {}, ...children: Child[]): HTMLButtonElement 
   return h("button", { type: "button", class: `row ${cls ?? ""}`.trim(), ...rest }, ...children);
 }
 
-export function iconButton(glyph: string, title: string, onClick: () => void): HTMLButtonElement {
-  return h("button", {
-    type: "button",
-    class: "icon",
-    title,
-    "aria-label": title,
-    text: glyph,
-    onClick: (e: Event) => {
-      // The row underneath is a button too, and a click on its tools must not
-      // also select it.
-      e.stopPropagation();
-      onClick();
-    }
-  });
+// A labelled <button> with nothing in it but a glyph. The label is not optional:
+// an icon-only control is unusable by a screen reader without one.
+export function iconButton(
+  name: IconName,
+  label: string,
+  onClick: () => void,
+  extra: Attrs = {}
+): HTMLButtonElement {
+  return h(
+    "button",
+    {
+      type: "button",
+      class: "iconbtn",
+      title: label,
+      "aria-label": label,
+      ...extra,
+      onClick: (e: Event) => {
+        // The header underneath is a button too, and a click on its tools must
+        // not also toggle it.
+        e.stopPropagation();
+        onClick();
+      }
+    },
+    icon(name)
+  );
+}
+
+// The column headers: an icon tile, a numbered eyebrow, a title with a count,
+// and a subtitle. The same three-part shape in all three columns, which is what
+// makes "where / when / what" readable as one sentence across the page.
+export function columnHead(opts: {
+  id: string;
+  tone: "site" | "stack" | "act";
+  glyph: IconName;
+  eyebrow: string;
+  title: string;
+  count: number;
+  sub: Child[];
+}): HTMLElement {
+  return h(
+    "div",
+    { class: "colhead" },
+    h("span", { class: "colicon" }, icon(opts.glyph)),
+    h("span", { class: "eyebrow", text: opts.eyebrow }),
+    h(
+      "div",
+      { class: "colhead-main" },
+      h(
+        "h2",
+        { id: opts.id, class: "coltitle" },
+        opts.title,
+        h("span", { class: "colcount", text: String(opts.count) })
+      ),
+      h("p", { class: "colsub" }, ...opts.sub)
+    )
+  );
 }

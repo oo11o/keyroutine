@@ -44,3 +44,33 @@ export function stubChromeStorage(initial: Record<string, unknown> = {}): FakeSt
     }
   };
 }
+
+// The builder also talks to the page it is building for: chrome.tabs.query to
+// find it, sendMessage to ask it something (see core/builderProtocol.ts), and
+// update to hand the user over and back for the element picker.
+export type FakeTabs = {
+  sent: { type?: string; [key: string]: unknown }[];
+  activated: number[];
+};
+
+export function stubChromeTabs(
+  respond: (message: { type?: string; [key: string]: unknown }) => unknown
+): FakeTabs {
+  const sent: FakeTabs["sent"] = [];
+  const activated: number[] = [];
+  const chromeStub = globalThis.chrome as unknown as Record<string, unknown>;
+
+  chromeStub.tabs = {
+    query: async () => [{ id: 7, url: "http://dzo.lh/tenders/1", lastAccessed: 2 }],
+    getCurrent: async () => ({ id: 1, url: "chrome-extension://x/options.html" }),
+    update: async (tabId: number) => {
+      activated.push(tabId);
+    },
+    sendMessage: async (_tabId: number, message: { type?: string }) => {
+      sent.push(message);
+      return respond(message);
+    }
+  };
+
+  return { sent, activated };
+}

@@ -22,7 +22,7 @@ function dialog(title: string, blurb: string): {
     body,
     actions
   ) as HTMLDialogElement;
-  actions.append(h("button", { type: "button", text: "Close", onClick: () => el.close() }));
+  actions.append(h("button", { type: "button", class: "btn", text: "Close", onClick: () => el.close() }));
   el.addEventListener("close", () => el.remove());
   document.body.append(el);
   return { el, body, actions };
@@ -33,13 +33,13 @@ export function openExport(): void {
   const area = h("textarea", { class: "mono", value: text, readOnly: true });
   const { el, body, actions } = dialog(
     "Export",
-    "The whole config — stacks, steps and sites. Copy it somewhere safe, or edit it and paste it back through Import."
+    "The whole config — sites, stacks and their actions. Copy it somewhere safe, or edit it and paste it back through Import."
   );
   body.append(area);
   actions.prepend(
     h("button", {
       type: "button",
-      class: "primary",
+      class: "btn btn-primary",
       text: "Copy to clipboard",
       onClick: () => {
         void navigator.clipboard.writeText(text);
@@ -63,7 +63,7 @@ export function openImport(onDone: () => void): void {
   actions.prepend(
     h("button", {
       type: "button",
-      class: "primary",
+      class: "btn btn-primary",
       text: "Load into the draft",
       onClick: () => {
         let raw: unknown;

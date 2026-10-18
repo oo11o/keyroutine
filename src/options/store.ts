@@ -101,6 +101,12 @@ export function selectStep(id: string | null): void {
   announce();
 }
 
+// Only one action card is open at a time — clicking the open one closes it.
+export function toggleStep(id: string): void {
+  stepId = stepId === id ? null : id;
+  announce();
+}
+
 function selectFirstStack(): void {
   stackId = stacksInScope()[0]?.id ?? null;
   stepId = currentStack()?.steps[0]?.id ?? null;
@@ -146,12 +152,18 @@ function freeId(base: string, taken: Set<string>): string {
   }
 }
 
-// s1, s2, … first free. Not steps.length + 1: after a delete that would reuse a
-// name an earlier template may still point at.
-function freeStepId(stack: Stack): string {
+// A step's id is also the name its result is read back by ($<id>), so a
+// producer gets one named after what it holds — $text, $response — and only a
+// step with no result falls back to s1, s2. First free rather than
+// steps.length + 1: after a delete that would reuse a name an earlier template
+// may still point at.
+function freeStepId(stack: Stack, type: Step["type"]): string {
   const taken = new Set(stack.steps.map((s) => s.id));
-  for (let n = 1; ; n++) {
-    if (!taken.has(`s${n}`)) return `s${n}`;
+  const base = STEP_META[type].varName;
+  if (base && !taken.has(base)) return base;
+  for (let n = base ? 2 : 1; ; n++) {
+    const candidate = base ? `${base}${n}` : `s${n}`;
+    if (!taken.has(candidate)) return candidate;
   }
 }
 
@@ -190,6 +202,13 @@ export function deleteSite(siteId: string, keepStacks: boolean): void {
   scope = COMMON;
   selectFirstStack();
   announce();
+}
+
+// "Common" is not a site, so it has no name of its own — but every label that
+// names where a stack runs needs one word for it.
+export function siteName(siteId: string | null): string {
+  if (siteId == null) return "Common";
+  return config.sites.find((s) => s.id === siteId)?.name ?? siteId;
 }
 
 export function cleanPatterns(patterns: string[]): string[] {
@@ -272,7 +291,7 @@ function withSteps(id: string, fn: (steps: Step[]) => Step[]): void {
 export function addStep(type: Step["type"]): void {
   const stack = currentStack();
   if (!stack) return;
-  const step = blankStep(type, freeStepId(stack));
+  const step = blankStep(type, freeStepId(stack, type));
   withSteps(stack.id, (steps) => [...steps, step]);
   stepId = step.id;
   announce();
@@ -322,7 +341,10 @@ export function duplicateStep(id: string): void {
   if (!stack) return;
   const index = stack.steps.findIndex((s) => s.id === id);
   if (index < 0) return;
-  const copy = { ...structuredClone(stack.steps[index]), id: freeStepId(stack) } as Step;
+  const copy = {
+    ...structuredClone(stack.steps[index]),
+    id: freeStepId(stack, stack.steps[index].type)
+  } as Step;
   withSteps(stack.id, (steps) => [...steps.slice(0, index + 1), copy, ...steps.slice(index + 1)]);
   stepId = copy.id;
   announce();
@@ -343,7 +365,11 @@ export function moveStep(id: string, delta: number): void {
 
 /* ── warnings the user should see before saving ────────────────────────── */
 
-export type Problem = { message: string; stackId?: string; stepId?: string };
+export type Problem = { message: string; stackId?: string; stepId?: string; rivals?: Rival[] };
+
+// The other stack on the same chord, named the way the UI has to name it: a
+// rival on another site is only identifiable with the site said out loud.
+export type Rival = { id: string; name: string; siteId: string | null; siteName: string };
 
 // Two enabled stacks that can both apply on one URL and share a chord: the
 // first one found wins and the other is dead. Not an error — it may be
@@ -363,6 +389,12 @@ export function chordConflicts(): Problem[] {
     if (rivals.length > 0) {
       problems.push({
         stackId: stack.id,
+        rivals: rivals.map((r) => ({
+          id: r.id,
+          name: r.name,
+          siteId: r.siteId ?? null,
+          siteName: siteName(r.siteId ?? null)
+        })),
         message: `shares its chord with ${rivals.map((r) => `"${r.name}"`).join(", ")}`
       });
     }
@@ -402,7 +434,11 @@ export function isBareKey(binding: Binding): boolean {
 export function renamesBreak(stack: Stack, oldId: string): Problem[] {
   return unknownVars({ ...stack, steps: stack.steps.map((s) => (s.id === oldId ? { ...s, id: " " } : s)) })
     .filter((v) => v.name === oldId)
-    .map((v) => ({ stackId: stack.id, stepId: v.stepId, message: `step ${v.stepId} still uses $${oldId}` }));
+    .map((v) => ({
+      stackId: stack.id,
+      stepId: v.stepId,
+      message: `the action "${v.stepId}" still uses $${oldId}`
+    }));
 }
 
 /* ── saving ────────────────────────────────────────────────────────────── */
@@ -423,7 +459,7 @@ export async function save(): Promise<SaveResult> {
       problems.push({
         stackId: stack.id,
         stepId: unknown.stepId,
-        message: `"${stack.name}" step ${unknown.stepId}: $${unknown.name} is not a value this stack has — check the ${unknown.field} field`
+        message: `"${stack.name}", action ${unknown.stepId}: $${unknown.name} is not a value this stack has — check the ${unknown.field} field`
       });
     }
   }
