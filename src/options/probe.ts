@@ -1,18 +1,14 @@
-import type { Stack } from "../core/schema";
 import {
   PICK_MESSAGE_TYPE,
   PROBE_MESSAGE_TYPE,
-  TRY_MESSAGE_TYPE,
-  type ActionResult,
   type PickResponse,
-  type ProbeResponse,
-  type TryResponse
+  type ProbeResponse
 } from "../core/builderProtocol";
 
 // Everything the builder can only learn from a real page: how many elements a
-// selector matches, which element the user clicked, and what a stack does when
-// it runs. The options page has none of that — it is an extension page — so all
-// three go through the content script in the tab the user was last on.
+// selector matches, and which element the user clicked. The options page has
+// neither — it is an extension page — so both go through the content script in
+// the tab the user was last on.
 //
 // State lives here rather than in the draft: a match count is not config, it is
 // an observation about one page at one moment, and it must not make the config
@@ -22,14 +18,9 @@ type Listener = () => void;
 
 export type TestResult = { count: number } | { error: string };
 
-// What a run found, kept per stack so switching stacks and coming back does not
-// resurrect someone else's results.
-export type RunReport = { stackId: string; results: ActionResult[] };
-
 const tests = new Map<string, TestResult>();
-let report: RunReport | null = null;
 let busy: string | null = null; // what we are waiting for, for the button labels
-let trouble: string | null = null; // the last thing that went wrong, shown in the run bar
+let trouble: string | null = null; // the last thing that went wrong reaching the tab
 const listeners: Listener[] = [];
 
 export function subscribe(listener: Listener): void {
@@ -146,26 +137,10 @@ export async function pickSelector(key: string, apply: (selector: string) => voi
   }
 }
 
-/* ── running ───────────────────────────────────────────────────────────── */
-
-export function runReport(stackId: string): ActionResult[] | null {
-  return report?.stackId === stackId ? report.results : null;
-}
-
-// A run describes the stack as it was when it ran. Any edit afterwards —
-// including reordering — makes it a report about something that no longer
-// exists, so the caller drops it.
-export function forgetRun(): void {
-  if (!report) return;
-  report = null;
-  announce();
-}
-
 // Everything observed so far is about the config that was open at the time, so
 // an Import — which replaces all of it — invalidates the lot.
 export function forgetAll(): void {
   tests.clear();
-  report = null;
   trouble = null;
   announce();
 }
@@ -176,21 +151,4 @@ export function isBusy(what?: string): boolean {
 
 export function lastTrouble(): string | null {
   return trouble;
-}
-
-export async function runOnCurrentTab(stack: Stack): Promise<void> {
-  busy = `run:${stack.id}`;
-  trouble = null;
-  report = null;
-  announce();
-  try {
-    const response = await ask<TryResponse>({ type: TRY_MESSAGE_TYPE, stack });
-    if ("error" in response) throw new Error(response.error);
-    report = { stackId: stack.id, results: response.results };
-  } catch (err) {
-    trouble = (err as Error).message;
-  } finally {
-    busy = null;
-    announce();
-  }
 }

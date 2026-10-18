@@ -1,31 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { listenForBuilder } from "../src/content/builderBridge";
-import {
-  PROBE_MESSAGE_TYPE,
-  TRY_MESSAGE_TYPE,
-  type ProbeResponse,
-  type TryResponse
-} from "../src/core/builderProtocol";
-import type { Stack } from "../src/core/schema";
+import { PROBE_MESSAGE_TYPE, type ProbeResponse } from "../src/core/builderProtocol";
 
 // The page's side of the builder's questions. Worth testing here rather than
 // through the options page: this is the half that runs where the DOM is, and
-// "how many elements match" and "what happened to each action" are answers
-// nothing else in the suite produces.
+// "how many elements match this selector" is an answer nothing else in the
+// suite produces.
 
 type Listener = (message: unknown, sender: unknown, respond: (r: unknown) => void) => boolean;
 
 let listener: Listener;
-
-function stack(steps: Stack["steps"]): Stack {
-  return {
-    id: "try-me",
-    name: "Try me",
-    binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false },
-    enabled: true,
-    steps
-  };
-}
 
 // The listener answers either synchronously or through the callback, which is
 // how chrome.runtime.onMessage works; both arrive here as a promise.
@@ -66,43 +50,6 @@ describe("testing a selector", () => {
     const response = await ask<ProbeResponse>({ type: PROBE_MESSAGE_TYPE, selector: "p[" });
 
     expect(response).toMatchObject({ error: expect.stringContaining("CSS selector") });
-  });
-});
-
-describe("running a stack from the builder", () => {
-  it("reports an outcome per action, and skips everything after a failure", async () => {
-    document.body.innerHTML = '<input id="tender_id" value="T-42" />';
-
-    const response = await ask<TryResponse>({
-      type: TRY_MESSAGE_TYPE,
-      stack: stack([
-        { id: "text", type: "readBySelector", selector: "#tender_id" },
-        { id: "s1", type: "clickBySelector", selector: "#search" },
-        { id: "s2", type: "clickBySelector", selector: "#tender_id" }
-      ])
-    });
-
-    expect("results" in response && response.results).toEqual([
-      { outcome: "ok", note: 'read "T-42"' },
-      { outcome: "fail", note: 'No element for "#search"' },
-      // It never ran, so it is neither a pass nor a failure.
-      { outcome: "skip", note: "" }
-    ]);
-  });
-
-  it("reports every action as ok when the whole stack goes through", async () => {
-    document.body.innerHTML = '<input id="tender_id" value="T-7" /><input id="search" />';
-
-    const response = await ask<TryResponse>({
-      type: TRY_MESSAGE_TYPE,
-      stack: stack([
-        { id: "text", type: "readBySelector", selector: "#tender_id" },
-        { id: "s1", type: "inputToSelector", selector: "#search", value: "$text" }
-      ])
-    });
-
-    expect("results" in response && response.results.map((r) => r.outcome)).toEqual(["ok", "ok"]);
-    expect(document.querySelector<HTMLInputElement>("#search")!.value).toBe("T-7");
   });
 });
 

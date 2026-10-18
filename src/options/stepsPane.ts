@@ -1,7 +1,6 @@
 import { columnHead, h, iconButton } from "./el";
 import { icon } from "./icons";
 import type { Step } from "../core/schema";
-import type { ActionResult } from "../core/builderProtocol";
 import { STEP_GROUPS, STEP_META, STEP_TYPES, formFields, templateFields } from "../core/stepMeta";
 import { availableVars, referencedVars } from "../core/vars";
 import * as store from "./store";
@@ -41,74 +40,22 @@ export function renderSteps(pane: HTMLElement): void {
     return;
   }
 
-  const results = probe.runReport(stack.id);
-  pane.append(runBar(stack.id, results));
+  // Pick and Test happen inside a field, but what goes wrong with them is
+  // about the tab rather than the field — no page to talk to, no content script
+  // in it — so it is said once, here, above the pipeline.
+  const trouble = probe.lastTrouble();
+  if (trouble) pane.append(h("div", { class: "troublebar", text: trouble }));
 
   const pipeline = h("div", { class: "pipeline" });
   pipeline.append(triggerRow());
 
   const current = store.currentStep();
   stack.steps.forEach((step, index) => {
-    pipeline.append(actionRow(step, index, stack.steps.length, results?.[index], current?.id === step.id));
+    pipeline.append(actionRow(step, index, stack.steps.length, current?.id === step.id));
   });
 
   pipeline.append(addRow());
   pane.append(pipeline);
-}
-
-/* ── the run bar ───────────────────────────────────────────────────────── */
-
-// Running the stack on the page the user was last on. The hotkey is the real
-// test, but pressing it means leaving the builder, remembering what to look at,
-// and coming back — so the stack can also be run from here, once, on demand.
-function runBar(stackId: string, results: ActionResult[] | null): HTMLElement {
-  const stack = store.currentStack()!;
-  const running = probe.isBusy(`run:${stackId}`);
-  const bar = h(
-    "div",
-    { class: "runbar" },
-    h(
-      "button",
-      {
-        type: "button",
-        class: "btn btn-run",
-        disabled: running || stack.steps.length === 0,
-        onClick: () => void probe.runOnCurrentTab(store.currentStack()!)
-      },
-      icon("play", 16),
-      running ? "Running…" : "Run on current tab"
-    )
-  );
-
-  const trouble = probe.lastTrouble();
-  if (trouble) {
-    bar.append(h("span", { class: "runsum runsum-err", text: trouble }));
-  } else if (results) {
-    bar.append(runSummary(results));
-  } else {
-    bar.append(
-      h("span", {
-        class: "hint",
-        text: "Runs these actions once, right now, so you can check them without the hotkey."
-      })
-    );
-  }
-  return bar;
-}
-
-function runSummary(results: ActionResult[]): HTMLElement {
-  const failed = results.findIndex((r) => r.outcome === "fail");
-  const total = results.length;
-  if (failed < 0) {
-    return h("span", {
-      class: "runsum runsum-ok",
-      text: `✓ Ran just now — all ${total} action${total === 1 ? "" : "s"} finished`
-    });
-  }
-  return h("span", {
-    class: "runsum runsum-err",
-    text: `✕ Ran just now — stopped at action ${failed + 1} of ${total}: ${results[failed].note}`
-  });
 }
 
 /* ── the pipeline ──────────────────────────────────────────────────────── */
@@ -150,18 +97,8 @@ function triggerRow(): HTMLElement {
   );
 }
 
-const OUTCOME_ICON = { ok: "check", fail: "close", skip: "minus" } as const;
-
-function actionRow(
-  step: Step,
-  index: number,
-  total: number,
-  result: ActionResult | undefined,
-  open: boolean
-): HTMLElement {
-  const node = h("span", { class: `node ${result ? `node-${result.outcome}` : ""}`.trim() });
-  if (result) node.append(icon(OUTCOME_ICON[result.outcome]));
-  else node.textContent = String(index + 1);
+function actionRow(step: Step, index: number, total: number, open: boolean): HTMLElement {
+  const node = h("span", { class: "node", text: String(index + 1) });
 
   return h(
     "div",
@@ -171,17 +108,11 @@ function actionRow(
       node,
       h("span", { class: "line" })
     ),
-    h("div", { class: "prow-body" }, actionCard(step, index, total, result, open))
+    h("div", { class: "prow-body" }, actionCard(step, index, total, open))
   );
 }
 
-function actionCard(
-  step: Step,
-  index: number,
-  total: number,
-  result: ActionResult | undefined,
-  open: boolean
-): HTMLElement {
+function actionCard(step: Step, index: number, total: number, open: boolean): HTMLElement {
   const stack = store.currentStack()!;
   const meta = STEP_META[step.type];
   const card = h("div", { class: `card step ${open ? "is-open" : ""}`.trim() });
@@ -192,9 +123,6 @@ function actionCard(
     h("span", { class: "steptitle", text: meta.label }),
     h("span", { class: "stepsum", text: meta.summary(step) })
   );
-  if (result) {
-    text.append(h("span", { class: `runnote run-${result.outcome}`, text: result.note }));
-  }
 
   const head = h(
     "button",
@@ -222,14 +150,8 @@ function actionCard(
         { class: "steptools" },
         iconButton("up", "Move up", () => move(step.id, -1), { disabled: index === 0 }),
         iconButton("down", "Move down", () => move(step.id, 1), { disabled: index === total - 1 }),
-        iconButton("copy", "Duplicate action", () => {
-          store.duplicateStep(step.id);
-          probe.forgetRun();
-        }),
-        iconButton("trash", "Delete action", () => {
-          store.deleteStep(step.id);
-          probe.forgetRun();
-        })
+        iconButton("copy", "Duplicate action", () => store.duplicateStep(step.id)),
+        iconButton("trash", "Delete action", () => store.deleteStep(step.id))
       )
     )
   );
@@ -240,8 +162,6 @@ function actionCard(
 
 function move(id: string, delta: number): void {
   store.moveStep(id, delta);
-  // The results were about this order of actions, and they are numbered.
-  probe.forgetRun();
 }
 
 // The first $name this action references that will not exist by the time it
@@ -425,10 +345,7 @@ function addRow(): HTMLElement {
             "button",
             {
               type: "button",
-              onClick: () => {
-                store.addStep(type);
-                probe.forgetRun();
-              }
+              onClick: () => store.addStep(type)
             },
             h("span", { class: "typeicon" }, icon(meta.icon)),
             h(

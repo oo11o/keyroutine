@@ -89,8 +89,6 @@ svg.i {
 }
 .btn-dashed:hover { color: var(--text); }
 .btn-sm { height: 30px; padding: 0 10px; font-size: 13px; }
-.btn-run { background: #2e2452; border-color: #4b3a85; color: #ddd2ff; }
-.btn-run:hover:not(:disabled) { background: #3a2d66; }
 
 .iconbtn {
   width: 32px;
@@ -463,19 +461,16 @@ textarea { height: auto; min-height: 96px; padding: 10px 12px; resize: vertical;
 
 /* ── the action pipeline ───────────────────────────────────────────────── */
 
-.runbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+/* Said once above the pipeline when Pick or Test could not reach the tab. */
+.troublebar {
   padding: 12px 14px;
   border-radius: 10px;
-  background: #1f1f23;
-  border: 1px solid var(--line);
+  background: var(--errbg);
+  border: 1px solid var(--errline);
+  color: var(--danger);
+  font-size: 13.5px;
+  font-weight: 500;
 }
-.runsum { font-size: 13.5px; font-weight: 500; }
-.runsum-ok { color: var(--okfg); }
-.runsum-err { color: var(--danger); }
 
 .pipeline { display: flex; flex-direction: column; }
 .prow { display: flex; gap: 14px; }
@@ -497,9 +492,6 @@ textarea { height: auto; min-height: 96px; padding: 10px 12px; resize: vertical;
 .node svg.i { width: 15px; height: 15px; stroke-width: 2.4; }
 .node-trigger { background: #283553; border-color: #3a5288; color: var(--accent); }
 .node-add { border-style: dashed; color: var(--faint); background: transparent; }
-.node-ok { background: var(--okbg); border-color: var(--okline); color: var(--okfg); }
-.node-fail { background: var(--errbg); border-color: var(--errline); color: var(--danger); }
-.node-skip { border-style: dashed; color: var(--faint); background: transparent; }
 .seg { width: 2px; background: var(--line2); flex: none; }
 .line { width: 2px; background: var(--line2); flex: 1; min-height: 10px; }
 
@@ -545,10 +537,6 @@ textarea { height: auto; min-height: 96px; padding: 10px 12px; resize: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.runnote { font-size: 12.5px; font-weight: 500; }
-.run-ok { color: var(--okfg); }
-.run-fail { color: var(--danger); }
-.run-skip { color: var(--faint); }
 .steptools { display: flex; align-items: center; }
 .typeicon {
   width: 38px;

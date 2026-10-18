@@ -42,17 +42,11 @@ export type Resume = Pick<ResumeRecord, "nextStep" | "vars" | "notes">;
 // fresh — builtins because they describe the page, and this is a different
 // page; secrets because they are deliberately never persisted.
 // Returns one note per step that reported something, in run order.
-// Told about every step that finished, in run order. Only the builder passes
-// one: it reports an outcome per action, and a bare `notes` array cannot say
-// which step a note came from (a step may report nothing at all).
-export type StepObserver = (stepIndex: number, note: string) => void;
-
 export async function runStack(
   stack: Stack,
   sections: StackSection[] = [{ level: "common", label: "Everywhere", stacks: [stack] }],
   secrets: Record<string, string> = {},
-  resume?: Resume,
-  observe?: StepObserver
+  resume?: Resume
 ): Promise<string[]> {
   const ctx: RunContext = new Map();
   // Before step 1, so every step can read them.
@@ -85,7 +79,6 @@ export async function runStack(
           if ("saveAs" in step && step.saveAs) remember(ctx, written, step.saveAs, value);
         }
         if (note) notes.push(note);
-        observe?.(i, note ?? "");
         if (navigateTo) {
           // Park the rest of the stack *before* the page starts unloading;
           // once location.assign runs there is no guarantee another await

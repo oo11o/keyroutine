@@ -4,7 +4,6 @@ import { chordText } from "../core/keys";
 import * as store from "./store";
 import { COMMON } from "./store";
 import { hotkeyField, keyCaps } from "./chordInput";
-import { forgetRun } from "./probe";
 
 // Column 2 — when. Every stack in the selected scope, each a card that expands
 // in place into its own editor: a stack is a hotkey plus a name plus where it
@@ -160,10 +159,7 @@ function stackEditor(conflicted: boolean): HTMLElement {
 
   const hotkey = hotkeyField(
     stack.binding,
-    (binding) => {
-      store.patchStack(stack.id, { binding });
-      forgetRun();
-    },
+    (binding) => store.patchStack(stack.id, { binding }),
     (binding) =>
       // A chord with no modifier would eat an ordinary keypress on every page
       // this stack applies to: the resolver only steps aside for text fields.

@@ -5,7 +5,7 @@ import { CONFIG_KEY, clearCache } from "../src/core/configStore";
 import { renderSites } from "../src/options/sitesPane";
 import { renderStacks } from "../src/options/stacksPane";
 import { renderSteps } from "../src/options/stepsPane";
-import { PICK_MESSAGE_TYPE, TRY_MESSAGE_TYPE } from "../src/core/builderProtocol";
+import { PICK_MESSAGE_TYPE } from "../src/core/builderProtocol";
 import { stubChromeStorage, stubChromeTabs } from "./fakeChrome";
 
 // The three columns, driven through the DOM rather than through the store — the
@@ -439,61 +439,17 @@ describe("checking a stack against a real page", () => {
     expect(tabs.activated).toEqual([7, 1]);
   });
 
-  it("runs the stack on the current tab and marks each action with what happened", async () => {
-    stubChromeTabs((m) =>
-      m.type === TRY_MESSAGE_TYPE
-        ? {
-            results: [
-              { outcome: "ok", note: "read \"42\"" },
-              { outcome: "fail", note: "Nothing on the page matches #search" },
-              { outcome: "skip", note: "" }
-            ]
-          }
-        : {}
-    );
-
-    clickWithText(panes.steps, ".runbar button", "Run on current tab");
-    await vi.waitFor(() => expect(probe.isBusy()).toBe(false));
-    draw();
-
-    expect(panes.steps.querySelector(".runsum")?.textContent).toBe(
-      "✕ Ran just now — stopped at action 2 of 3: Nothing on the page matches #search"
-    );
-    expect([...panes.steps.querySelectorAll(".node")].map((n) => n.className)).toEqual([
-      "node node-trigger",
-      "node node-ok",
-      "node node-fail",
-      "node node-skip",
-      "node node-add"
-    ]);
-    expect(texts(panes.steps, ".runnote")).toEqual([
-      'read "42"',
-      "Nothing on the page matches #search",
-      ""
-    ]);
-  });
-
-  it("drops the run report when the actions are reordered, since it numbered them", async () => {
-    stubChromeTabs(() => ({ results: [{ outcome: "ok", note: "done" }] }));
-    clickWithText(panes.steps, ".runbar button", "Run on current tab");
-    await vi.waitFor(() => expect(probe.isBusy()).toBe(false));
-    draw();
-    expect(panes.steps.querySelector(".runsum")).not.toBeNull();
-
-    (panes.steps.querySelectorAll('[aria-label="Move down"]')[0] as HTMLElement).click();
-    draw();
-
-    expect(panes.steps.querySelector(".runsum")).toBeNull();
-  });
-
   it("says what to do when the page has no content script", async () => {
+    // sendMessage rejects when nothing is listening there, which means one
+    // thing: that tab predates the extension loading.
     stubChromeTabs(() => undefined);
+    openStep("s1");
 
-    clickWithText(panes.steps, ".runbar button", "Run on current tab");
+    clickWithText(panes.steps, ".fieldrow button", "Pick");
     await vi.waitFor(() => expect(probe.isBusy()).toBe(false));
     draw();
 
-    expect(panes.steps.querySelector(".runsum-err")?.textContent).toContain("Reload the page");
+    expect(panes.steps.querySelector(".troublebar")?.textContent).toContain("Reload the page");
   });
 });
 
