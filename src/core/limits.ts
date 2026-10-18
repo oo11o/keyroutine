@@ -7,4 +7,3 @@
 // Nothing in a hotkey macro should block the page for minutes: a typo like
 // 600000 would otherwise wedge the stack with no way out but a reload.
 export const MAX_WAIT_MS = 30_000;
-export const DEFAULT_TIMEOUT_MS = 5_000;

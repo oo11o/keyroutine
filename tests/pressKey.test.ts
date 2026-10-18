@@ -117,7 +117,7 @@ describe("pressKey", () => {
   it("does not type text — a printable key inserts nothing", async () => {
     await runStack(stackOf(focus("#email", "s1"), press("a", "s2")));
 
-    // Untrusted events carry no default behaviour; typeToSelector is the
+    // Untrusted events carry no default behaviour; inputToSelector is the
     // step that actually puts text in a field.
     expect(field().value).toBe("");
   });

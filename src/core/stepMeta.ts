@@ -1,5 +1,5 @@
 import type { Step } from "./schema";
-import { DEFAULT_TIMEOUT_MS, MAX_WAIT_MS } from "./limits";
+import { MAX_WAIT_MS } from "./limits";
 
 // What each step type looks like *as a form*. Until now a step's parameters
 // existed only as an arm of the `Step` union plus prose comments, and their
@@ -63,7 +63,6 @@ export type StepIcon =
   | "copy"
   | "download"
   | "pencil"
-  | "keyboard"
   | "crosshair"
   | "pointer"
   | "key"
@@ -187,7 +186,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Set field value",
     group: "write",
     icon: "pencil",
-    help: "Sets an input's value through the native setter and fires input/change, so React-style forms notice. Instant — use Type text when the page watches individual keystrokes.",
+    help: "Sets an input's value through the native setter and fires input/change, so React-style forms notice.",
     produces: false,
     outNote: "No result — it fills the field and nothing else.",
     summary: (s) => `${text(s, "value", '""')} → ${text(s, "selector")}`,
@@ -199,25 +198,6 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         kind: "template",
         required: true,
         placeholder: "$text"
-      }
-    ]
-  },
-  typeToSelector: {
-    label: "Type text",
-    group: "write",
-    icon: "keyboard",
-    help: "Types text into a field character by character with real key events. Slower than Set field value, but it is what a page driving autocomplete off keydown expects.",
-    produces: false,
-    outNote: "No result — it types into the field and nothing else.",
-    summary: (s) => `${text(s, "value", '""')} → ${text(s, "selector")}`,
-    fields: [
-      selectorField,
-      {
-        name: "value",
-        label: "Text",
-        kind: "template",
-        required: true,
-        placeholder: "$secret_email"
       }
     ]
   },
@@ -235,7 +215,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Click element",
     group: "write",
     icon: "pointer",
-    help: "Clicks an element on the page. If the click navigates away, the rest of the stack is lost — put a Wait for element on the next page instead of assuming.",
+    help: "Clicks an element on the page. If the click navigates away, the rest of the stack is lost — put a Wait on the next page instead of assuming.",
     produces: false,
     outNote: "No result — it clicks and nothing else.",
     summary: (s) => text(s, "selector"),
@@ -264,7 +244,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Wait (fixed)",
     group: "wait",
     icon: "clock",
-    help: "A flat pause. Prefer Wait for element — a fixed delay is a guess that is either too short on a slow day or wasted time on a fast one.",
+    help: "A flat pause for a page that needs a moment to catch up. A fixed delay is a guess, so leave headroom: too short fails on a slow day.",
     produces: false,
     outNote: "No result — it only pauses.",
     summary: (s) => `${text(s, "ms", "?")}ms`,
@@ -277,29 +257,6 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         placeholder: "500",
         min: 0,
         max: MAX_WAIT_MS
-      }
-    ]
-  },
-  waitForSelector: {
-    label: "Wait for element",
-    group: "wait",
-    icon: "clock",
-    help: "Blocks until the element exists in the DOM. This is what makes a stack survive a page that renders after it loads.",
-    produces: false,
-    outNote: "No result — it only waits for the element to appear.",
-    summary: (s) => text(s, "selector"),
-    fields: [
-      selectorField,
-      {
-        name: "timeoutMs",
-        label: "Timeout (ms)",
-        kind: "number",
-        required: false,
-        advanced: true,
-        default: DEFAULT_TIMEOUT_MS,
-        min: 1,
-        max: MAX_WAIT_MS,
-        help: `Fails the action if the element never appears. Defaults to ${DEFAULT_TIMEOUT_MS}.`
       }
     ]
   },

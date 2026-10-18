@@ -105,7 +105,7 @@
         { "id": "s3", "type": "wait", "ms": 500 },
         { "id": "s4", "type": "focusBySelector", "selector": "[name=\"email\"]" },
         { "id": "s5", "type": "wait", "ms": 500 },
-        { "id": "s6", "type": "typeToSelector", "selector": "[name=\"email\"]", "value": "b" }
+        { "id": "s6", "type": "inputToSelector", "selector": "[name=\"email\"]", "value": "b" }
       ]
     },
     {

@@ -56,7 +56,7 @@ function clickWithText(pane: HTMLElement, selector: string, needle: string): voi
 }
 
 // The type menu's entries carry a line of help as well as a title, and one
-// type's help can name another type ("prefer Wait for element…"), so this
+// type's help can name another type ("pair it with Press key…"), so this
 // matches the title exactly rather than the row's whole text.
 function clickStepType(pane: HTMLElement, label: string): void {
   const el = [...pane.querySelectorAll(".type-menu button")].find(
@@ -383,11 +383,11 @@ describe("the Actions column", () => {
 
   it("adds an action from the grouped type menu", () => {
     clickWithText(panes.steps, "button", "Add action");
-    clickStepType(panes.steps, "Wait for element");
+    clickStepType(panes.steps, "Wait (fixed)");
     draw();
 
-    expect(texts(panes.steps, ".steptitle").at(-1)).toBe("Wait for element");
-    expect(store.currentStep()).toMatchObject({ type: "waitForSelector", timeoutMs: 5000 });
+    expect(texts(panes.steps, ".steptitle").at(-1)).toBe("Wait (fixed)");
+    expect(store.currentStep()).toMatchObject({ type: "wait", ms: 0 });
   });
 });
 

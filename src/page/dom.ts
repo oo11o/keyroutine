@@ -30,31 +30,3 @@ export function writeValue(el: TextField, value: string): void {
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
 }
-
-// Types the value one character at a time, firing the full keydown →
-// keypress → input → keyup sequence per character, the way a keyboard does.
-//
-// writeValue() is the right default and this is the fallback for fields it
-// cannot move: anything driven by key handlers rather than by the value —
-// masked/formatted inputs that reformat per keystroke, autocompletes that
-// only open on a real key, and editors that ignore a value they did not see
-// typed. The cost is that it is observably synthetic in one way: these are
-// untrusted events, so they never produce default browser behaviour.
-//
-// The field is cleared first, so this replaces rather than appends — the
-// same end state writeValue() gives, reached differently.
-export function typeValue(el: TextField, value: string): void {
-  el.focus();
-  setNativeValue(el, "");
-  for (const char of value) {
-    const key = { key: char, bubbles: true, cancelable: true };
-    el.dispatchEvent(new KeyboardEvent("keydown", key));
-    el.dispatchEvent(new KeyboardEvent("keypress", key));
-    setNativeValue(el, el.value + char);
-    el.dispatchEvent(
-      new InputEvent("input", { bubbles: true, inputType: "insertText", data: char })
-    );
-    el.dispatchEvent(new KeyboardEvent("keyup", key));
-  }
-  el.dispatchEvent(new Event("change", { bubbles: true }));
-}

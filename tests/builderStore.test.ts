@@ -142,13 +142,13 @@ describe("adding things", () => {
     expect(store.currentStack()?.steps.map((s) => s.id)).toEqual(["s2", "s1"]);
   });
 
-  it("fills a new step with its defaults", async () => {
+  it("fills a new step with its required fields blank and nothing else", async () => {
     await open();
     store.selectStack("copy-id");
 
-    store.addStep("waitForSelector");
+    store.addStep("readBySelector");
 
-    expect(store.currentStep()).toMatchObject({ type: "waitForSelector", timeoutMs: 5000 });
+    expect(store.currentStep()).toEqual({ id: "text", type: "readBySelector", selector: "" });
   });
 
   it("selects a new site so its stacks can be added straight away", async () => {

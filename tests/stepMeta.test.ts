@@ -102,7 +102,7 @@ describe("STEP_META", () => {
       "https://a.test/$s1"
     );
     expect(
-      STEP_META.typeToSelector.summary({ id: "s2", type: "typeToSelector", selector: "#q", value: "$text" })
+      STEP_META.inputToSelector.summary({ id: "s2", type: "inputToSelector", selector: "#q", value: "$text" })
     ).toBe("$text → #q");
   });
 
@@ -115,12 +115,12 @@ describe("STEP_META", () => {
 });
 
 describe("blankStep", () => {
-  it("fills in defaults and leaves optional fields out", () => {
-    expect(blankStep("waitForSelector", "s3")).toEqual({
+  it("fills in the required fields and leaves optional ones out", () => {
+    // saveAs is optional, so a new step does not carry an empty one.
+    expect(blankStep("readBySelector", "s3")).toEqual({
       id: "s3",
-      type: "waitForSelector",
-      selector: "",
-      timeoutMs: 5000
+      type: "readBySelector",
+      selector: ""
     });
   });
 

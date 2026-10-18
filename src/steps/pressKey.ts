@@ -7,7 +7,7 @@ import { pressKeyAtFocus } from "../page/keyboard";
 //
 // This presses a key; it does not type text. A printable character sent here
 // fires the key events but inserts nothing, because these are untrusted
-// events and never carry default browser behaviour. Use typeToSelector to
+// events and never carry default browser behaviour. Use inputToSelector to
 // put text in a field, and this for the keys that mean something to a page's
 // own handlers — submitting on Enter, opening a dropdown, closing a modal.
 //

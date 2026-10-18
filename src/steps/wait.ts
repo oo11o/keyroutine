@@ -1,7 +1,7 @@
 import type { Handler } from "./types";
 import { MAX_WAIT_MS, sleep } from "../page/wait";
 
-// A flat pause. Prefer waitForSelector when what you are actually waiting
+// A flat pause. A guess by nature, so leave headroom when what you are waiting
 // for is an element — a fixed delay is a guess that is either too short on
 // a slow day or wasted time on a fast one.
 export const wait: Handler = async (step) => {
