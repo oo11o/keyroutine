@@ -24,6 +24,61 @@ const V1 = {
   ]
 };
 
+function stackWith(steps: unknown[]): unknown {
+  return {
+    schemaVersion: 2,
+    sites: [],
+    stacks: [
+      {
+        id: "logout",
+        name: "logoutLogin",
+        binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
+        enabled: true,
+        steps
+      }
+    ]
+  };
+}
+
+describe("a config saved before a step type was retired", () => {
+  it("rewrites typeToSelector as inputToSelector rather than failing the lot", () => {
+    const config = parsed(
+      stackWith([
+        { id: "s1", type: "clickBySelector", selector: "#go" },
+        { id: "s6", type: "typeToSelector", selector: '[name="email"]', value: "b" }
+      ])
+    );
+
+    expect(config.stacks[0].steps).toEqual([
+      { id: "s1", type: "clickBySelector", selector: "#go" },
+      { id: "s6", type: "inputToSelector", selector: '[name="email"]', value: "b" }
+    ]);
+  });
+
+  it("turns waitForSelector into a pause of the budget it was given", () => {
+    const config = parsed(
+      stackWith([{ id: "s3", type: "waitForSelector", selector: "#late", timeoutMs: 800 }])
+    );
+
+    expect(config.stacks[0].steps).toEqual([{ id: "s3", type: "wait", ms: 800 }]);
+  });
+
+  it("uses the old default when that step carried no timeout, and stays within the cap", () => {
+    expect(parsed(stackWith([{ id: "s3", type: "waitForSelector", selector: "#late" }])).stacks[0].steps)
+      .toEqual([{ id: "s3", type: "wait", ms: 5000 }]);
+    expect(
+      parsed(stackWith([{ id: "s3", type: "waitForSelector", selector: "#late", timeoutMs: 600_000 }]))
+        .stacks[0].steps
+    ).toEqual([{ id: "s3", type: "wait", ms: 30_000 }]);
+  });
+
+  it("still refuses a type that never existed", () => {
+    expect(errorsOf(stackWith([{ id: "s1", type: "teleport", selector: "#x" }]))).toEqual([
+      'stack "logout" step #1: unknown step type "teleport"'
+    ]);
+  });
+});
+
 function errorsOf(raw: unknown): string[] {
   const result = parseConfig(raw);
   return isParsed(result) ? [] : result.errors;

@@ -1,5 +1,6 @@
 import type { Binding, Config, Site, Stack, Step } from "./schema";
 import { SCHEMA_VERSION } from "./schema";
+import { MAX_WAIT_MS } from "./limits";
 import { STEP_META, isStepType } from "./stepMeta";
 
 // Where the config lives, and the only place it is validated.
@@ -48,11 +49,39 @@ function parseBinding(raw: unknown, where: string, errors: string[]): Binding | 
   };
 }
 
-function parseStep(raw: unknown, where: string, errors: string[]): Step | null {
-  if (!isRecord(raw)) {
+// Retiring a step type must not brick a profile. A stored config is parsed as
+// one unit, so a single step of a type that no longer exists used to fail the
+// whole config — and with it every stack, including the ones that never used
+// it. These are rewritten on the way in instead, and written back in their new
+// shape the next time the builder saves.
+//
+// The rewrite is lossy where the capability is gone, which is the honest
+// outcome of dropping it: a config cannot keep doing something the extension
+// no longer does.
+function migrateStep(raw: Record<string, unknown>): Record<string, unknown> {
+  // Typed a value key by key; inputToSelector sets the same field from the
+  // same two fields, in one go.
+  if (raw.type === "typeToSelector") return { ...raw, type: "inputToSelector" };
+
+  // Waited for an element to appear. Nothing waits on a condition any more, so
+  // the nearest thing is a flat pause of the budget it was given — slower than
+  // it used to be when the element arrives early, and a guess where it used to
+  // be a certainty.
+  if (raw.type === "waitForSelector") {
+    const budget = Number(raw.timeoutMs ?? 5000);
+    const ms = Number.isFinite(budget) ? Math.min(Math.max(budget, 0), MAX_WAIT_MS) : 5000;
+    return { id: raw.id, type: "wait", ms };
+  }
+
+  return raw;
+}
+
+function parseStep(rawStep: unknown, where: string, errors: string[]): Step | null {
+  if (!isRecord(rawStep)) {
     errors.push(`${where}: not a step`);
     return null;
   }
+  const raw = migrateStep(rawStep);
   if (!isStepType(raw.type)) {
     errors.push(`${where}: unknown step type "${String(raw.type)}"`);
     return null;

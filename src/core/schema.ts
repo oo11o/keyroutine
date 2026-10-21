@@ -17,7 +17,6 @@ export type Step =
   // Goes to whatever has focus — pair with focusBySelector to aim it.
   | { id: string; type: "pressKey"; key: string }
   | { id: string; type: "wait"; ms: number }
-  // timeoutMs defaults to 5000; the step fails if the element never shows.
   | { id: string; type: "popup"; title?: string; body: string }
   | { id: string; type: "popupJson"; title?: string; body: string }
   | { id: string; type: "openUrlInNewTab"; url: string }
