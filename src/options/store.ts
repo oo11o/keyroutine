@@ -95,8 +95,9 @@ export function selectScope(next: Scope): void {
 
 export function selectStack(id: string | null): void {
   stackId = id;
-  const stack = currentStack();
-  stepId = stack?.steps[0]?.id ?? null;
+  // Opening a stack opens its pipeline, not one of its actions: the same
+  // reason nothing is open on arrival holds one level down.
+  stepId = null;
   announce();
 }
 

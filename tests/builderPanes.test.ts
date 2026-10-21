@@ -281,7 +281,9 @@ describe("the Actions column", () => {
   });
 
   it("opens one card at a time, and closes the open one", () => {
-    expect(panes.steps.querySelectorAll(".step.is-open")).toHaveLength(1);
+    // An open stack is a pipeline with every card shut, so the first click
+    // here is what opens one at all.
+    expect(panes.steps.querySelectorAll(".step.is-open")).toHaveLength(0);
 
     clickWithText(panes.steps, ".stephead", "Fetch URL");
     draw();

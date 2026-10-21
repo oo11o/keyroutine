@@ -186,6 +186,8 @@ describe("editing steps", () => {
   it("drops an optional field that was cleared, rather than storing an empty one", async () => {
     await open();
     store.selectStack("copy-id");
+    // Opening a stack opens none of its actions, so this one is asked for.
+    store.selectStep("s1");
     store.patchStep("s1", { saveAs: "tender" });
     expect(store.currentStep()).toMatchObject({ saveAs: "tender" });
 
