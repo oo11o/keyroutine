@@ -15,6 +15,12 @@ import * as probe from "./probe";
 // variables that exist at that point. Everything else is just a value.
 
 const MULTILINE: FieldSpec["kind"][] = ["multiline"];
+// Values that routinely outrun the width of the column: a URL with a query
+// string, a selector with three attributes. In a one-line input the text
+// scrolls sideways under the caret, so editing the middle of a URL hides both
+// of its ends. These wrap and grow the box instead — the field moves, the
+// value does not.
+const WRAPPED: FieldSpec["kind"][] = ["selector", "url", "template"];
 const INTERPOLATED: FieldSpec["kind"][] = ["template", "url", "multiline"];
 const MONO: FieldSpec["kind"][] = ["selector", "url", "template", "multiline", "key", "varName"];
 
@@ -38,6 +44,8 @@ export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
   const mono = MONO.includes(spec.kind) ? "input mono" : "input";
   const input = MULTILINE.includes(spec.kind)
     ? h("textarea", { id, class: mono, value: current, placeholder: spec.placeholder ?? "", rows: 6 })
+    : WRAPPED.includes(spec.kind)
+    ? oneLineBox(id, mono, current, spec.placeholder ?? "")
     : h("input", {
         id,
         class: mono,
@@ -71,7 +79,7 @@ export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
     // A test result is about one spelling of the selector; editing it makes the
     // result a statement about the past.
     input.addEventListener("input", () => probe.forgetTest(ctx.testKey));
-    field.append(selectorControls(input as HTMLInputElement, ctx));
+    field.append(selectorControls(input, ctx));
     field.append(problem);
     const result = probe.testResult(ctx.testKey);
     if (result) field.append(matchPill(result));
@@ -91,7 +99,30 @@ export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
 
 /* ── selectors ─────────────────────────────────────────────────────────── */
 
-function selectorControls(input: HTMLInputElement, ctx: FieldContext): HTMLElement {
+// A textarea pretending to be a single-line field: it wraps, and `field-sizing`
+// grows it to whatever it holds. The pretence has to be kept up at the two
+// places a textarea would otherwise show through — Enter, which here means
+// nothing, and a pasted newline, which would be stored in the value.
+function oneLineBox(
+  id: string,
+  cls: string,
+  value: string,
+  placeholder: string
+): HTMLTextAreaElement {
+  const box = h("textarea", { id, class: `${cls} wrapbox`, value, placeholder, rows: 1 });
+  box.addEventListener("keydown", (e) => {
+    if ((e as KeyboardEvent).key === "Enter") e.preventDefault();
+  });
+  box.addEventListener("input", () => {
+    if (!box.value.includes("\n")) return;
+    const caret = box.selectionStart;
+    box.value = box.value.replace(/\r?\n/g, "");
+    box.setSelectionRange(caret, caret);
+  });
+  return box;
+}
+
+function selectorControls(input: HTMLInputElement | HTMLTextAreaElement, ctx: FieldContext): HTMLElement {
   // Picking means the user is on the other tab, so the label says so until they
   // come back. Testing is a round trip measured in milliseconds and needs no
   // such ceremony — but neither should start while the other is in flight.
