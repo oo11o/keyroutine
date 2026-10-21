@@ -1,17 +1,42 @@
 import { h, clear, iconButton } from "./el";
+import { icon } from "./icons";
 
-// The secrets editor, carried over from the old plain-JS options page. Same
+// The variables editor, carried over from the old plain-JS options page. Same
 // behaviour, now in TypeScript and sharing the page with the builder — the two
 // belong together: a stack references $secret_<name>, and the variable picker
 // offers those names from here.
+//
+// The tab says "Variables" because that is what they are to someone building a
+// stack: a value you store once and reference by name. The reference itself is
+// still $secret_<name>, and the storage key is still `secrets` — renaming
+// either would break every config already written against them.
 
 const rows = h("div", { id: "secret-rows" });
 const status = h("span", { class: "status" });
 
+// Values arrive masked. Not because the page is a threat — it is the one place
+// they are legitimately edited — but because a builder is a thing people screen
+// share and screenshot, and a token on display is a token out in the open.
 function addRow(name = "", value = ""): void {
   const nameEl = h("input", { class: "name input mono", type: "text", placeholder: "runToken", value: name });
-  const valueEl = h("input", { class: "value input mono", type: "text", placeholder: "value", value });
-  const row = h("div", { class: "secret-row" }, nameEl, valueEl);
+  const valueEl = h("input", {
+    class: "value input mono",
+    type: "password",
+    placeholder: "value",
+    value
+  });
+
+  const reveal = iconButton("eye", "Show value", () => {
+    const hidden = valueEl.type === "password";
+    valueEl.type = hidden ? "text" : "password";
+    reveal.title = hidden ? "Hide value" : "Show value";
+    reveal.setAttribute("aria-label", reveal.title);
+    reveal.setAttribute("aria-pressed", hidden ? "true" : "false");
+    reveal.replaceChildren(icon(hidden ? "eyeOff" : "eye"));
+  });
+  reveal.setAttribute("aria-pressed", "false");
+
+  const row = h("div", { class: "secret-row" }, nameEl, valueEl, reveal);
   row.append(iconButton("close", "Remove", () => row.remove()));
   rows.append(row);
 }
@@ -47,7 +72,7 @@ async function save(onSaved: (names: string[]) => void): Promise<void> {
 }
 
 // `onSaved` hands the names back to the builder so the variable picker stops
-// offering a secret that was just deleted, and starts offering a new one.
+// offering a variable that was just deleted, and starts offering a new one.
 export async function renderSecrets(pane: HTMLElement, onSaved: (names: string[]) => void): Promise<void> {
   clear(pane);
   clear(rows);
@@ -58,7 +83,7 @@ export async function renderSecrets(pane: HTMLElement, onSaved: (names: string[]
   else for (const [name, value] of entries) addRow(name, value);
 
   pane.append(
-    h("h2", { text: "Secrets" }),
+    h("h2", { text: "Variables" }),
     h(
       "p",
       { class: "lede" },
@@ -81,7 +106,7 @@ export async function renderSecrets(pane: HTMLElement, onSaved: (names: string[]
     h(
       "div",
       { class: "actions" },
-      h("button", { type: "button", class: "btn", text: "Add secret", onClick: () => addRow() }),
+      h("button", { type: "button", class: "btn", text: "Add variable", onClick: () => addRow() }),
       h("button", { type: "button", class: "btn btn-primary", text: "Save", onClick: () => void save(onSaved) }),
       status
     )

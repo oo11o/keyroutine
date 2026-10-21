@@ -62,7 +62,7 @@ export function availableVars(
     vars.push({ name, origin: "builtin", note: "built in — describes this page" });
   }
   for (const name of secretNames) {
-    vars.push({ name: SECRET_PREFIX + name, origin: "secret", note: "from the Secrets tab, masked in toasts" });
+    vars.push({ name: SECRET_PREFIX + name, origin: "secret", note: "from the Variables tab, masked in toasts" });
   }
   return dedupe(vars);
 }

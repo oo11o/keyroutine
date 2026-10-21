@@ -86,7 +86,7 @@ function renderTabs(): void {
       "aria-selected": tab === id ? "true" : "false",
       onClick: () => void selectTab(id)
     });
-  tabs.append(button("builder", "Builder"), button("secrets", "Secrets"));
+  tabs.append(button("builder", "Builder"), button("secrets", "Variables"));
 }
 
 async function selectTab(next: Tab): Promise<void> {
@@ -96,8 +96,8 @@ async function selectTab(next: Tab): Promise<void> {
   renderTabs();
   if (next === "secrets") {
     await renderSecrets(secrets, (names) => {
-      // A deleted secret must stop being offered by the variable picker, and a
-      // new one must start.
+      // A deleted variable must stop being offered by the picker, and a new
+      // one must start.
       void store.init(store.getPageUrl(), names);
     });
   }

@@ -28,6 +28,7 @@ export type IconName =
   | "pointer"
   | "pencil"
   | "eye"
+  | "eyeOff"
   | "clock"
   | "download"
   | "window"
@@ -57,6 +58,7 @@ const SHAPES: Record<IconName, string[]> = {
   pointer: ["M5 4l6.5 16 2.3-6.7L20.5 11z"],
   pencil: ["M4 20h4L20 8l-4-4L4 16z", "M14 6l4 4"],
   eye: ["M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z", "c 12 12 3"],
+  eyeOff: ["M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z", "c 12 12 3", "M3 3l18 18"],
   clock: ["c 12 12 9", "M12 7v5l4 2"],
   download: ["M12 3v12M7 11l5 5 5-5", "M4 19h16"],
   window: ["r 3 4 18 16 2", "M3 9h18M7 6.5h.01"],

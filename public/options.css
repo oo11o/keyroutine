@@ -155,6 +155,10 @@ svg.i {
   max-width: 1600px;
   margin: 0 auto;
 }
+/* The UA stylesheet hides [hidden] with a bare attribute rule, which this
+   class rule outranks — without this, switching to Variables left the three
+   columns on screen underneath it. */
+.builder[hidden] { display: none; }
 .builder > section {
   min-width: 0;
   background: var(--panel);
@@ -630,7 +634,7 @@ textarea { height: auto; min-height: 96px; padding: 10px 12px; resize: vertical;
   font-size: 13px;
 }
 
-/* ── secrets tab ───────────────────────────────────────────────────────── */
+/* ── variables tab ─────────────────────────────────────────────────────── */
 
 .secrets { max-width: 760px; padding: 24px 20px 48px; margin: 0 auto; }
 .secrets h2 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.02em; }
@@ -644,6 +648,8 @@ textarea { height: auto; min-height: 96px; padding: 10px 12px; resize: vertical;
   font-size: 13px;
 }
 .secret-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+/* The value input keeps its width when the reveal toggle sits beside it. */
+.secret-row .iconbtn { flex: none; }
 .secret-row .name { flex: 0 0 220px; }
 .secret-row .value { flex: 1; }
 .secrets .actions { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
