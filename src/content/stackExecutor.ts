@@ -1,4 +1,5 @@
 import type { Settings, Stack } from "../core/schema";
+import type { StackSection } from "../core/match";
 import { DEFAULT_SETTINGS } from "../core/schema";
 import { formatBinding } from "../core/keys";
 import { runStack, StepError, type Resume } from "./runner";
@@ -22,12 +23,12 @@ async function loadSettings(): Promise<Settings> {
 // Pure with respect to presentation: no logging, no toast.
 async function resolveOutcome(
   stack: Stack,
-  allStacks: Stack[],
+  sections: StackSection[],
   secrets: Record<string, string>,
   resume?: Resume
 ): Promise<RunOutcome> {
   try {
-    const notes = await runStack(stack, allStacks, secrets, resume);
+    const notes = await runStack(stack, sections, secrets, resume);
     return { ok: true, notes };
   } catch (err) {
     if (err instanceof StepError) {
@@ -48,13 +49,13 @@ async function resolveOutcome(
 // confirmation.
 export async function executeStack(
   stack: Stack,
-  allStacks: Stack[],
+  sections: StackSection[],
   resume?: Resume
 ): Promise<void> {
   const [settings, secrets] = await Promise.all([loadSettings(), loadSecrets()]);
   const chord = formatBinding(stack.binding);
   logDebug(chord, stack, settings.debug);
 
-  const outcome = await resolveOutcome(stack, allStacks, secrets, resume);
+  const outcome = await resolveOutcome(stack, sections, secrets, resume);
   present(chord, stack, outcome, settings, makeRedactor(secrets));
 }

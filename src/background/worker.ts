@@ -5,7 +5,10 @@
 //      applying, given host_permissions for that origin;
 //   2. hold the resume records for stacks suspended by a navigation step —
 //      a content script cannot outlive the page it runs in, so the state of
-//      a half-finished stack has to be parked somewhere that does.
+//      a half-finished stack has to be parked somewhere that does;
+//   3. seed the stored config on install, and open the builder when the
+//      toolbar icon is clicked.
+import { seedIfEmpty } from "../core/configStore";
 import {
   FETCH_MESSAGE_TYPE,
   SAVE_RESUME_MESSAGE_TYPE,
@@ -80,4 +83,18 @@ chrome.runtime.onMessage.addListener((message: AnyRequest, sender, sendResponse)
   }
 
   return; // not ours — let another listener handle it
+});
+
+// The config lives in chrome.storage.local, so a fresh install starts with
+// nothing to run. Copy the bundled config/stacks.json across once — onInstalled
+// fires for an update too, and seedIfEmpty() is a no-op when storage already
+// holds a config, so a user's own stacks are never overwritten by the seed.
+chrome.runtime.onInstalled.addListener(() => {
+  void seedIfEmpty();
+});
+
+// No popup on the action: the builder needs a window's worth of room for three
+// columns, so the icon opens the options page instead.
+chrome.action?.onClicked.addListener(() => {
+  void chrome.runtime.openOptionsPage();
 });

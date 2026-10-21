@@ -6,11 +6,12 @@
   "permissions": ["clipboardWrite", "storage"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Keystack — build stacks" },
   "options_page": "options.html",
   "content_scripts": [
     { "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }
   ],
   "web_accessible_resources": [
-    { "resources": ["config/*.json"], "matches": ["<all_urls>"] }
+    { "resources": ["config/settings.json"], "matches": ["<all_urls>"] }
   ]
 }

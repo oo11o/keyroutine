@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matches, formatBinding } from "../src/core/keys";
+import { matches, formatBinding, bindingKeys, chordText } from "../src/core/keys";
 import type { Binding } from "../src/core/schema";
 
 const binding: Binding = { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false };
@@ -62,5 +62,21 @@ describe("formatBinding — Mac", () => {
   it("passes through a non-alphanumeric code as-is", () => {
     expect(formatBinding({ code: "F1", ctrl: true, alt: false, shift: false, meta: false }, true))
       .toBe("Ctrl(⌃)+F1");
+  });
+});
+
+describe("bindingKeys and chordText — what the builder draws", () => {
+  const binding = { code: "KeyO", ctrl: true, alt: true, shift: false, meta: false };
+
+  it("splits a chord into keycaps, symbols on a Mac and words elsewhere", () => {
+    expect(bindingKeys(binding, true)).toEqual(["⌃", "⌥", "O"]);
+    expect(bindingKeys(binding, false)).toEqual(["Ctrl", "Alt", "O"]);
+  });
+
+  it("spells the chord out in a form you could read aloud", () => {
+    expect(chordText(binding, true)).toBe("Ctrl+Option+O");
+    expect(chordText(binding, false)).toBe("Ctrl+Alt+O");
+    expect(chordText({ code: "Digit1", ctrl: false, alt: false, shift: true, meta: true }, true))
+      .toBe("Shift+Command+1");
   });
 });

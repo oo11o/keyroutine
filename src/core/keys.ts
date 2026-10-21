@@ -45,3 +45,29 @@ export function formatBinding(b: Binding, mac: boolean = isMacPlatform()): strin
   parts.push(keyLabel(b.code));
   return parts.join("+");
 }
+
+// The chord as separate keys, for the builder's <kbd> rendering: ["⌃","⌥","O"]
+// on a Mac, ["Ctrl","Alt","O"] elsewhere. Separate from formatBinding because
+// one is a string for a toast and the other is a list of keycaps.
+export function bindingKeys(b: Binding, mac: boolean = isMacPlatform()): string[] {
+  const keys: string[] = [];
+  if (b.ctrl) keys.push(mac ? "⌃" : "Ctrl");
+  if (b.alt) keys.push(mac ? "⌥" : "Alt");
+  if (b.shift) keys.push(mac ? "⇧" : "Shift");
+  if (b.meta) keys.push(mac ? "⌘" : "Meta");
+  keys.push(keyLabel(b.code));
+  return keys;
+}
+
+// The spelled-out form shown next to the keycaps — "Ctrl+Option+O". Named
+// modifiers rather than symbols, so the chord can be read out loud and typed
+// into a bug report.
+export function chordText(b: Binding, mac: boolean = isMacPlatform()): string {
+  const parts: string[] = [];
+  if (b.ctrl) parts.push("Ctrl");
+  if (b.alt) parts.push(mac ? "Option" : "Alt");
+  if (b.shift) parts.push("Shift");
+  if (b.meta) parts.push(mac ? "Command" : "Meta");
+  parts.push(keyLabel(b.code));
+  return parts.join("+");
+}

@@ -1,4 +1,5 @@
-import { loadConfig } from "./stackResolver";
+import { loadConfig } from "../core/configStore";
+import { applicableSections, applicableStacks } from "../core/match";
 import { executeStack } from "./stackExecutor";
 import { takeResume } from "../background/client";
 
@@ -15,14 +16,19 @@ export async function resumePending(): Promise<void> {
   if (!record) return;
 
   const config = await loadConfig().catch(() => null);
-  if (!config) return; // config unreachable — nothing to resume against
+  if (!config) return; // config unreadable — nothing to resume against
 
-  // The stack may have been renamed, disabled or deleted while the page was
-  // loading. Dropping the record is the right answer: half a stack is worse
-  // than none, and the record is already consumed.
-  const stack = config.stacks.find((s) => s.id === record.stackId);
-  if (!stack || !stack.enabled) return;
+  // The stack may have been renamed, disabled, deleted or re-scoped while the
+  // page was loading. Dropping the record is the right answer: half a stack is
+  // worse than none, and the record is already consumed.
+  //
+  // Resolved against what applies on *this* URL, not the whole config: the
+  // navigation may have landed somewhere the stack was never scoped to, and
+  // finishing it there is exactly what site scoping exists to prevent.
+  const applicable = applicableStacks(config, location.href);
+  const stack = applicable.find((s) => s.id === record.stackId);
+  if (!stack) return;
   if (record.nextStep >= stack.steps.length) return; // edited out from under us
 
-  await executeStack(stack, config.stacks, record);
+  await executeStack(stack, applicableSections(config, location.href), record);
 }

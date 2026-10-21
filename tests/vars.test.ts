@@ -1,0 +1,127 @@
+import { describe, it, expect } from "vitest";
+import { availableVars, referencedVars, unknownVars } from "../src/core/vars";
+import type { Stack, Step } from "../src/core/schema";
+
+// The user's own example: copy an id, fetch with it, show the JSON.
+function jsonShow(): Stack {
+  return {
+    id: "jsonShow",
+    name: "jsonShow",
+    binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
+    enabled: true,
+    steps: [
+      { id: "s1", type: "readBySelector", selector: "#tender_id" },
+      { id: "s2", type: "fetchUrl", url: "https://api.test/t/$s1", saveAs: "json" },
+      { id: "s3", type: "popupJson", title: "Tender", body: "$json" }
+    ]
+  };
+}
+
+const names = (stack: Stack, at: number, secrets: string[] = []) =>
+  availableVars(stack, at, secrets).map((v) => v.name);
+
+describe("availableVars", () => {
+  it("offers nothing from the stack itself to the first step", () => {
+    expect(names(jsonShow(), 0)).toEqual(["url", "title", "selection", "stacks", "stackName"]);
+  });
+
+  it("offers an earlier producer by its step id", () => {
+    expect(names(jsonShow(), 1)).toContain("s1");
+  });
+
+  it("offers a producer's saveAs name as well as its id", () => {
+    const at3 = names(jsonShow(), 2);
+    expect(at3).toContain("s2");
+    expect(at3).toContain("json");
+  });
+
+  it("does not offer a step its own output, or a later step's", () => {
+    // $s2 at step 2 would be the value this step has not produced yet.
+    expect(names(jsonShow(), 1)).not.toContain("s2");
+    expect(names(jsonShow(), 1)).not.toContain("json");
+  });
+
+  it("offers $value only for the most recent producer", () => {
+    const vars = availableVars(jsonShow(), 2);
+    const value = vars.find((v) => v.name === "value");
+    expect(value?.note).toMatch(/step s2/);
+  });
+
+  it("does not offer $value before anything has produced one", () => {
+    expect(names(jsonShow(), 0)).not.toContain("value");
+  });
+
+  it("skips steps that produce nothing", () => {
+    const stack = jsonShow();
+    stack.steps = [
+      { id: "s1", type: "clickBySelector", selector: "#go" },
+      { id: "s2", type: "wait", ms: 100 }
+    ];
+    expect(names(stack, 2)).not.toContain("s1");
+  });
+
+  it("namespaces secrets, so a stack reads as visibly sensitive", () => {
+    expect(names(jsonShow(), 0, ["runToken"])).toContain("secret_runToken");
+  });
+
+  it("offers a shadowed name once", () => {
+    const stack = jsonShow();
+    stack.steps = [
+      { id: "s1", type: "readBySelector", selector: "#a", saveAs: "id" },
+      { id: "s2", type: "readBySelector", selector: "#b", saveAs: "id" }
+    ];
+    expect(names(stack, 2).filter((n) => n === "id")).toEqual(["id"]);
+  });
+});
+
+describe("referencedVars", () => {
+  it("finds every $name", () => {
+    expect(referencedVars("https://a.test/$s1?run=$secret_token")).toEqual(["s1", "secret_token"]);
+  });
+
+  it("ignores an escaped $$", () => {
+    expect(referencedVars("costs $$5, id $s1")).toEqual(["s1"]);
+  });
+
+  it("finds nothing in plain text", () => {
+    expect(referencedVars("#tender_id")).toEqual([]);
+  });
+});
+
+describe("unknownVars", () => {
+  it("passes the stack it was built for", () => {
+    expect(unknownVars(jsonShow())).toEqual([]);
+  });
+
+  it("catches a typo, naming the step and the field it is in", () => {
+    const stack = jsonShow();
+    (stack.steps[2] as Extract<Step, { type: "popupJson" }>).body = "$jsno";
+
+    expect(unknownVars(stack)).toEqual([
+      { stepIndex: 2, stepId: "s3", field: "body", name: "jsno" }
+    ]);
+  });
+
+  it("catches a forward reference — a value the step runs too early to have", () => {
+    const stack = jsonShow();
+    (stack.steps[0] as Extract<Step, { type: "readBySelector" }>).saveAs = "id";
+    (stack.steps[1] as Extract<Step, { type: "fetchUrl" }>).url = "https://api.test/t/$json";
+
+    expect(unknownVars(stack)).toMatchObject([{ stepId: "s2", name: "json" }]);
+  });
+
+  it("accepts a secret only when that secret exists", () => {
+    const stack = jsonShow();
+    (stack.steps[1] as Extract<Step, { type: "fetchUrl" }>).url = "https://api.test/?run=$secret_runToken";
+
+    expect(unknownVars(stack)).toMatchObject([{ name: "secret_runToken" }]);
+    expect(unknownVars(stack, ["runToken"])).toEqual([]);
+  });
+
+  it("does not look for variables in a selector, which is never interpolated", () => {
+    const stack = jsonShow();
+    (stack.steps[0] as Extract<Step, { type: "readBySelector" }>).selector = "[data-id=$nope]";
+
+    expect(unknownVars(stack)).toEqual([]);
+  });
+});

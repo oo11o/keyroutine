@@ -96,18 +96,16 @@
     },
     {
       "id": "logout",
-      "name": "Logout",
+      "name": "logoutLogin",
       "binding": { "code": "Digit8", "ctrl": true, "alt": true, "shift": false, "meta": false },
       "enabled": true,
       "steps": [
         { "id": "s1", "type": "openUrlInCurrentTab", "url": "http://dzo.lh/cabinet/logout" },
         { "id": "s2", "type": "openUrlInCurrentTab", "url": "http://dzo.lh/tenders/new" },
-        {
-          "id": "s3",
-          "type": "inputToSelector",
-          "selector": "[name=\"email\"]",
-          "value": "buyer_test@dzo.com.ua"
-        }
+        { "id": "s3", "type": "wait", "ms": 500 },
+        { "id": "s4", "type": "focusBySelector", "selector": "[name=\"email\"]" },
+        { "id": "s5", "type": "wait", "ms": 500 },
+        { "id": "s6", "type": "inputToSelector", "selector": "[name=\"email\"]", "value": "b" }
       ]
     },
     {

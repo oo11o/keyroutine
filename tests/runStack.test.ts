@@ -153,11 +153,13 @@ describe("runStack — the popup step", () => {
       steps: []
     };
 
-    const run = runStack(hotkeys, [other, hotkeys]);
+    const run = runStack(hotkeys, [
+      { level: "common", label: "Everywhere", stacks: [other, hotkeys] }
+    ]);
     await Promise.resolve();
 
     const text = getPopup()!.querySelector(".body")!.textContent!;
-    expect(text.split("\n")).toHaveLength(2);
+    expect(text.split("\n")).toHaveLength(2); // a single section carries no heading
     expect(text).toContain("Copy Tender");
     expect(text).toContain("Hotkeys");
 

@@ -154,7 +154,7 @@ describe("openUrlInCurrentTab", () => {
     const stack = stackWith("http://dzo.lh/sync.php?id=$s1&run=$secret_runToken");
     stack.steps.push({ id: "s3", type: "popup", body: "done" });
 
-    await runStack(stack, [stack], { runToken: "hunter2" });
+    await runStack(stack, undefined, { runToken: "hunter2" });
 
     const names = savedRecord()!.vars.map(([name]) => name);
     expect(names).not.toContain("secret_runToken");

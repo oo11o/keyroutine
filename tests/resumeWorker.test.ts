@@ -31,8 +31,17 @@ const take = (tabId = 1) => send({ type: TAKE_RESUME_MESSAGE_TYPE }, tabId) as P
 beforeEach(async () => {
   store = {};
   vi.stubGlobal("chrome", {
-    runtime: { onMessage: { addListener: (fn: Listener) => (listener = fn) } },
+    // The worker also seeds the config on install and opens the builder from
+    // the toolbar icon; both are registered on import, so the double has to
+    // offer the hooks even though these tests drive neither.
+    runtime: {
+      onMessage: { addListener: (fn: Listener) => (listener = fn) },
+      onInstalled: { addListener: () => {} },
+      openOptionsPage: async () => {}
+    },
+    action: { onClicked: { addListener: () => {} } },
     storage: {
+      local: { get: async () => ({}), set: async () => {} },
       session: {
         get: async (k: string) => ({ [k]: store[k] }),
         set: async (entries: Record<string, unknown>) => Object.assign(store, entries),
