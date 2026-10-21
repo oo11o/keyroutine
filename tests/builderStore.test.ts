@@ -65,11 +65,32 @@ describe("opening the builder", () => {
     expect(store.stacksInScope().map((s) => s.id)).toEqual(["local-sync"]);
   });
 
-  it("selects the first stack and its first step, so nothing starts blank", async () => {
+  it("opens nothing, so the Stacks column reads as a list until one is picked", async () => {
     await open();
 
+    expect(store.currentStack()).toBeNull();
+    expect(store.currentStep()).toBeNull();
+  });
+
+  it("closes the open stack when it is picked again", async () => {
+    await open();
+    store.selectStack("copy-id");
     expect(store.currentStack()?.id).toBe("copy-id");
-    expect(store.currentStep()?.id).toBe("s1");
+
+    store.toggleStack("copy-id");
+    expect(store.currentStack()).toBeNull();
+
+    store.toggleStack("copy-id");
+    expect(store.currentStack()?.id).toBe("copy-id");
+  });
+
+  it("opens nothing of another scope's stacks when the scope changes", async () => {
+    await open();
+    store.selectStack("copy-id");
+
+    store.selectScope({ kind: "site", siteId: "local" });
+
+    expect(store.currentStack()).toBeNull();
   });
 
   it("counts the stacks per scope for the column's badges", async () => {

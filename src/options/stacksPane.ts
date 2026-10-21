@@ -64,7 +64,7 @@ export function renderStacks(pane: HTMLElement): void {
             type: "button",
             class: "stackpick",
             "aria-expanded": selected ? "true" : "false",
-            onClick: () => store.selectStack(stack.id)
+            onClick: () => store.toggleStack(stack.id)
           },
           h(
             "span",

@@ -144,6 +144,9 @@ describe("the Sites column", () => {
 describe("the Stacks column", () => {
   beforeEach(() => {
     store.selectScope({ kind: "common" });
+    // The builder boots with every stack closed, so these start with the click
+    // the user makes first: opening the one they came to work on.
+    store.selectStack("show-tender");
     draw();
   });
 
@@ -218,9 +221,35 @@ describe("the Stacks column", () => {
   });
 });
 
+// Ten stacks with ten editors open is not a list of hotkeys, it is a wall. The
+// column stays a list until a card is asked for.
+describe("the Stacks column on arrival", () => {
+  beforeEach(() => {
+    store.selectScope({ kind: "common" });
+    draw();
+  });
+
+  it("opens no card, and no editor with it", () => {
+    expect(texts(panes.stacks, ".stackname")).toEqual(["Show Tender"]);
+    expect(panes.stacks.querySelector(".cardbody")).toBeNull();
+    expect(panes.stacks.querySelector(".stackpick")?.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("opens the one that is clicked, and closes it when clicked again", () => {
+    (panes.stacks.querySelector(".stackpick") as HTMLElement).click();
+    draw();
+    expect(panes.stacks.querySelector("#stack-name")).not.toBeNull();
+
+    (panes.stacks.querySelector(".stackpick") as HTMLElement).click();
+    draw();
+    expect(panes.stacks.querySelector("#stack-name")).toBeNull();
+  });
+});
+
 describe("the Actions column", () => {
   beforeEach(() => {
     store.selectScope({ kind: "common" });
+    store.selectStack("show-tender");
     draw();
   });
 
@@ -394,6 +423,7 @@ describe("the Actions column", () => {
 describe("checking a stack against a real page", () => {
   beforeEach(() => {
     store.selectScope({ kind: "common" });
+    store.selectStack("show-tender");
     draw();
   });
 

@@ -77,7 +77,10 @@ export async function init(url: string | null, secrets: string[]): Promise<void>
   // that site rather than making them find it.
   const site = pageUrl ? siteFor(pageUrl, config.sites) : null;
   scope = site ? { kind: "site", siteId: site.id } : COMMON;
-  selectFirstStack();
+  // Nothing is open to begin with. Opening a stack means opening its editor,
+  // and the builder has no business guessing which stack out of ten the user
+  // came to edit — the column reads as a list until they pick one.
+  clearSelection();
   announce();
 }
 
@@ -85,7 +88,8 @@ export async function init(url: string | null, secrets: string[]): Promise<void>
 
 export function selectScope(next: Scope): void {
   scope = next;
-  selectFirstStack();
+  // These are a different site's stacks, and none of them was asked for.
+  clearSelection();
   announce();
 }
 
@@ -94,6 +98,17 @@ export function selectStack(id: string | null): void {
   const stack = currentStack();
   stepId = stack?.steps[0]?.id ?? null;
   announce();
+}
+
+// Only one stack editor is open at a time — clicking the open one closes it,
+// the same way an action card works.
+export function toggleStack(id: string): void {
+  if (stackId === id) {
+    clearSelection();
+    announce();
+    return;
+  }
+  selectStack(id);
 }
 
 export function selectStep(id: string | null): void {
@@ -107,9 +122,9 @@ export function toggleStep(id: string): void {
   announce();
 }
 
-function selectFirstStack(): void {
-  stackId = stacksInScope()[0]?.id ?? null;
-  stepId = currentStack()?.steps[0]?.id ?? null;
+function clearSelection(): void {
+  stackId = null;
+  stepId = null;
 }
 
 export function stacksInScope(): Stack[] {
@@ -177,7 +192,7 @@ export function addSite(name: string, patterns: string[]): Site {
   };
   config.sites = [...config.sites, site];
   scope = { kind: "site", siteId: site.id };
-  selectFirstStack();
+  clearSelection();
   announce();
   return site;
 }
@@ -200,7 +215,7 @@ export function deleteSite(siteId: string, keepStacks: boolean): void {
     ? config.stacks.map((s) => (s.siteId === siteId ? { ...s, siteId: null } : s))
     : config.stacks.filter((s) => s.siteId !== siteId);
   scope = COMMON;
-  selectFirstStack();
+  clearSelection();
   announce();
 }
 
@@ -261,7 +276,7 @@ export function patchStack(id: string, patch: Partial<Omit<Stack, "id" | "steps"
 
 export function deleteStack(id: string): void {
   config.stacks = config.stacks.filter((s) => s.id !== id);
-  if (stackId === id) selectFirstStack();
+  if (stackId === id) clearSelection();
   announce();
 }
 
@@ -480,7 +495,7 @@ export function replaceDraft(raw: unknown): SaveResult {
   if (!isParsed(result)) return { ok: false, problems: result.errors.map((message) => ({ message })) };
   config = result.config;
   scope = COMMON;
-  selectFirstStack();
+  clearSelection();
   announce();
   return { ok: true };
 }
