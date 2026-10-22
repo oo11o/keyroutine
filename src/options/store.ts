@@ -479,6 +479,20 @@ export async function save(): Promise<SaveResult> {
       });
     }
   }
+  // A popup is where a stack ends. The builder will not let one be put
+  // anywhere else, but an imported or hand-written config can still arrive
+  // with actions queued behind a panel nobody will see until it is dismissed.
+  for (const stack of config.stacks) {
+    const last = stack.steps.length - 1;
+    for (const [index, step] of stack.steps.entries()) {
+      if (index === last || !STEP_META[step.type].endsStack) continue;
+      problems.push({
+        stackId: stack.id,
+        stepId: step.id,
+        message: `"${stack.name}", action ${step.id}: ${STEP_META[step.type].label} has to be the last action — nothing may follow it`
+      });
+    }
+  }
   if (problems.length > 0) return { ok: false, problems };
 
   const parsed = (result as { config: Config }).config;

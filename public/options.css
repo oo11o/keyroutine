@@ -604,6 +604,16 @@ textarea.wrapbox {
 
 /* The "Add action" type menu: grouped, each type with a line of help, so the
    list is browsable by someone who does not know the vocabulary yet. */
+/* Where the Add action row would be, when the stack already ends. */
+.endnote {
+  border: 1px dashed var(--line2);
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.node-end { background: var(--okbg); color: var(--okfg); border-color: var(--okline); }
+
 .type-menu {
   margin-top: 8px;
   border: 1px solid var(--line2);

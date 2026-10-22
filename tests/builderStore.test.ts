@@ -197,6 +197,23 @@ describe("editing steps", () => {
     expect("saveAs" in (store.currentStep() as object)).toBe(false);
   });
 
+  it("refuses to save an action queued behind a popup", async () => {
+    await open();
+    store.selectStack("copy-id");
+    // The builder offers no way to do this — the Add action row is gone once a
+    // stack ends in a popup — but an imported config can still arrive like it.
+    store.addStep("popup");
+    store.patchStep(store.currentStep()!.id, { body: "done" });
+    store.addStep("wait");
+
+    const result = await store.save();
+
+    expect(result.ok).toBe(false);
+    expect((result as { problems: { message: string }[] }).problems[0].message).toContain(
+      "has to be the last action"
+    );
+  });
+
   it("moves a step, and refuses to move it off either end", async () => {
     await open();
     store.selectStack("copy-id");

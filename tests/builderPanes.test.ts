@@ -45,6 +45,12 @@ function draw(): void {
   renderSteps(panes.steps);
 }
 
+function hasAddAction(): boolean {
+  return [...panes.steps.querySelectorAll("button")].some((b) =>
+    b.textContent?.includes("Add action")
+  );
+}
+
 function texts(pane: HTMLElement, selector: string): string[] {
   return [...pane.querySelectorAll(selector)].map((el) => el.textContent?.trim() ?? "");
 }
@@ -423,17 +429,41 @@ describe("the Actions column", () => {
 
     expect(tool(0, "Move up").disabled).toBe(true);
     expect(tool(2, "Move down").disabled).toBe(true);
+    // The popup is where the stack ends, so neither arrow may leave an action
+    // standing behind it: it cannot climb, and the action above cannot pass it.
+    expect(tool(2, "Move up").disabled).toBe(true);
+    expect(tool(1, "Move down").disabled).toBe(true);
 
-    tool(2, "Move up").click();
+    tool(1, "Move up").click();
     draw();
-    expect(texts(panes.steps, ".steptitle")[1]).toBe("Show popup (JSON)");
+    expect(texts(panes.steps, ".steptitle")).toEqual([
+      "Fetch URL",
+      "Read element",
+      "Show popup (JSON)"
+    ]);
 
     tool(1, "Delete action").click();
     draw();
-    expect(texts(panes.steps, ".steptitle")).toEqual(["Read element", "Fetch URL"]);
+    expect(texts(panes.steps, ".steptitle")).toEqual(["Fetch URL", "Show popup (JSON)"]);
+  });
+
+  it("ends the pipeline at a popup instead of asking what comes next", () => {
+    // The seeded stack finishes with Show popup (JSON) — the answer the hotkey
+    // was pressed for, so there is nothing sensible to add after it.
+    expect(hasAddAction()).toBe(false);
+    expect(panes.steps.textContent).toContain("Show popup (JSON) ends the stack");
+
+    // And the way back is the one the note names.
+    store.deleteStep("s3");
+    draw();
+    expect(hasAddAction()).toBe(true);
   });
 
   it("adds an action from the grouped type menu", () => {
+    // Adding happens at the end, and this stack ends in a popup.
+    store.deleteStep("s3");
+    draw();
+
     clickWithText(panes.steps, "button", "Add action");
     clickStepType(panes.steps, "Wait (fixed)");
     draw();
