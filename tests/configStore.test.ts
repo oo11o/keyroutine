@@ -127,6 +127,42 @@ describe("parseConfig — migration", () => {
   it("falls back to the id when a stack has no name, so nothing is nameless in the builder", () => {
     expect(parsed({ stacks: [{ ...V1.stacks[0], name: "" }] }).stacks[0].name).toBe("copy-id");
   });
+
+  // Variables lost their "secret_" prefix in 0.7. A config written before then
+  // is rewritten on the way in, so the hotkey it describes keeps working.
+  it("drops the old secret_ prefix from every field a $var may appear in", () => {
+    const config = parsed({
+      stacks: [
+        {
+          ...V1.stacks[0],
+          steps: [
+            { id: "s1", type: "fetchUrl", url: "https://api.test/?run=$secret_runToken" },
+            { id: "s2", type: "inputToSelector", selector: "#f", value: "$secret_pass" },
+            { id: "s3", type: "popup", title: "t", body: "$secret_runToken and $s1" }
+          ]
+        }
+      ]
+    });
+
+    expect(config.stacks[0].steps).toMatchObject([
+      { url: "https://api.test/?run=$runToken" },
+      { value: "$pass" },
+      { body: "$runToken and $s1" }
+    ]);
+  });
+
+  it("leaves an escaped dollar and an ordinary variable alone", () => {
+    const config = parsed({
+      stacks: [
+        {
+          ...V1.stacks[0],
+          steps: [{ id: "s1", type: "popup", body: "$$secret_runToken costs $s1" }]
+        }
+      ]
+    });
+
+    expect(config.stacks[0].steps[0]).toMatchObject({ body: "$$secret_runToken costs $s1" });
+  });
 });
 
 describe("parseConfig — errors as data", () => {

@@ -12,7 +12,6 @@ vi.mock("../src/page/navigate", async (importOriginal) => {
 });
 import { navigateHere } from "../src/page/navigate";
 import { SAVE_RESUME_MESSAGE_TYPE, type SaveResumeRequest } from "../src/background/protocol";
-import { MASK } from "../src/core/redact";
 
 const went = vi.mocked(navigateHere);
 
@@ -149,18 +148,18 @@ describe("openUrlInCurrentTab", () => {
     expect(savedRecord()).toBeUndefined();
   });
 
-  it("never parks a secret — they are re-seeded on the other side", async () => {
+  it("never parks a variable from the Variables tab — it is re-seeded there", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
-    const stack = stackWith("http://dzo.lh/sync.php?id=$s1&run=$secret_runToken");
+    const stack = stackWith("http://dzo.lh/sync.php?id=$s1&run=$runToken");
     stack.steps.push({ id: "s3", type: "popup", body: "done" });
 
     await runStack(stack, undefined, { runToken: "hunter2" });
 
     const names = savedRecord()!.vars.map(([name]) => name);
-    expect(names).not.toContain("secret_runToken");
-    // Not in the vars, and not smuggled through a note either — the note
-    // for this step is literally "went to ...&run=hunter2".
-    expect(JSON.stringify(savedRecord())).not.toContain("hunter2");
-    expect(savedRecord()!.notes[1]).toContain(MASK);
+    expect(names).not.toContain("runToken");
+    // The step's note does quote the URL it went to, token and all. That is
+    // the cost of dropping masking along with the "secret" prefix: notes are
+    // display text, and nothing reads them back.
+    expect(savedRecord()!.notes[1]).toContain("run=hunter2");
   });
 });

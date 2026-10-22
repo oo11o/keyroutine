@@ -5,29 +5,30 @@ import type { Config, Site, Stack } from "./schema";
 // matcher because no Chrome API tests an arbitrary pattern string against a
 // URL — the manifest ones are consumed by the browser, never exposed to us.
 //
-// A pattern with no "://" is read as a bare host: "dzo.lh" means
-// "*://dzo.lh/*". That shorthand exists because it is what people type into
+// A pattern with no "://" is read as a bare host: "example.com" means
+// "*://example.com/*". That shorthand exists because it is what people type into
 // the builder's site box, and reading it literally would match nothing.
 export function expandPattern(pattern: string): string {
   const trimmed = pattern.trim();
   if (!trimmed) return trimmed;
   if (trimmed.includes("://")) return trimmed;
-  // Host only, unless the user typed a path too ("dzo.lh/cabinet").
+  // Host only, unless the user typed a path too ("example.com/account").
   return trimmed.includes("/") ? `*://${trimmed}` : `*://${trimmed}/*`;
 }
 
-// Anchored at both ends, so "https://dzo.lh/*" does not match
-// "https://evil.test/?next=https://dzo.lh/".
+// Anchored at both ends, so "https://example.com/*" does not match
+// "https://evil.test/?next=https://example.com/".
 //
 // A pattern with no "*" in it anywhere covers the page it names *and whatever
-// is under it*: "dzo.lh/tenders" is how everyone writes "the tenders section",
-// and reading it as that one exact URL made it silently useless the moment you
-// opened a tender. Writing a "*" yourself turns the shorthand off and the
-// pattern is matched literally, so "dzo.lh/tenders/*" still means strictly
-// below /tenders, and "dzo.lh/search?q=*" still means exactly that query.
+// is under it*: "example.com/reports" is how everyone writes "the reports
+// section", and reading it as that one exact URL made it silently useless the
+// moment you opened a report. Writing a "*" yourself turns the shorthand off
+// and the pattern is matched literally, so "example.com/reports/*" still means
+// strictly below /reports, and "example.com/search?q=*" still means exactly
+// that query.
 //
-// The subtree is a path step, never a string prefix: /tenders covers
-// /tenders/4821 and not /tenders-archive.
+// The subtree is a path step, never a string prefix: /reports covers
+// /reports/4821 and not /reports-archive.
 export function patternToRegExp(pattern: string): RegExp {
   const literal = !pattern.includes("*");
   // A trailing slash would otherwise demand a second one from the subtree.
@@ -44,10 +45,10 @@ export function patternToRegExp(pattern: string): RegExp {
 //
 //   - the fragment, which never reaches the server and never identifies a
 //     section of a site, so it is always dropped;
-//   - the query, which does — but "dzo.lh/tenders" plainly means the tenders
-//     page, not "the tenders page only while it is unfiltered". A pattern that
-//     says nothing about the query matches any query; one that mentions "?"
-//     is taken at its word and matched against the whole URL.
+//   - the query, which does — but "example.com/reports" plainly means the
+//     reports page, not "the reports page only while it is unfiltered". A
+//     pattern that says nothing about the query matches any query; one that
+//     mentions "?" is taken at its word and matched against the whole URL.
 //
 // Without this, adding the section you are standing on silently fails the
 // moment you are on page 2 of it.
@@ -82,8 +83,8 @@ export function patternLevel(pattern: string): "domain" | "url" {
 
 // The level at which a site claims this URL, or null if it does not. A site with
 // both kinds of pattern counts as the narrower one it actually matched on:
-// "dzo.lh" plus "dzo.lh/cabinet/*" is a URL-level site once you are in the
-// cabinet, and a domain-level one everywhere else on the host.
+// "example.com" plus "example.com/account/*" is a URL-level site once you are
+// in the account area, and a domain-level one everywhere else on the host.
 export function siteLevel(url: string, site: Site): "domain" | "url" | null {
   const matched = site.patterns.filter((p) => matchesPattern(url, p));
   if (matched.length === 0) return null;
@@ -162,8 +163,8 @@ export function applicableStacks(config: Config, url: string): Stack[] {
 }
 
 // The host a pattern aims at, lowercased and with the scheme and path dropped.
-// Grouping key for the Where column: "https://stage.dzo.com.ua/tenders" and
-// "stage.dzo.com.ua" are the same site to a reader, so they should be the same
+// Grouping key for the Where column: "https://stage.example.com/reports" and
+// "stage.example.com" are the same site to a reader, so they should be the same
 // site to the list.
 export function patternHost(pattern: string): string {
   const expanded = expandPattern(pattern);
@@ -240,7 +241,8 @@ export function groupSites(sites: Site[]): SiteGroup[] {
 
 // A concrete URL a pattern accepts, used only to ask whether two patterns can
 // ever hit the same page. "*" is dropped rather than filled, and a wildcard
-// scheme becomes https, so "dzo.lh/tenders/*" yields "https://dzo.lh/tenders/".
+// scheme becomes https, so "example.com/reports/*" yields
+// "https://example.com/reports/".
 function sampleUrl(pattern: string): string {
   const expanded = expandPattern(pattern);
   if (expanded === "") return "";
@@ -249,9 +251,9 @@ function sampleUrl(pattern: string): string {
 
 // Do these two patterns overlap — is there a page both would claim? Testing
 // every URL is not possible, so each pattern's sample is offered to the other:
-// that catches the cases the UI needs ("dzo.lh" vs "dzo.lh/tenders", a host vs
-// a wildcard host) and errs towards "no" on exotic patterns, which costs a note
-// in the builder rather than a wrong hotkey.
+// that catches the cases the UI needs ("example.com" vs "example.com/reports",
+// a host vs a wildcard host) and errs towards "no" on exotic patterns, which
+// costs a note in the builder rather than a wrong hotkey.
 export function patternsOverlap(a: string, b: string): boolean {
   const sampleA = sampleUrl(a);
   const sampleB = sampleUrl(b);

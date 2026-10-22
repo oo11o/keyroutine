@@ -1,5 +1,5 @@
 import type { Stack, Step } from "./schema";
-import { BUILTINS, SECRET_PREFIX } from "./context";
+import { BUILTINS } from "./context";
 import { STEP_META, templateFields } from "./stepMeta";
 
 // Which $names are legal at a given point in a stack, and which ones a stack
@@ -8,7 +8,7 @@ import { STEP_META, templateFields } from "./stepMeta";
 // is pressed. Answering it statically is what lets the builder offer a picker
 // instead of a memory test, and refuse a typo at save time.
 
-export type VarOrigin = "builtin" | "secret" | "step";
+export type VarOrigin = "builtin" | "var" | "step";
 
 export type AvailableVar = {
   name: string; // without the "$"
@@ -31,7 +31,7 @@ export function referencedVars(template: string): string[] {
 
 // Everything a step at `stepIndex` may read. Mirrors what content/runner.ts
 // actually binds, and in the same order of interest: this stack's own
-// producers first, then the page builtins, then secrets.
+// producers first, then the page builtins, then your own variables.
 //
 // A producer writes three names — $value, $<its id> and $<saveAs> — so all
 // three are offered. $value is only listed for the most recent producer,
@@ -39,7 +39,7 @@ export function referencedVars(template: string): string[] {
 export function availableVars(
   stack: Stack,
   stepIndex: number,
-  secretNames: string[] = []
+  varNames: string[] = []
 ): AvailableVar[] {
   const vars: AvailableVar[] = [];
   const producers = stack.steps
@@ -61,8 +61,8 @@ export function availableVars(
   for (const name of BUILTINS) {
     vars.push({ name, origin: "builtin", note: "built in — describes this page" });
   }
-  for (const name of secretNames) {
-    vars.push({ name: SECRET_PREFIX + name, origin: "secret", note: "from the Variables tab, masked in toasts" });
+  for (const name of varNames) {
+    vars.push({ name, origin: "var", note: "from the Variables tab" });
   }
   return dedupe(vars);
 }
@@ -79,11 +79,11 @@ export type UnknownVar = { stepIndex: number; stepId: string; field: string; nam
 // Every $name a stack references that will not exist when it runs. This is
 // the check that turns "the hotkey silently did nothing useful" into a
 // message next to the field that caused it.
-export function unknownVars(stack: Stack, secretNames: string[] = []): UnknownVar[] {
+export function unknownVars(stack: Stack, varNames: string[] = []): UnknownVar[] {
   const found: UnknownVar[] = [];
   stack.steps.forEach((step: Step, stepIndex) => {
     if (!STEP_META[step.type]) return; // an unknown step type is a different error
-    const known = new Set(availableVars(stack, stepIndex, secretNames).map((v) => v.name));
+    const known = new Set(availableVars(stack, stepIndex, varNames).map((v) => v.name));
     for (const spec of templateFields(step.type)) {
       const value = (step as unknown as Record<string, unknown>)[spec.name];
       if (typeof value !== "string") continue;

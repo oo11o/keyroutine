@@ -27,8 +27,8 @@ export type Step =
 // global — see core/match.ts for what a pattern may look like.
 export type Site = {
   id: string;
-  name: string; // "test.dzo.com.ua", "prozorro" — the label shown in the builder
-  patterns: string[]; // ["https://test.dzo.com.ua/*", "*://*.prozorro.gov.ua/*"]
+  name: string; // "test.example.com", "partner-api" — the label shown in the builder
+  patterns: string[]; // ["https://test.example.com/*", "*://*.partner-api.com/*"]
 };
 
 export type Stack = {

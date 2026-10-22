@@ -34,9 +34,9 @@ const SEED = {
 
 let storage: FakeStorage;
 
-async function open(url: string | null = null, secrets: string[] = []) {
+async function open(url: string | null = null, vars: string[] = []) {
   storage = stubChromeStorage({ [CONFIG_KEY]: structuredClone(SEED) });
-  await store.init(url, secrets);
+  await store.init(url, vars);
 }
 
 beforeEach(() => {
@@ -450,14 +450,14 @@ describe("saving", () => {
     await expect(store.save()).resolves.toEqual({ ok: true });
   });
 
-  it("accepts a secret that exists and refuses one that does not", async () => {
+  it("accepts a variable that exists and refuses one that does not", async () => {
     await open(null, ["runToken"]);
     store.selectStack("copy-id");
     store.addStep("fetchUrl");
-    store.patchStep("response", { url: "https://api.test/?run=$secret_runToken" });
+    store.patchStep("response", { url: "https://api.test/?run=$runToken" });
     await expect(store.save()).resolves.toEqual({ ok: true });
 
-    store.patchStep("response", { url: "https://api.test/?run=$secret_nope" });
+    store.patchStep("response", { url: "https://api.test/?run=$nope" });
     await expect(store.save()).resolves.toMatchObject({ ok: false });
   });
 });

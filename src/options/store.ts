@@ -33,7 +33,7 @@ let saved = JSON.stringify(config);
 let scope: Scope = COMMON;
 let stackId: string | null = null;
 let stepId: string | null = null;
-let secretNames: string[] = [];
+let varNames: string[] = [];
 // The URL of the tab the builder was opened from, for the "This site" row.
 let pageUrl: string | null = null;
 const listeners: Listener[] = [];
@@ -62,13 +62,13 @@ export function getPageUrl(): string | null {
   return pageUrl;
 }
 
-export function getSecretNames(): string[] {
-  return secretNames;
+export function getVarNames(): string[] {
+  return varNames;
 }
 
-export async function init(url: string | null, secrets: string[]): Promise<void> {
+export async function init(url: string | null, vars: string[]): Promise<void> {
   pageUrl = url;
-  secretNames = secrets;
+  varNames = vars;
   // seedIfEmpty rather than loadConfig: opening the builder on a profile whose
   // storage was cleared should show the bundled stacks, not an empty page.
   config = await seedIfEmpty();
@@ -520,7 +520,7 @@ export async function save(): Promise<SaveResult> {
   // The check the runtime cannot make until the hotkey is pressed: a $name
   // nothing will have produced by then.
   for (const stack of config.stacks) {
-    for (const unknown of unknownVars(stack, secretNames)) {
+    for (const unknown of unknownVars(stack, varNames)) {
       problems.push({
         stackId: stack.id,
         stepId: unknown.stepId,

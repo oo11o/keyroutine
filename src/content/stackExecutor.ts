@@ -5,8 +5,7 @@ import { formatBinding } from "../core/keys";
 import { runStack, StepError, type Resume } from "./runner";
 import { logDebug } from "./debugLog";
 import { present } from "./presenter";
-import { loadSecrets } from "./secrets";
-import { makeRedactor } from "../core/redact";
+import { loadVars } from "./vars";
 import type { RunOutcome } from "../ui/toast";
 
 async function loadSettings(): Promise<Settings> {
@@ -24,11 +23,11 @@ async function loadSettings(): Promise<Settings> {
 async function resolveOutcome(
   stack: Stack,
   sections: StackSection[],
-  secrets: Record<string, string>,
+  vars: Record<string, string>,
   resume?: Resume
 ): Promise<RunOutcome> {
   try {
-    const notes = await runStack(stack, sections, secrets, resume);
+    const notes = await runStack(stack, sections, vars, resume);
     return { ok: true, notes };
   } catch (err) {
     if (err instanceof StepError) {
@@ -52,10 +51,10 @@ export async function executeStack(
   sections: StackSection[],
   resume?: Resume
 ): Promise<void> {
-  const [settings, secrets] = await Promise.all([loadSettings(), loadSecrets()]);
+  const [settings, vars] = await Promise.all([loadSettings(), loadVars()]);
   const chord = formatBinding(stack.binding);
   logDebug(chord, stack, settings.debug);
 
-  const outcome = await resolveOutcome(stack, sections, secrets, resume);
-  present(chord, stack, outcome, settings, makeRedactor(secrets));
+  const outcome = await resolveOutcome(stack, sections, vars, resume);
+  present(chord, stack, outcome, settings);
 }

@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { stubChromeStorage, type FakeStorage } from "./fakeChrome";
-import { renderSecrets } from "../src/options/secretsPane";
+import { renderVars } from "../src/options/varsPane";
 
-// The Variables tab. The values are the one thing in the builder that must not
-// render in the clear, so that is what this covers: how they arrive, how a
-// deliberate reveal works, and that masking never gets in the way of saving.
+// The Variables tab: how values arrive, how a deliberate reveal works, and
+// which names it refuses. The eye toggle is the only hiding left — values are
+// no longer masked once a stack runs.
 
 let storage: FakeStorage;
 let pane: HTMLElement;
 
 function rows(): HTMLElement[] {
-  return [...pane.querySelectorAll<HTMLElement>(".secret-row")];
+  return [...pane.querySelectorAll<HTMLElement>(".var-row")];
 }
 
 function valueInput(index = 0): HTMLInputElement {
@@ -27,16 +27,27 @@ beforeEach(async () => {
   storage = stubChromeStorage({ secrets: { runToken: "s3cr3t", apiKey: "abc123" } });
   pane = document.createElement("main");
   document.body.replaceChildren(pane);
-  await renderSecrets(pane, () => {});
+  await renderVars(pane, () => {});
 });
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the Variables tab", () => {
-  it("calls them variables, while the reference stays $secret_<name>", () => {
+  it("calls them variables, and says they are read as $<name>", () => {
     expect(pane.querySelector("h2")?.textContent).toBe("Variables");
-    // Renaming the prefix would break every config already written.
-    expect(pane.querySelector(".lede")?.textContent).toContain("$secret_<name>");
+    expect(pane.querySelector(".lede")?.textContent).toContain("$<name>");
+    expect(pane.querySelector(".lede")?.textContent).not.toContain("secret");
+  });
+
+  // The values were stored under "secrets" until 0.7. They are read from
+  // either key and written back under the new one, so the rename finishes
+  // itself the first time the tab is saved.
+  it("picks up values stored under the old key, and rewrites them", async () => {
+    (pane.querySelector(".actions .btn-primary") as HTMLElement).click();
+
+    await vi.waitFor(() =>
+      expect(storage.data.vars).toEqual({ runToken: "s3cr3t", apiKey: "abc123" })
+    );
   });
 
   it("renders a stored value masked, not as text", () => {
@@ -64,7 +75,7 @@ describe("the Variables tab", () => {
 
     (pane.querySelector(".actions .btn-primary") as HTMLElement).click();
     await vi.waitFor(() =>
-      expect(storage.data.secrets).toEqual({ runToken: "rotated", apiKey: "also-rotated" })
+      expect(storage.data.vars).toEqual({ runToken: "rotated", apiKey: "also-rotated" })
     );
   });
 
@@ -73,8 +84,20 @@ describe("the Variables tab", () => {
 
     (pane.querySelector(".actions .btn-primary") as HTMLElement).click();
     await vi.waitFor(() => expect(pane.querySelector(".status.error")?.textContent).toContain("run-token"));
-    // Nothing was written: $secret_run-token stops at the hyphen, so saving it
-    // would store a variable no stack could ever reach.
-    expect(storage.data.secrets).toEqual({ runToken: "s3cr3t", apiKey: "abc123" });
+    // Nothing was written: $run-token stops at the hyphen, so saving it would
+    // store a variable no stack could ever reach.
+    expect(storage.data.vars).toBeUndefined();
+  });
+
+  // Without the old prefix a variable can collide with a builtin, and would
+  // win — $url would stop describing the page.
+  it("refuses a builtin's name", async () => {
+    (rows()[0].querySelector(".name") as HTMLInputElement).value = "url";
+
+    (pane.querySelector(".actions .btn-primary") as HTMLElement).click();
+    await vi.waitFor(() =>
+      expect(pane.querySelector(".status.error")?.textContent).toContain("built-in")
+    );
+    expect(storage.data.vars).toBeUndefined();
   });
 });

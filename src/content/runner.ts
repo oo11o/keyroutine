@@ -1,10 +1,9 @@
 import type { Stack, Step } from "../core/schema";
 import type { StackSection } from "../core/match";
-import { MAX_VARS, seedSecrets, type RunContext } from "../core/context";
+import { MAX_VARS, seedVars, type RunContext } from "../core/context";
 import { seedBuiltins } from "../page/builtins";
 import { navigateHere } from "../page/navigate";
 import { saveResume } from "../background/client";
-import { makeRedactor } from "../core/redact";
 import type { ResumeRecord } from "../background/protocol";
 import { handlers } from "../steps";
 
@@ -38,21 +37,21 @@ export type Resume = Pick<ResumeRecord, "nextStep" | "vars" | "notes">;
 // them under their scope headings); it defaults to this stack alone so callers
 // that don't care can ignore it.
 // `resume` continues a stack that navigated away mid-run: its step-written
-// variables and notes are restored, while builtins and secrets are seeded
-// fresh — builtins because they describe the page, and this is a different
-// page; secrets because they are deliberately never persisted.
+// variables and notes are restored, while builtins and your own variables are
+// seeded fresh — builtins because they describe the page, and this is a
+// different page; variables because they are deliberately never persisted.
 // Returns one note per step that reported something, in run order.
 export async function runStack(
   stack: Stack,
   sections: StackSection[] = [{ level: "common", label: "Everywhere", stacks: [stack] }],
-  secrets: Record<string, string> = {},
+  vars: Record<string, string> = {},
   resume?: Resume
 ): Promise<string[]> {
   const ctx: RunContext = new Map();
   // Before step 1, so every step can read them.
   seedBuiltins(ctx, sections, stack);
-  seedSecrets(ctx, secrets);
-  const seeded = ctx.size; // builtins + secrets are not charged to the step budget
+  seedVars(ctx, vars);
+  const seeded = ctx.size; // builtins + variables are not charged to the step budget
 
   // Which keys a step wrote, so a suspend can persist exactly those. A
   // restored variable is still step-written and is charged to the budget,
@@ -85,18 +84,15 @@ export async function runStack(
           // ever resolves. Nothing to park if this was the last step.
           const next = i + 1;
           if (next < stack.steps.length) {
-            const redact = makeRedactor(secrets);
             await saveResume({
               stackId: stack.id,
               nextStep: next,
-              // vars are live data — a later step interpolates them, so they
-              // cross unmasked. notes are display data and nothing reads
-              // them back, so they cross masked: a suspended stack must not
-              // park a token in storage just to caption a toast later. The
-              // presenter would have masked them on screen anyway, so the
-              // resumed toast reads exactly the same.
+              // Only step-written variables cross: the ones from the Variables
+              // tab are re-seeded on the other side from storage, exactly as on
+              // a fresh run, so parking a copy of them here would be a second
+              // place for the same value to live.
               vars: [...written].map((name) => [name, ctx.get(name)!]),
-              notes: notes.map(redact),
+              notes,
               expiresAt: Date.now() + RESUME_TTL_MS
             });
           }

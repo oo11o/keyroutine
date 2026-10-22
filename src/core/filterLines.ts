@@ -172,7 +172,7 @@ function matchesPath(path: string, wanted: string[]): boolean {
 //
 // A query containing a dot is *additionally* read as a path — "bids.documents"
 // keeps every line under a documents inside a bids. Additionally, not instead:
-// a value like "active.tendering" has a dot too, and must keep matching
+// a value like "active.pending" has a dot too, and must keep matching
 // literally. A line is kept if either reading matches.
 export function filterLines(text: string, query: string): FilterResult {
   const lines = text.split("\n");

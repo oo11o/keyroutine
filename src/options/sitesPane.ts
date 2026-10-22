@@ -11,9 +11,10 @@ import { COMMON } from "./store";
 // because "make this work here" is how a stack usually starts.
 //
 // A host and its sections are one group, not three unrelated rows:
-// stage.dzo.com.ua owns the list, and stage.dzo.com.ua/tenders sits under it as
-// an area. The nesting is read out of the patterns (see groupSites) — nothing
-// in the config declares it, so it cannot disagree with where stacks fire.
+// stage.example.com owns the list, and stage.example.com/reports sits under it
+// as an area. The nesting is read out of the patterns (see groupSites) —
+// nothing in the config declares it, so it cannot disagree with where stacks
+// fire.
 
 function hostOf(url: string): string {
   try {
@@ -24,8 +25,8 @@ function hostOf(url: string): string {
 }
 
 // The section of a site the URL is in: its first path segment, or "" at the
-// root. One segment rather than the whole path, because "/tenders" is the area
-// a user means when they are looking at "/tenders/4821/edit".
+// root. One segment rather than the whole path, because "/reports" is the area
+// a user means when they are looking at "/reports/4821/edit".
 function areaOf(url: string): string {
   try {
     const segment = new URL(url).pathname.split("/").filter(Boolean)[0];
@@ -138,7 +139,7 @@ function siteRow(site: Site, here: Set<string>, isArea: boolean): HTMLElement {
 function addButton(pageUrl: string | null, claimed: { domain: boolean; url: boolean }): HTMLElement {
   const sites = store.getConfig().sites;
   const host = pageUrl ? hostOf(pageUrl) : "";
-  // Named by this exact host, or claimed by a wildcard one ("*.dzo.com.ua"):
+  // Named by this exact host, or claimed by a wildcard one ("*.example.com"):
   // either way the host has an owner and a second row for it would be a rival,
   // not a parent.
   const hasHost =

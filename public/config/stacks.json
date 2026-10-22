@@ -30,7 +30,7 @@
         {
           "id": "s2",
           "type": "openUrlInNewTab",
-          "url": "http://dzo.lh/cron/directSinhro.php?tender_id=$s1&CDB_Number=0&run=$secret_runToken&type=tenders"
+          "url": "http://dzo.lh/cron/directSinhro.php?tender_id=$s1&CDB_Number=0&run=$runToken&type=tenders"
         }
       ]
     },
@@ -44,7 +44,7 @@
         {
           "id": "s2",
           "type": "openUrlInNewTab",
-          "url": "https://test.dzo.com.ua/cron/directSinhro.php?tender_id=$s1&CDB_Number=0&run=$secret_runToken&type=tenders"
+          "url": "https://test.dzo.com.ua/cron/directSinhro.php?tender_id=$s1&CDB_Number=0&run=$runToken&type=tenders"
         }
       ]
     },
@@ -58,7 +58,7 @@
         {
           "id": "s2",
           "type": "openUrlInNewTab",
-          "url": "https://stage.dzo.com.ua/cron/directSinhro.php?tender_id=$s1&CDB_Number=0&run=$secret_runToken&type=tenders"
+          "url": "https://stage.dzo.com.ua/cron/directSinhro.php?tender_id=$s1&CDB_Number=0&run=$runToken&type=tenders"
         }
       ]
     },
@@ -72,7 +72,7 @@
         {
           "id": "s2",
           "type": "fetchUrl",
-          "url": "http://dzo.lh/cron/directSinhro.php?tender_id=$s1&CDB_Number=0&run=$secret_runToken&type=tenders",
+          "url": "http://dzo.lh/cron/directSinhro.php?tender_id=$s1&CDB_Number=0&run=$runToken&type=tenders",
           "saveAs": "syncResult"
         },
         { "id": "s3", "type": "popup", "title": "Sync result", "body": "$syncResult" }

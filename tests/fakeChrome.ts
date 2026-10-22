@@ -3,9 +3,10 @@ import { clearCache } from "../src/core/configStore";
 
 // The config seam moved from fetch to chrome.storage.local, so more than one
 // suite needs a storage double. Enough of the API for configStore: a get that
-// takes a single key, a set, and the onChanged listener it registers at import
-// time (the real one invalidates the cache; here it is a no-op the stub only
-// has to survive).
+// takes a key or a list of them (content/vars.ts asks for the current key and
+// the pre-0.7 one in a single call), a set, and the onChanged listener it
+// registers at import time (the real one invalidates the cache; here it is a
+// no-op the stub only has to survive).
 export type FakeStorage = {
   data: Record<string, unknown>;
   /** Fires the onChanged listeners, as a real write from another context would. */
@@ -20,7 +21,13 @@ export function stubChromeStorage(initial: Record<string, unknown> = {}): FakeSt
     runtime: { getURL: (p: string) => `chrome-extension://x/${p}` },
     storage: {
       local: {
-        get: async (key: string) => (key in data ? { [key]: data[key] } : {}),
+        get: async (keys: string | string[]) => {
+          const out: Record<string, unknown> = {};
+          for (const key of Array.isArray(keys) ? keys : [keys]) {
+            if (key in data) out[key] = data[key];
+          }
+          return out;
+        },
         set: async (entries: Record<string, unknown>) => {
           Object.assign(data, entries);
         }

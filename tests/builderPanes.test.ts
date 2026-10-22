@@ -432,7 +432,7 @@ describe("the Actions column", () => {
     const offered = texts(panes.steps, ".varchip");
     expect(offered).toContain("$s1"); // the read before it
     expect(offered).toContain("$url"); // a builtin
-    expect(offered).toContain("$secret_runToken");
+    expect(offered).toContain("$runToken");
     expect(offered).not.toContain("$s2"); // its own output, not available to itself
   });
 

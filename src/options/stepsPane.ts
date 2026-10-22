@@ -180,7 +180,7 @@ function move(id: string, delta: number): void {
 // without opening every card.
 function missingVars(step: Step, index: number): string | null {
   const stack = store.currentStack()!;
-  const known = new Set(availableVars(stack, index, store.getSecretNames()).map((v) => v.name));
+  const known = new Set(availableVars(stack, index, store.getVarNames()).map((v) => v.name));
   for (const spec of templateFields(step.type)) {
     const value = (step as unknown as Record<string, unknown>)[spec.name];
     if (typeof value !== "string") continue;
@@ -195,7 +195,7 @@ function actionBody(step: Step, index: number): HTMLElement {
   const meta = STEP_META[step.type];
   // Lazily, and per call: what an action may read depends on where it sits, and
   // it can be moved while its form is open.
-  const vars = () => availableVars(stack, index, store.getSecretNames());
+  const vars = () => availableVars(stack, index, store.getVarNames());
 
   const body = h("div", { class: "cardbody" }, h("p", { class: "stepdesc", text: meta.help }));
 

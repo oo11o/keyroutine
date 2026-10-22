@@ -26,17 +26,21 @@ export function resolve(
 // DOM-touching.
 export const BUILTINS = ["url", "title", "selection", "stacks", "stackName"] as const;
 
-// Secrets are namespaced so a stack reads unambiguously: $secret_runToken is
-// visibly sensitive where a bare $runToken could be anything. The prefix is
-// for the reader only — masking matches on the values themselves, so a
-// secret is redacted wherever it surfaces (see core/redact.ts).
-export const SECRET_PREFIX = "secret_";
-
-// Seeded next to the builtins, before step 1. Values come from
-// chrome.storage.local (content/secrets.ts), never from the config JSON —
-// config/*.json is web-accessible to every page the extension runs on.
-export function seedSecrets(ctx: RunContext, secrets: Record<string, string>): void {
-  for (const [name, value] of Object.entries(secrets)) {
-    ctx.set(SECRET_PREFIX + name, value);
+// The variables you define in the Variables tab, seeded next to the builtins
+// before step 1 and read as $<name> — a token, a base URL, a test password.
+// Values come from chrome.storage.local (content/vars.ts), never from the
+// config JSON: config/*.json is web-accessible to every page the extension
+// runs on, so anything written there is readable by every site you visit.
+//
+// They used to carry a "secret_" prefix and be masked on their way to the
+// screen. Neither survived contact with use: an extension has no server, so
+// the value sits in plaintext on the machine either way, and the prefix only
+// made every template that referenced one harder to read.
+//
+// Seeded after the builtins, so a variable named "url" would shadow $url —
+// which is why the Variables tab refuses a builtin's name outright.
+export function seedVars(ctx: RunContext, vars: Record<string, string>): void {
+  for (const [name, value] of Object.entries(vars)) {
+    ctx.set(name, value);
   }
 }

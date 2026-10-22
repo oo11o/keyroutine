@@ -65,9 +65,9 @@ describe("resuming a stack across a navigation", () => {
     expect(document.querySelector<HTMLInputElement>("#field")!.value).toBe(location.href);
   });
 
-  it("re-seeds secrets, which are deliberately never persisted", async () => {
+  it("re-seeds your variables, which are deliberately never persisted", async () => {
     const s = stack();
-    s.steps[2] = { id: "s3", type: "inputToSelector", selector: "#field", value: "$secret_runToken" };
+    s.steps[2] = { id: "s3", type: "inputToSelector", selector: "#field", value: "$runToken" };
 
     await runStack(s, undefined, { runToken: "hunter2" }, { nextStep: 2, vars: [], notes: [] });
 

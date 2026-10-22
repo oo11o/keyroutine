@@ -8,9 +8,10 @@ import { STEP_META, isStepType } from "./stepMeta";
 // Until now stacks were a bundled file re-fetched over HTTP on every keydown,
 // which made them unwritable by the extension and cost a request per
 // keystroke. They now live in chrome.storage.local — reachable directly from a
-// content script (as secrets already are), writable by the builder, and cheap
-// enough to read that a keydown no longer touches the network. The bundled
-// config/stacks.json survives as the first-run seed, nothing more.
+// content script (as the Variables tab's values already are), writable by the
+// builder, and cheap enough to read that a keydown no longer touches the
+// network. The bundled config/stacks.json survives as the first-run seed,
+// nothing more.
 
 export const CONFIG_KEY = "config";
 
@@ -76,6 +77,18 @@ function migrateStep(raw: Record<string, unknown>): Record<string, unknown> {
   return raw;
 }
 
+// Variables lost their "secret_" prefix in 0.7, so a config written before
+// then references $secret_runToken for what is now $runToken. Rewritten on the
+// way in, next to migrateStep, and written back in the new spelling the next
+// time the builder saves. "$$" is an escaped literal dollar and is left alone.
+const LEGACY_VAR_RE = /\$\$|\$secret_(\w+)/g;
+
+export function migrateTemplate(value: string): string {
+  return value.replace(LEGACY_VAR_RE, (whole, name: string | undefined) =>
+    whole === "$$" ? whole : `$${name}`
+  );
+}
+
 function parseStep(rawStep: unknown, where: string, errors: string[]): Step | null {
   if (!isRecord(rawStep)) {
     errors.push(`${where}: not a step`);
@@ -116,6 +129,12 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
     }
     if (typeof value !== "string") {
       errors.push(`${where}: "${spec.label}" must be text`);
+      continue;
+    }
+    // Every field a $var may appear in — the same three kinds templateFields
+    // reports, so the rewrite reaches exactly what resolve() will read.
+    if (spec.kind === "template" || spec.kind === "url" || spec.kind === "multiline") {
+      step[spec.name] = migrateTemplate(value);
       continue;
     }
     // A name read back as $<name> has to survive core/context.ts's \w+ regex,

@@ -693,10 +693,10 @@ textarea.wrapbox {
 
 /* ── variables tab ─────────────────────────────────────────────────────── */
 
-.secrets { max-width: 760px; padding: 24px 20px 48px; margin: 0 auto; }
-.secrets h2 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.02em; }
-.secrets .lede { color: var(--muted); margin-top: 0; }
-.secrets code {
+.vars { max-width: 760px; padding: 24px 20px 48px; margin: 0 auto; }
+.vars h2 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.02em; }
+.vars .lede { color: var(--muted); margin-top: 0; }
+.vars code {
   background: var(--raised);
   border: 1px solid var(--line);
   padding: 1px 5px;
@@ -704,12 +704,12 @@ textarea.wrapbox {
   font-family: var(--mono);
   font-size: 13px;
 }
-.secret-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.var-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
 /* The value input keeps its width when the reveal toggle sits beside it. */
-.secret-row .iconbtn { flex: none; }
-.secret-row .name { flex: 0 0 220px; }
-.secret-row .value { flex: 1; }
-.secrets .actions { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+.var-row .iconbtn { flex: none; }
+.var-row .name { flex: 0 0 220px; }
+.var-row .value { flex: 1; }
+.vars .actions { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
 
 /* ── import / export dialog ────────────────────────────────────────────── */
 

@@ -16,9 +16,9 @@ export const fetchUrl: Handler = async (step, ctx) => {
 
   const url = resolveHttpUrl(step.url, ctx);
 
-  // Origin + path only, no query string: a $secret_* substituted into the
-  // URL is only masked later, at the presentation boundary (core/redact.ts)
-  // — showing the full URL here would put it on screen unmasked.
+  // Origin + path only, no query string: a spinner is a one-line caption, and
+  // these URLs carry report ids, run tokens and whatever else a template
+  // interpolated — none of it readable at a glance anyway.
   const { origin, pathname } = new URL(url);
   const hide = showSpinner(`Fetching ${origin}${pathname}…`);
   inFlight = true;

@@ -16,8 +16,8 @@ export type FetchResponse =
 // in the same tab to pick it up. Everything here has to survive JSON, so
 // the context travels as entries rather than a Map.
 //
-// Deliberately absent: secrets. They are re-seeded from chrome.storage.local
-// on the other side (content/secrets.ts) exactly as on a fresh run, so a
+// Deliberately absent: the Variables tab's values. They are re-seeded from
+// chrome.storage.local on the other side (content/vars.ts) as on a fresh run, so a
 // suspended stack never parks a token in session storage. Builtins are
 // absent for a different reason — $url/$title/$selection describe the page,
 // and after a navigation that is a different page, so they are re-seeded too.

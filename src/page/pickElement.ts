@@ -55,7 +55,7 @@ function segment(el: Element): string {
 
 // A selector for this element: the shortest ancestor path that matches it and
 // nothing else. Walks up only as far as it has to, so a page with an id on the
-// element gets `#tender_id` rather than a chain down from <body>.
+// element gets `#report_id` rather than a chain down from <body>.
 export function cssSelectorFor(el: Element, root: Document = document): string {
   if (el.id && isPlainIdent(el.id) && unique(`#${el.id}`, root)) return `#${el.id}`;
 

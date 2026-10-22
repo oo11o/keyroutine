@@ -17,8 +17,8 @@ function jsonShow(): Stack {
   };
 }
 
-const names = (stack: Stack, at: number, secrets: string[] = []) =>
-  availableVars(stack, at, secrets).map((v) => v.name);
+const names = (stack: Stack, at: number, vars: string[] = []) =>
+  availableVars(stack, at, vars).map((v) => v.name);
 
 describe("availableVars", () => {
   it("offers nothing from the stack itself to the first step", () => {
@@ -60,8 +60,8 @@ describe("availableVars", () => {
     expect(names(stack, 2)).not.toContain("s1");
   });
 
-  it("namespaces secrets, so a stack reads as visibly sensitive", () => {
-    expect(names(jsonShow(), 0, ["runToken"])).toContain("secret_runToken");
+  it("offers the Variables tab's names as they are written", () => {
+    expect(names(jsonShow(), 0, ["runToken"])).toContain("runToken");
   });
 
   it("offers a shadowed name once", () => {
@@ -76,7 +76,7 @@ describe("availableVars", () => {
 
 describe("referencedVars", () => {
   it("finds every $name", () => {
-    expect(referencedVars("https://a.test/$s1?run=$secret_token")).toEqual(["s1", "secret_token"]);
+    expect(referencedVars("https://a.test/$s1?run=$token")).toEqual(["s1", "token"]);
   });
 
   it("ignores an escaped $$", () => {
@@ -110,11 +110,11 @@ describe("unknownVars", () => {
     expect(unknownVars(stack)).toMatchObject([{ stepId: "s2", name: "json" }]);
   });
 
-  it("accepts a secret only when that secret exists", () => {
+  it("accepts a variable only when the Variables tab has one", () => {
     const stack = jsonShow();
-    (stack.steps[1] as Extract<Step, { type: "fetchUrl" }>).url = "https://api.test/?run=$secret_runToken";
+    (stack.steps[1] as Extract<Step, { type: "fetchUrl" }>).url = "https://api.test/?run=$runToken";
 
-    expect(unknownVars(stack)).toMatchObject([{ name: "secret_runToken" }]);
+    expect(unknownVars(stack)).toMatchObject([{ name: "runToken" }]);
     expect(unknownVars(stack, ["runToken"])).toEqual([]);
   });
 
