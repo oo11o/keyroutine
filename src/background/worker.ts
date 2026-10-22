@@ -9,6 +9,7 @@
 //   3. seed the stored config on install, and open the builder when the
 //      toolbar icon is clicked.
 import { seedIfEmpty } from "../core/configStore";
+import { syncContentScripts, injectIntoOpenTabs } from "./contentScripts";
 import {
   FETCH_MESSAGE_TYPE,
   SAVE_RESUME_MESSAGE_TYPE,
@@ -54,8 +55,16 @@ async function takeResume(tabId: number): Promise<ResumeRecord | null> {
 chrome.runtime.onMessage.addListener((message: AnyRequest, sender, sendResponse) => {
   if (message?.type === FETCH_MESSAGE_TYPE) {
     (async (): Promise<FetchResponse> => {
+      const url = (message as FetchRequest).url;
       try {
-        const res = await fetch((message as FetchRequest).url);
+        // Without <all_urls>, fetch only reaches an origin the user has
+        // actually granted (via the Sites tab) — everything else fails here
+        // with an actionable message rather than a CORS error with none.
+        const origin = `${new URL(url).origin}/*`;
+        if (!(await chrome.permissions.contains({ origins: [origin] }))) {
+          return { error: `Keystack needs access to ${new URL(url).origin} — add it as a site and grant access` };
+        }
+        const res = await fetch(url);
         const body = await res.text();
         return { ok: res.ok, status: res.status, body };
       } catch (err) {
@@ -91,6 +100,24 @@ chrome.runtime.onMessage.addListener((message: AnyRequest, sender, sendResponse)
 // holds a config, so a user's own stacks are never overwritten by the seed.
 chrome.runtime.onInstalled.addListener(() => {
   void seedIfEmpty();
+  void syncContentScripts();
+});
+
+// registerContentScripts does not survive a browser restart on its own —
+// re-derive it from whatever is still granted every time the browser starts.
+chrome.runtime.onStartup.addListener(() => {
+  void syncContentScripts();
+});
+
+// A grant made from the builder (see options/grant.ts) lands here: re-register
+// the content script against the new set of origins, then reach into tabs
+// already open on one of them so the user is not left to reload by hand.
+chrome.permissions.onAdded.addListener((permissions) => {
+  void syncContentScripts().then(() => injectIntoOpenTabs(permissions.origins ?? []));
+});
+
+chrome.permissions.onRemoved.addListener(() => {
+  void syncContentScripts();
 });
 
 // No popup on the action: the builder needs a window's worth of room for three

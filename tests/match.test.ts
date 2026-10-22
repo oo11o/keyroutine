@@ -5,6 +5,7 @@ import {
   patternHost,
   patternsOverlap,
   patternPath,
+  permissionOrigin,
   siteHost,
   sitesOverlap,
   siteScope,
@@ -258,6 +259,20 @@ describe("patternHost / patternPath", () => {
 
   it("has no host for a blank pattern", () => {
     expect(patternHost("  ")).toBe("");
+  });
+});
+
+describe("permissionOrigin", () => {
+  it("narrows a pattern to the host-wide origin chrome.permissions understands", () => {
+    // A path-scoped pattern still asks for the whole host: Keystack's own
+    // matching (patternToRegExp) is what narrows it further once the content
+    // script is running, not the permission.
+    expect(permissionOrigin("stage.dzo.com.ua/tenders")).toBe("*://stage.dzo.com.ua/*");
+    expect(permissionOrigin("stage.dzo.com.ua")).toBe("*://stage.dzo.com.ua/*");
+  });
+
+  it("has no origin for a blank pattern", () => {
+    expect(permissionOrigin("  ")).toBe("");
   });
 });
 

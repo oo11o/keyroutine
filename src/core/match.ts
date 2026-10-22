@@ -174,6 +174,15 @@ export function patternHost(pattern: string): string {
   return (slash === -1 ? afterScheme : afterScheme.slice(0, slash)).toLowerCase();
 }
 
+// The chrome.permissions origin a pattern needs granted before a stack
+// scoped to it can run — host-only, even for a URL-level pattern. Keystack's
+// own matching (patternToRegExp) still decides which stacks fire once the
+// content script is there; this only decides whether it can be there at all.
+export function permissionOrigin(pattern: string): string {
+  const host = patternHost(pattern);
+  return host === "" ? "" : `*://${host}/*`;
+}
+
 // The path a pattern narrows to, or "" when it claims the whole host.
 export function patternPath(pattern: string): string {
   const expanded = expandPattern(pattern);

@@ -711,6 +711,13 @@ textarea.wrapbox {
 .var-row .value { flex: 1; }
 .vars .actions { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
 
+/* ── site access grants ───────────────────────────────────────────────── */
+
+.grantrow { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.grantrow .hint { margin: 0; }
+.patternlegend { margin: 0; padding: 0; list-style: none; }
+.patternlegend li code { font-size: 12px; }
+
 /* ── import / export dialog ────────────────────────────────────────────── */
 
 dialog {

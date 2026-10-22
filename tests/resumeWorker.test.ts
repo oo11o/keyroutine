@@ -37,9 +37,15 @@ beforeEach(async () => {
     runtime: {
       onMessage: { addListener: (fn: Listener) => (listener = fn) },
       onInstalled: { addListener: () => {} },
+      onStartup: { addListener: () => {} },
       openOptionsPage: async () => {}
     },
     action: { onClicked: { addListener: () => {} } },
+    permissions: {
+      contains: async () => true,
+      onAdded: { addListener: () => {} },
+      onRemoved: { addListener: () => {} }
+    },
     storage: {
       local: { get: async () => ({}), set: async () => {} },
       session: {

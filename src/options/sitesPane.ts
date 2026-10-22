@@ -4,6 +4,7 @@ import { groupSites, siteHost, siteScope, sitesFor } from "../core/match";
 import type { Site } from "../core/schema";
 import * as store from "./store";
 import { COMMON } from "./store";
+import { ensureEverywhere, ensureOrigin, hasEverywhere, hasOrigin } from "./grant";
 
 // Column 1 — where. Which pages a stack is allowed to fire on: everywhere
 // ("Common"), or one of the sites below. The row for the page the builder was
@@ -38,6 +39,34 @@ function areaOf(url: string): string {
 
 function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+// A small pill next to a row, so whether access is actually granted is
+// visible in the list itself — not only after opening a site's settings.
+// Starts hidden rather than guessing, since the check is async and a wrong
+// guess for even a moment is worse than nothing for one.
+function grantBadge(check: () => Promise<boolean>): HTMLElement {
+  const badge = h("span", { class: "outchip", hidden: true });
+  void check().then((granted) => {
+    badge.hidden = false;
+    badge.className = granted ? "outchip" : "errchip";
+    badge.textContent = granted ? "Granted" : "Not granted";
+  });
+  return badge;
+}
+
+// A site's stacks need every one of its patterns reachable, not just one —
+// a stack scoped to the narrower of two patterns would otherwise look live
+// while the pattern it actually depends on has no grant behind it.
+async function hasAllOrigins(site: Site): Promise<boolean> {
+  if (site.patterns.length === 0) return false;
+  const granted = await Promise.all(site.patterns.map(hasOrigin));
+  return granted.every(Boolean);
+}
+
+async function ensureAllOrigins(site: Site): Promise<boolean> {
+  const granted = await Promise.all(site.patterns.map(ensureOrigin));
+  return granted.every(Boolean);
 }
 
 export function renderSites(pane: HTMLElement): void {
@@ -79,7 +108,8 @@ export function renderSites(pane: HTMLElement): void {
           class: "rowsub",
           text: `Every site · ${plural(store.stackCount(COMMON), "stack")}`
         })
-      )
+      ),
+      grantBadge(hasEverywhere)
     )
   );
 
@@ -128,7 +158,8 @@ function siteRow(site: Site, here: Set<string>, isArea: boolean): HTMLElement {
         // cannot: whether it claims the tab the user came from.
         text: plural(store.stackCount(scopeOf), "stack") + (here.has(site.id) ? " · this page" : "")
       })
-    )
+    ),
+    site.patterns.length > 0 ? grantBadge(() => hasAllOrigins(site)) : null
   );
 }
 
@@ -151,12 +182,18 @@ function addButton(pageUrl: string | null, claimed: { domain: boolean; url: bool
 
   if (host !== "" && !hasHost) {
     label = `Add ${host}`;
-    add = () => void store.addSite(host, [host]);
+    add = () => {
+      store.addSite(host, [host]);
+      void ensureOrigin(host);
+    };
   } else if (host !== "" && area !== "" && !claimed.url) {
     label = `Add ${host}${area}`;
     // One pattern, no wildcard: a path on its own already means this page and
     // everything under it (see patternToRegExp).
-    add = () => void store.addSite(area, [`${host}${area}`]);
+    add = () => {
+      store.addSite(area, [`${host}${area}`]);
+      void ensureOrigin(`${host}${area}`);
+    };
   }
 
   return h(
@@ -167,13 +204,47 @@ function addButton(pageUrl: string | null, claimed: { domain: boolean; url: bool
   );
 }
 
-function commonCard(): HTMLElement {
-  return h("div", {
-    class: "card infocard",
-    text:
-      "Stacks in Common work on every site. Put things you need everywhere here — " +
-      "for example, pasting a test password."
+// Reused by both the Common card and a site's settings: whether Chrome has
+// actually granted the access a stack here needs to run, with one button to
+// ask for it. The check is async and the row starts blank rather than
+// guessing, so it never claims "granted" before it has actually looked.
+// `refresh` is returned so a caller can re-check right after its own
+// ensureOrigin() call, instead of waiting for the next unrelated render.
+function grantStatusRow(
+  label: string,
+  check: () => Promise<boolean>,
+  request: () => Promise<boolean>
+): { element: HTMLElement; refresh: () => void } {
+  const text = h("span", { class: "hint" });
+  const button = h("button", {
+    type: "button",
+    class: "btn btn-sm",
+    text: "Grant access",
+    onClick: () => void request().then(refresh)
   });
+  const element = h("div", { class: "field grantrow" }, text, button);
+
+  function refresh(): void {
+    void check().then((granted) => {
+      text.textContent = granted ? `Access granted — ${label} will fire.` : `Not granted yet — ${label} will not fire.`;
+      button.hidden = granted;
+    });
+  }
+  refresh();
+  return { element, refresh };
+}
+
+function commonCard(): HTMLElement {
+  return h(
+    "div",
+    { class: "card infocard" },
+    h("p", {
+      text:
+        "Stacks in Common work on every site. Put things you need everywhere here — " +
+        "for example, pasting a test password."
+    }),
+    grantStatusRow("Common stacks", hasEverywhere, ensureEverywhere).element
+  );
 }
 
 function siteSettings(siteId: string): HTMLElement {
@@ -206,23 +277,30 @@ function siteSettings(siteId: string): HTMLElement {
     id: "site-add-pattern",
     class: "input mono",
     type: "text",
-    placeholder: host ? `Add a pattern, e.g. ${host}/contracts` : "Add a pattern, e.g. *.dzo.com.ua",
+    placeholder: host ? `Add a pattern, e.g. ${host}/contracts` : "Add a pattern, e.g. *.example.com",
     "aria-label": "Add URL pattern"
   });
-  add.addEventListener("keydown", (e) => {
-    if ((e as KeyboardEvent).key !== "Enter") return;
-    const pattern = add.value.trim();
-    if (pattern === "") return;
-    add.value = "";
-    store.patchSite(site.id, { patterns: [...site.patterns, pattern] });
-  });
-
   const group = groupSites(config.sites).find(
     (g) => g.site.id === site.id || g.areas.some((a) => a.id === site.id)
   );
   const parent = group && group.site.id !== site.id ? group.site : null;
   const areas = group && group.site.id === site.id ? group.areas : [];
   const count = store.stackCount({ kind: "site", siteId: site.id });
+
+  const grant = grantStatusRow(
+    parent ? "this area" : "this site",
+    () => hasAllOrigins(site),
+    () => ensureAllOrigins(site)
+  );
+
+  add.addEventListener("keydown", (e) => {
+    if ((e as KeyboardEvent).key !== "Enter") return;
+    const pattern = add.value.trim();
+    if (pattern === "") return;
+    add.value = "";
+    store.patchSite(site.id, { patterns: [...site.patterns, pattern] });
+    void ensureOrigin(pattern).then(grant.refresh);
+  });
 
   return h(
     "div",
@@ -244,17 +322,19 @@ function siteSettings(siteId: string): HTMLElement {
       h("span", { class: "label", text: "Matches these URLs" }),
       site.patterns.length > 0 ? chips : null,
       add,
-      h("span", {
-        class: "hint",
-        text:
-          "A bare host (example.com) matches any scheme and path. A path " +
-          "(example.com/tenders) matches that page and everything under it. " +
-          "Add * to match anything, anywhere."
-      }),
+      // The three shapes a pattern can take, said as plainly as the add
+      // field's own placeholder: what you'd type, and what it means.
+      h(
+        "ul",
+        { class: "patternlegend hint" },
+        h("li", {}, h("code", { text: "example.com" }), " — every page on this domain."),
+        h("li", {}, h("code", { text: "example.com/tenders" }), " — this page, and everything under it."),
+        h("li", {}, h("code", { text: "*" }), " — every website.")
+      ),
       siteScope(site) === "domain" && host !== ""
         ? h("span", {
             class: "hint",
-            text: `A pattern with a path (${host}/contracts) makes a separate area under this site, with its own stacks.`
+            text: `A pattern with a path (${host}/contracts) becomes its own area here, with its own stacks.`
           })
         : null,
       // A site with no patterns matches nothing, so every stack on it is dead.
@@ -264,6 +344,7 @@ function siteSettings(siteId: string): HTMLElement {
         ? h("span", { class: "errtext", text: "Without a pattern this site matches nothing." })
         : null
     ),
+    site.patterns.length > 0 ? grant.element : null,
     h(
       "div",
       {},

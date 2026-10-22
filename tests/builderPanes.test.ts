@@ -6,7 +6,7 @@ import { renderSites } from "../src/options/sitesPane";
 import { renderStacks } from "../src/options/stacksPane";
 import { renderSteps } from "../src/options/stepsPane";
 import { PICK_MESSAGE_TYPE } from "../src/core/builderProtocol";
-import { stubChromeStorage, stubChromeTabs } from "./fakeChrome";
+import { stubChromePermissions, stubChromeStorage, stubChromeTabs } from "./fakeChrome";
 
 // The three columns, driven through the DOM rather than through the store — the
 // nearest thing to clicking the builder that runs without a browser. Worth
@@ -201,6 +201,53 @@ describe("the Sites column", () => {
 
     expect(texts(panes.sites, ".settings-head")).toEqual(["Area settings"]);
     expect(panes.sites.textContent).toContain("An area of dzo.lh");
+  });
+
+  it("says when a selected site's access is not yet granted, and grants it on click", async () => {
+    const fake = stubChromePermissions(); // nothing granted
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Not granted yet"));
+
+    const grantBtn = [...panes.sites.querySelectorAll(".grantrow button")][0] as HTMLElement;
+    grantBtn.click();
+
+    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Access granted"));
+    expect(fake.requested).toEqual([["*://dzo.lh/*"]]);
+  });
+
+  it("offers a grant for Common, scoped to every site rather than one host", async () => {
+    const fake = stubChromePermissions();
+    store.selectScope(store.COMMON);
+    draw();
+
+    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Not granted yet"));
+
+    const grantBtn = [...panes.sites.querySelectorAll(".grantrow button")][0] as HTMLElement;
+    grantBtn.click();
+
+    await vi.waitFor(() => expect(fake.requested).toEqual([["<all_urls>"]]));
+  });
+
+  it("badges each row in the list with its grant status, not just the open one", async () => {
+    stubChromePermissions(["*://dzo.lh/*"]); // Common not granted, dzo.lh is
+    draw();
+
+    await vi.waitFor(() =>
+      expect(texts(panes.sites, ".row .outchip, .row .errchip")).toEqual(["Not granted", "Granted"])
+    );
+  });
+
+  it("spells out the three pattern shapes a user can type", () => {
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    expect(texts(panes.sites, ".patternlegend li")).toEqual([
+      "example.com — every page on this domain.",
+      "example.com/tenders — this page, and everything under it.",
+      "* — every website."
+    ]);
   });
 });
 

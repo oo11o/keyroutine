@@ -19,6 +19,14 @@ export function stubChromeStorage(initial: Record<string, unknown> = {}): FakeSt
 
   vi.stubGlobal("chrome", {
     runtime: { getURL: (p: string) => `chrome-extension://x/${p}` },
+    // Not under test here — pretend every origin is already granted so a
+    // pane that asks (sitesPane's grant rows) gets a sensible default
+    // instead of throwing on a missing API. See stubChromePermissions for
+    // suites that actually exercise granting.
+    permissions: {
+      contains: async () => true,
+      request: async () => true
+    },
     storage: {
       local: {
         get: async (keys: string | string[]) => {
@@ -50,6 +58,35 @@ export function stubChromeStorage(initial: Record<string, unknown> = {}): FakeSt
       for (const fn of listeners) fn({ [key]: { newValue: value } }, "local");
     }
   };
+}
+
+// Overrides the default stubChromeStorage permissions stub (which treats
+// everything as already granted) with one that actually tracks requests, for
+// suites exercising options/grant.ts and sitesPane's grant rows.
+export type FakePermissions = {
+  granted: string[];
+  requested: string[][];
+};
+
+export function stubChromePermissions(initiallyGranted: string[] = []): FakePermissions {
+  const granted = [...initiallyGranted];
+  const requested: string[][] = [];
+  // Usable standalone (grant.test.ts) or after stubChromeStorage/Tabs has
+  // already put a chrome global in place — either way this only touches
+  // the permissions key.
+  if (globalThis.chrome === undefined) vi.stubGlobal("chrome", {});
+  const chromeStub = globalThis.chrome as unknown as Record<string, unknown>;
+
+  chromeStub.permissions = {
+    contains: async ({ origins }: { origins: string[] }) => origins.every((o) => granted.includes(o)),
+    request: async ({ origins }: { origins: string[] }) => {
+      requested.push(origins);
+      for (const o of origins) if (!granted.includes(o)) granted.push(o);
+      return true;
+    }
+  };
+
+  return { granted, requested };
 }
 
 // The builder also talks to the page it is building for: chrome.tabs.query to
