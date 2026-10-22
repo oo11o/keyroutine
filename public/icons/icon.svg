@@ -1,0 +1,23 @@
+<!-- Source of truth for the extension icons. The PNGs beside it are generated
+     from this file, not drawn separately: Chrome will not take an SVG in the
+     manifest's icons map, which is the only reason they exist. #7aadff is
+     --accent from options.css, so the icon and the builder are the same blue.
+
+     To regenerate after editing this file (no rasteriser needed — Chrome is
+     already on the machine, and the extension targets it anyway):
+
+       for n in 16 32 48 128; do
+         printf '<html><style>html,body{margin:0}svg{display:block;width:%dpx;height:%dpx}</style>%s' \
+           "$n" "$n" "$(sed '1,15d' public/icons/icon.svg)" > /tmp/i.html
+         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
+           --force-device-scale-factor=1 --default-background-color=00000000 \
+           --window-size=$n,$n --screenshot="public/icons/icon$n.png" file:///tmp/i.html
+       done -->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Keystack icon: a K key on a stack of layers">
+  <rect width="128" height="128" rx="28" fill="#1B1D22"/>
+  <rect x="30" y="88" width="68" height="14" rx="6" fill="#7aadff" opacity="0.35"/>
+  <rect x="26" y="74" width="76" height="16" rx="7" fill="#7aadff" opacity="0.65"/>
+  <rect x="22" y="26" width="84" height="52" rx="13" fill="#7aadff"/>
+  <rect x="30" y="31" width="68" height="38" rx="9" fill="#FFFFFF" opacity="0.18"/>
+  <path d="M55 39V61M56 51L72 39M61 47L73 61" fill="none" stroke="#1B1D22" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
