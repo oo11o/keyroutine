@@ -304,6 +304,27 @@ describe("the Actions column", () => {
     );
   });
 
+  it("gives a long value a field that wraps instead of scrolling sideways", () => {
+    openStep("s2");
+    const url = panes.steps.querySelector("#f-url") as HTMLTextAreaElement;
+
+    // A textarea worn as a one-line field: a URL with a query string stays
+    // whole and in place while it is edited, instead of sliding under the
+    // caret.
+    expect(url.tagName).toBe("TEXTAREA");
+    expect(url.classList.contains("wrapbox")).toBe(true);
+
+    // And it keeps up the pretence at both places a textarea would show
+    // through: Enter does nothing, and a pasted newline never reaches the draft.
+    const enter = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+    url.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(true);
+
+    url.value = "https://api.test/t/\n1";
+    url.dispatchEvent(new Event("input"));
+    expect(store.currentStep()).toMatchObject({ url: "https://api.test/t/1" });
+  });
+
   it("edits a field into the draft", () => {
     openStep("s1");
     const selector = panes.steps.querySelector("#f-selector") as HTMLInputElement;

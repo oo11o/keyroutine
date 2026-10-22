@@ -34,6 +34,12 @@
 
 * { box-sizing: border-box; }
 
+/* Keep the scrollbar's width reserved whether or not there is one to show. The
+   page grows and shrinks as you type — an error line appears under a field, a
+   card opens — and without this the scrollbar arriving re-centres the builder
+   in 15px less width, so the whole page jumps sideways under the caret. */
+html { scrollbar-gutter: stable; }
+
 body {
   margin: 0;
   background: var(--bg);
@@ -399,6 +405,27 @@ kbd {
   width: 100%;
 }
 textarea { height: auto; min-height: 96px; padding: 10px 12px; resize: vertical; line-height: 1.5; }
+
+/* URLs, selectors and templates: a textarea worn as a one-line field. It wraps
+   rather than scrolling sideways, and field-sizing grows it to its content, so
+   a long value stays whole and in place while it is edited. Where field-sizing
+   is missing the box scrolls vertically instead — still wrapped, still never
+   sideways. */
+textarea.wrapbox {
+  field-sizing: content;
+  height: auto;
+  min-height: 40px;
+  max-height: 180px;
+  padding: 9px 12px;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@supports not (field-sizing: content) {
+  textarea.wrapbox { overflow: auto; }
+}
 .input:focus, input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .input::placeholder, input::placeholder, textarea::placeholder { color: #7c7c86; }
 .input.is-err, input.is-err, textarea.is-err { border-color: #c8524a; }
