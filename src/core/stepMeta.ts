@@ -337,7 +337,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         label: "URL",
         kind: "url",
         required: true,
-        placeholder: "http://dzo.lh/cabinet/logout"
+        placeholder: "https://example.com/logout"
       }
     ]
   }
