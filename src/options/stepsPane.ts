@@ -1,7 +1,14 @@
 import { columnHead, h, iconButton } from "./el";
 import { icon } from "./icons";
 import type { Step } from "../core/schema";
-import { STEP_GROUPS, STEP_META, STEP_TYPES, formFields, templateFields } from "../core/stepMeta";
+import {
+  STEP_GROUPS,
+  STEP_META,
+  STEP_TYPES,
+  formFields,
+  siteOnlyReason,
+  templateFields
+} from "../core/stepMeta";
 import { availableVars, referencedVars } from "../core/vars";
 import * as store from "./store";
 import * as probe from "./probe";
@@ -148,6 +155,11 @@ function actionCard(step: Step, index: number, total: number, open: boolean): HT
     text
   );
 
+  // An older config, or an import, can hold an action this stack's scope may
+  // not run. The runner refuses it; the card says so before the hotkey does.
+  const outOfScope = meta.siteOnly === true && store.getScope().kind === "common";
+  if (outOfScope) head.append(h("span", { class: "errchip", text: "Needs a site" }));
+
   const missing = missingVars(step, index);
   if (missing) head.append(h("span", { class: "errchip mono", text: `$${missing} undefined` }));
   if (meta.produces) head.append(h("span", { class: "outchip mono", text: `→ $${step.id}` }));
@@ -228,7 +240,10 @@ function actionBody(step: Step, index: number): HTMLElement {
     body.append(details);
   }
 
-  if (step.type === "fetchUrl") {
+  if (meta.siteOnly === true && store.getScope().kind === "common") {
+    body.append(h("p", { class: "errtext", text: siteOnlyReason(step.type) }));
+  } else if (step.type === "fetchUrl") {
+    // Only worth asking for the host when the action can run at all.
     const row = fetchGrantRow(step.url);
     if (row) body.append(row);
   }
@@ -396,19 +411,26 @@ function addRow(): HTMLElement {
       menu.append(h("div", { class: "cat", text: label }));
       for (const type of types) {
         const meta = STEP_META[type];
+        // Offered but disabled, with the reason in place of the help: hiding
+        // it would leave someone looking for Fetch URL in a Common stack
+        // wondering where it went, which is worse than being told.
+        const blocked = meta.siteOnly === true && store.getScope().kind === "common";
         menu.append(
           h(
             "button",
             {
               type: "button",
-              onClick: () => store.addStep(type)
+              disabled: blocked,
+              onClick: () => {
+                if (!blocked) store.addStep(type);
+              }
             },
             h("span", { class: "typeicon" }, icon(meta.icon)),
             h(
               "span",
               {},
               h("div", { class: "name", text: meta.label }),
-              h("div", { class: "note", text: meta.help })
+              h("div", { class: "note", text: blocked ? siteOnlyReason(type) : meta.help })
             )
           )
         );

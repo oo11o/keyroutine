@@ -50,7 +50,7 @@ has not granted. Grouped as the builder groups them.
 | Action | What it does | Result |
 |---|---|---|
 | Read element | Reads the value or text of an element the user picked | `$text` |
-| Fetch URL | Requests a user-entered URL through the service worker, so the page's CORS rules do not apply. One request at a time | `$response` |
+| Fetch URL | Requests a user-entered URL through the service worker, so the page's CORS rules do not apply. One request at a time. **Only available in a stack scoped to a site** | `$response` |
 
 **Act on the page**
 | Action | What it does | Result |
@@ -77,6 +77,14 @@ has not granted. Grouped as the builder groups them.
 | Open URL in a new tab | Opens a user-entered URL in a new tab; this page keeps running the stack | — |
 | Go to URL (this tab) | Leaves this page; the remaining actions resume on the next page in this tab, within 15 seconds | — |
 
+**Fetch URL cannot exist in a Common ("everywhere") stack.** A Common stack
+fires on every page, so there is no site rule to say what it was for; an
+action that reaches off the page therefore has to live in a stack the user
+scoped to a specific site. The builder does not offer the type there, a
+stack holding one cannot be moved to Common, saving such a config is
+refused, and the runner refuses the action outright — so neither an import
+nor a hand-edited storage entry can get a fetch to run unscoped.
+
 Worth noting for a reviewer: every URL, selector and value above is typed by
 the user. Two actions produce a variable (`Read element`, `Fetch URL`); the
 other nine return nothing. No action writes to the clipboard, reads browsing
@@ -102,7 +110,9 @@ checklist's open decision on where.)
 > sequences (click, fill, read, fetch, navigate) against whatever page the
 > user is on, scoped by the user's own site rules — so access to a given
 > site is requested, via `chrome.permissions.request()`, only when the user
-> adds that site (or chooses "Everywhere") from the Sites tab. No site is
+> adds that site (or chooses "Everywhere") from the Sites tab. The action
+> that makes an outbound request ("Fetch URL") is available only inside a
+> stack the user scoped to a site, never in an "Everywhere" stack. No site is
 > reachable before the user names it, and the Sites tab flags any site whose
 > access has not been granted, so the user can always see which of their own
 > rules are inert.

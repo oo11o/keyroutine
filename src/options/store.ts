@@ -2,7 +2,7 @@ import type { Binding, Config, Site, Stack, Step } from "../core/schema";
 import { SCHEMA_VERSION } from "../core/schema";
 import { isParsed, parseConfig, saveConfig, seedIfEmpty } from "../core/configStore";
 import { isCommon, siteFor, siteScope, sitesOverlap } from "../core/match";
-import { STEP_META, blankStep, templateFields } from "../core/stepMeta";
+import { STEP_META, blankStep, siteOnlyReason, siteOnlySteps, templateFields } from "../core/stepMeta";
 import { referencedVars, unknownVars } from "../core/vars";
 
 // The builder's draft. Edits land here, not in storage: a half-typed selector
@@ -275,6 +275,16 @@ export function patchStack(id: string, patch: Partial<Omit<Stack, "id" | "steps"
   announce();
 }
 
+// Whether this stack could be moved to Common at all: it could not while it
+// holds an action that only a site-scoped stack may run. The Sites select
+// asks before offering the move, rather than letting it through and failing
+// on save — see stacksPane.
+export function blocksCommon(id: string): Step[] {
+  const stack = config.stacks.find((s) => s.id === id);
+  if (!stack) return [];
+  return siteOnlySteps({ ...stack, siteId: null });
+}
+
 export function deleteStack(id: string): void {
   config.stacks = config.stacks.filter((s) => s.id !== id);
   if (stackId === id) clearSelection();
@@ -539,6 +549,19 @@ export async function save(): Promise<SaveResult> {
         stackId: stack.id,
         stepId: step.id,
         message: `"${stack.name}", action ${step.id}: ${STEP_META[step.type].label} has to be the last action — nothing may follow it`
+      });
+    }
+  }
+  // Same shape of rule as the one above, and the same reason for living here
+  // rather than in parseConfig: a config that trips it still has to load, or
+  // the user could not open the builder to fix it. The runner refuses the
+  // action meanwhile.
+  for (const stack of config.stacks) {
+    for (const step of siteOnlySteps(stack)) {
+      problems.push({
+        stackId: stack.id,
+        stepId: step.id,
+        message: `"${stack.name}", action ${step.id}: ${siteOnlyReason(step.type)}`
       });
     }
   }

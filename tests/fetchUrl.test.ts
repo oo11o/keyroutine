@@ -3,6 +3,9 @@ import { runStack, StepError } from "../src/content/runner";
 import type { Stack } from "../src/core/schema";
 import type { FetchResponse } from "../src/background/protocol";
 
+// Every stack here is scoped to a site ("dzo"): Fetch URL is a site-only
+// action, and the runner refuses it in a Common stack (see siteOnlySteps).
+//
 // The step never touches chrome.runtime directly — it goes through
 // background/client.ts — so stubbing sendMessage is enough to exercise the
 // handler without a real service worker in the test environment.
@@ -22,6 +25,7 @@ function stackWith(url: string, saveAs?: string): Stack {
     name: "Sync Tender",
     binding: { code: "Digit6", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
+    siteId: "dzo",
     steps: [{ id: "s1", type: "fetchUrl", url, saveAs }]
   };
 }
@@ -33,6 +37,24 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("fetchUrl in a Common stack", () => {
+  it("is refused by the runner, so a hand-edited config cannot sneak it in", async () => {
+    stubResponse({ ok: true, status: 200, body: "done" });
+    const common: Stack = { ...stackWith("http://dzo.lh/cron/sync.php"), siteId: null };
+
+    await expect(runStack(common)).rejects.toThrow(/only available in a stack scoped to a site/);
+    // Never reached the worker: the gate is before the handler, not inside it.
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("is refused the same way when the stack simply has no siteId at all", async () => {
+    const { siteId: _dropped, ...noSite } = stackWith("http://dzo.lh/cron/sync.php");
+
+    await expect(runStack(noSite as Stack)).rejects.toThrow(StepError);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
 });
 
 describe("fetchUrl", () => {
@@ -52,6 +74,7 @@ describe("fetchUrl", () => {
       name: "Sync Tender",
       binding: { code: "Digit6", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "dzo",
       steps: [
         { id: "s1", type: "fetchUrl", url: "http://dzo.lh/cron/sync.php", saveAs: "syncResult" },
         { id: "s2", type: "popup", body: "$syncResult" }
@@ -84,6 +107,7 @@ describe("fetchUrl", () => {
       name: "Sync",
       binding: { code: "Digit6", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "dzo",
       steps: [
         { id: "s1", type: "readBySelector", selector: "#tender_id" },
         { id: "s2", type: "fetchUrl", url: "http://dzo.lh/sync.php?id=$s1" }
@@ -108,6 +132,7 @@ describe("fetchUrl", () => {
       name: "Sync",
       binding: { code: "Digit6", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "dzo",
       steps: [
         { id: "s1", type: "fetchUrl", url: "http://dzo.lh/cron/sync.php", saveAs: "result" },
         { id: "s2", type: "popup", body: "$result" }
@@ -135,6 +160,7 @@ describe("fetchUrl", () => {
       name: "Sync",
       binding: { code: "Digit6", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "dzo",
       steps: [
         { id: "s1", type: "fetchUrl", url: "http://dzo.lh/cron/sync.php", saveAs: "result" },
         { id: "s2", type: "popup", body: "$result" }

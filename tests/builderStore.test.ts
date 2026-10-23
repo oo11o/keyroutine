@@ -440,10 +440,13 @@ describe("saving", () => {
     expect(result.problems[0].stepId).toBe("response");
   });
 
+  // On the site-scoped stack, here and below: a fetch is a site-only action.
   it("accepts the same $var once the step it comes from exists", async () => {
     await open();
-    store.selectStack("copy-id");
-    store.patchStep("s1", { saveAs: "tender" });
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.selectStack("local-sync");
+    store.addStep("readBySelector");
+    store.patchStep("text", { selector: "#tender_id", saveAs: "tender" });
     store.addStep("fetchUrl");
     store.patchStep("response", { url: "https://api.test/t/$tender" });
 
@@ -452,13 +455,52 @@ describe("saving", () => {
 
   it("accepts a variable that exists and refuses one that does not", async () => {
     await open(null, ["runToken"]);
-    store.selectStack("copy-id");
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.selectStack("local-sync");
     store.addStep("fetchUrl");
     store.patchStep("response", { url: "https://api.test/?run=$runToken" });
     await expect(store.save()).resolves.toEqual({ ok: true });
 
     store.patchStep("response", { url: "https://api.test/?run=$nope" });
     await expect(store.save()).resolves.toMatchObject({ ok: false });
+  });
+
+  it("refuses to save a fetch left in a Common stack, however it got there", async () => {
+    await open();
+    // Straight into the draft, as an import or a hand-edited config would:
+    // the builder itself does not offer the type in Common.
+    const result = store.replaceDraft({
+      schemaVersion: 2,
+      sites: [],
+      stacks: [
+        {
+          id: "leaky",
+          name: "Leaky",
+          binding: { code: "Digit5", ctrl: true, alt: true, shift: false, meta: false },
+          enabled: true,
+          steps: [{ id: "s1", type: "fetchUrl", url: "https://api.test/x" }]
+        }
+      ]
+    });
+    expect(result).toEqual({ ok: true }); // it parses — it just may not be saved
+
+    const saved = await store.save();
+    expect(saved.ok).toBe(false);
+    expect((saved as { problems: { message: string }[] }).problems[0].message).toContain(
+      "only available in a stack scoped to a site"
+    );
+  });
+
+  it("will not move a stack holding a fetch to Common", async () => {
+    await open();
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.selectStack("local-sync");
+    store.addStep("fetchUrl");
+    store.patchStep("response", { url: "https://api.test/x" });
+
+    expect(store.blocksCommon("local-sync").map((s) => s.id)).toEqual(["response"]);
+    // A stack with nothing site-only in it is free to move.
+    expect(store.blocksCommon("copy-id")).toEqual([]);
   });
 });
 

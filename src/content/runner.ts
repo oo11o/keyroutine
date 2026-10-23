@@ -6,6 +6,8 @@ import { navigateHere } from "../page/navigate";
 import { saveResume } from "../background/client";
 import type { ResumeRecord } from "../background/protocol";
 import { handlers } from "../steps";
+import { STEP_META, siteOnlyReason } from "../core/stepMeta";
+import { isCommon } from "../core/match";
 
 // How long a suspended stack stays claimable. Long enough for a slow page
 // to load, short enough that a navigation which never lands cannot leave a
@@ -64,6 +66,15 @@ export async function runStack(
     for (let i = resume?.nextStep ?? 0; i < stack.steps.length; i++) {
       const step = stack.steps[i];
       try {
+        // The builder will not put a site-only action in a Common stack and
+        // will not save one that holds it, but a config edited by hand or
+        // written by an older version still can. Checked here, where the
+        // action would actually run, so the rule cannot be bypassed by
+        // editing storage — this is the enforcement, the builder is the
+        // courtesy.
+        if (STEP_META[step.type].siteOnly === true && isCommon(stack)) {
+          throw new Error(siteOnlyReason(step.type));
+        }
         const handler = handlers[step.type];
         if (!handler) throw new Error(`Unknown step type "${step.type}"`);
         const { value, note, navigateTo } = await handler(step, ctx);

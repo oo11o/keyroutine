@@ -1,4 +1,5 @@
-import type { Step } from "./schema";
+import type { Stack, Step } from "./schema";
+import { isCommon } from "./match";
 import { MAX_WAIT_MS } from "./limits";
 
 // What each step type looks like *as a form*. Until now a step's parameters
@@ -94,6 +95,13 @@ export type StepMeta = {
   // specially — it dismisses the panel and carries on — this is the builder
   // declining to offer "and then?" where there is nothing sensible to add.
   endsStack?: boolean;
+  // True when the step may only appear in a stack scoped to a site, never in
+  // a Common ("everywhere") one. Least privilege: an action that reaches off
+  // the page the user is on has no business in a stack that fires on every
+  // page, where there is no site rule saying what it was for. Enforced in the
+  // builder (the type is not offered), on save, and again in the runner — see
+  // siteOnlySteps below.
+  siteOnly?: boolean;
   // One line for the step list. Must tolerate a half-filled step — the
   // builder renders it while the user is still typing.
   summary(step: Step): string;
@@ -160,6 +168,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Fetch URL",
     group: "read",
     icon: "download",
+    siteOnly: true,
     help: "Requests a URL through the service worker, so the page's CORS rules do not apply. JSON comes back pretty-printed. One request at a time.",
     produces: true,
     outNote: "The response body. JSON arrives pretty-printed.",
@@ -334,6 +343,21 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
 };
 
 // The order the "Add action" menu offers, and the heading each group gets.
+// Which of a stack's steps may not run where it is scoped. Empty for every
+// site-scoped stack; for a Common one it is the stack's siteOnly steps. One
+// function for all three layers, so the builder, the save check and the
+// runner cannot drift from one another.
+export function siteOnlySteps(stack: Stack): Step[] {
+  if (!isCommon(stack)) return [];
+  return stack.steps.filter((step) => STEP_META[step.type].siteOnly === true);
+}
+
+// Why a Common stack may not hold this action, in the one sentence the
+// builder, the save problem and the runtime error all use.
+export function siteOnlyReason(type: Step["type"]): string {
+  return `${STEP_META[type].label} is only available in a stack scoped to a site — a Common stack fires on every page, so there is no site rule to say what it may reach.`;
+}
+
 export const STEP_GROUPS: { group: StepGroup; label: string }[] = [
   { group: "read", label: "Read" },
   { group: "write", label: "Act on the page" },

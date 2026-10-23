@@ -5,6 +5,7 @@ import type { Stack } from "../core/schema";
 import * as store from "./store";
 import { COMMON } from "./store";
 import { hotkeyField, keyCaps } from "./chordInput";
+import { siteOnlyReason } from "../core/stepMeta";
 
 // Column 2 — when. Every stack in the selected scope, each a card that expands
 // in place into its own editor: a stack is a hotkey plus a name plus where it
@@ -233,10 +234,18 @@ function stackEditor(conflicted: boolean): HTMLElement {
   }
   body.append(hotkey);
 
+  // A stack holding a site-only action (Fetch URL) cannot move to Common, so
+  // the option is not offered rather than accepted and then refused on save.
+  const blockers = store.blocksCommon(stack.id);
   const site = h(
     "select",
     { id: "stack-site", class: "input" },
-    h("option", { value: "", text: "Common (all sites)", selected: stack.siteId == null }),
+    h("option", {
+      value: "",
+      text: "Common (all sites)",
+      selected: stack.siteId == null,
+      disabled: blockers.length > 0
+    }),
     ...config.sites.map((s) =>
       h("option", { value: s.id, text: s.name, selected: stack.siteId === s.id })
     )
@@ -255,7 +264,13 @@ function stackEditor(conflicted: boolean): HTMLElement {
       { class: "field" },
       h("span", { class: "label", text: "Site" }),
       site,
-      h("span", { class: "hint", text: "Pick another site here to move this stack." })
+      h("span", {
+        class: blockers.length > 0 ? "errtext" : "hint",
+        text:
+          blockers.length > 0
+            ? `This stack cannot move to Common: ${siteOnlyReason(blockers[0].type)}`
+            : "Pick another site here to move this stack."
+      })
     )
   );
 

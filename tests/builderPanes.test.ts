@@ -24,6 +24,20 @@ const SEED = {
       enabled: true,
       steps: [
         { id: "s1", type: "readBySelector", selector: "#tender_id" },
+        { id: "s2", type: "inputToSelector", selector: "#note", value: "$s1" },
+        { id: "s3", type: "popupJson", title: "Tender", body: "$s1" }
+      ]
+    },
+    {
+      // The fetch pipeline lives on a site-scoped stack: Fetch URL is a
+      // site-only action, so a Common stack may not hold one at all.
+      id: "sync-tender",
+      name: "Sync Tender",
+      binding: { code: "Digit6", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      siteId: "local",
+      steps: [
+        { id: "s1", type: "readBySelector", selector: "#tender_id" },
         { id: "s2", type: "fetchUrl", url: "https://api.test/t/$s1", saveAs: "tender" },
         { id: "s3", type: "popupJson", title: "Tender", body: "$tender" }
       ]
@@ -97,7 +111,8 @@ describe("the Sites column", () => {
   });
 
   it("says which site claims the page the builder was opened from", () => {
-    expect(texts(panes.sites, ".row .rowsub")[1]).toBe("0 stacks · this page");
+    // dzo.lh owns the site-scoped Sync Tender stack.
+    expect(texts(panes.sites, ".row .rowsub")[1]).toBe("1 stack · this page");
   });
 
   it("selects Common when clicked, and the Stacks column follows", () => {
@@ -165,7 +180,7 @@ describe("the Sites column", () => {
     expect(texts(panes.sites, ".arealist .row .rowtitle")).toEqual(["/tenders"]);
     // Both claim the page the builder was opened from, at their own level.
     expect(texts(panes.sites, ".row .rowsub").slice(1)).toEqual([
-      "0 stacks · this page",
+      "1 stack · this page",
       "1 stack · this page"
     ]);
     expect(texts(panes.stacks, ".stackname")).toEqual(["Area stack"]);
@@ -294,7 +309,7 @@ describe("the Stacks column", () => {
 
     expect(store.getConfig().stacks[0].siteId).toBe("local");
     expect(store.getScope()).toEqual({ kind: "site", siteId: "local" });
-    expect(texts(panes.stacks, ".stackname")).toEqual(["Show Tender"]);
+    expect(texts(panes.stacks, ".stackname")).toEqual(["Show Tender", "Sync Tender"]);
   });
 
   it("adds a stack, which arrives selected and with a free chord", () => {
@@ -386,14 +401,14 @@ describe("the Stacks column on arrival", () => {
 
 describe("the Actions column", () => {
   beforeEach(() => {
-    store.selectScope({ kind: "common" });
-    store.selectStack("show-tender");
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.selectStack("sync-tender");
     draw();
   });
 
   it("opens with the hotkey that starts the stack", () => {
     expect(panes.steps.querySelector(".triggerline")?.textContent).toContain("When you press");
-    expect(panes.steps.querySelector(".triggerline")?.textContent).toContain("any site");
+    expect(panes.steps.querySelector(".triggerline")?.textContent).toContain("dzo.lh");
   });
 
   it("lists the actions in run order, each with a one-line summary", () => {
@@ -633,8 +648,8 @@ describe("the Actions column", () => {
 
 describe("checking a stack against a real page", () => {
   beforeEach(() => {
-    store.selectScope({ kind: "common" });
-    store.selectStack("show-tender");
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.selectStack("sync-tender");
     draw();
   });
 
@@ -694,9 +709,83 @@ describe("checking a stack against a real page", () => {
   });
 });
 
+describe("a Common stack and the actions it may not hold", () => {
+  // A fresh Common stack, so the menu is reachable: Show Tender ends with a
+  // popup, and nothing may follow one.
+  beforeEach(() => {
+    store.selectScope({ kind: "common" });
+    store.addStack("Plain");
+    draw();
+  });
+
+  it("offers Fetch URL disabled, with the reason where the help would be", () => {
+    clickWithText(panes.steps, "button", "Add action");
+
+    const entry = [...panes.steps.querySelectorAll(".type-menu button")].find(
+      (b) => b.querySelector(".name")?.textContent === "Fetch URL"
+    ) as HTMLButtonElement;
+
+    expect(entry.disabled).toBe(true);
+    expect(entry.querySelector(".note")?.textContent).toContain("scoped to a site");
+
+    // And clicking it adds nothing.
+    entry.click();
+    expect(store.currentStack()!.steps).toEqual([]);
+  });
+
+  it("leaves every other action alone", () => {
+    clickWithText(panes.steps, "button", "Add action");
+
+    const enabled = [...panes.steps.querySelectorAll(".type-menu button")].filter(
+      (b) => !(b as HTMLButtonElement).disabled
+    );
+    expect(enabled).toHaveLength(10); // eleven types, minus Fetch URL
+  });
+
+  it("flags a fetch that is already there, from an older config", () => {
+    // Pushed into the draft directly: the menu would not allow it, which is
+    // exactly the config an older version could have written.
+    const stack = store.currentStack()!;
+    store.getConfig().stacks.find((s) => s.id === stack.id)!.steps.push({
+      id: "leak",
+      type: "fetchUrl",
+      url: "https://api.test/x"
+    });
+    openStep("leak");
+
+    expect(texts(panes.steps, ".stephead .errchip")).toContain("Needs a site");
+    expect(texts(panes.steps, ".cardbody .errtext").join(" ")).toContain("scoped to a site");
+    // No grant row either: nothing to grant for an action that cannot run.
+    expect(panes.steps.querySelector(".cardbody .grantrow")).toBeNull();
+  });
+});
+
+describe("the Site dropdown and a stack that cannot be Common", () => {
+  it("disables the Common option and says why", () => {
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.selectStack("sync-tender");
+    draw();
+
+    const select = panes.stacks.querySelector("#stack-site") as HTMLSelectElement;
+    const common = [...select.options].find((o) => o.value === "")!;
+    expect(common.disabled).toBe(true);
+    expect(panes.stacks.textContent).toContain("cannot move to Common");
+  });
+
+  it("leaves it selectable for a stack with nothing site-only in it", () => {
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.addStack("Plain");
+    draw();
+
+    const select = panes.stacks.querySelector("#stack-site") as HTMLSelectElement;
+    expect([...select.options].find((o) => o.value === "")!.disabled).toBe(false);
+  });
+});
+
 describe("building the user's example from scratch", () => {
   it("goes read → fetch → popupJson, wired by the variable chips, and saves", async () => {
-    store.selectScope({ kind: "common" });
+    // In a site's column: the fetch in the middle is not offered in Common.
+    store.selectScope({ kind: "site", siteId: "local" });
     draw();
 
     // A new stack, named.
