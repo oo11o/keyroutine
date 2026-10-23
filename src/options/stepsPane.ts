@@ -271,8 +271,8 @@ function fetchGrantRow(url: string): HTMLElement | null {
   const host = new URL(url.trim()).host;
   return grantStatusRow(
     {
-      granted: `Access granted — KeyRoutine can call ${host}.`,
-      missing: `Not granted yet — KeyRoutine cannot call ${host}. Granting this lets it call the host, not run on its pages.`
+      granted: `Access granted — requests to ${host} are allowed.`,
+      missing: `Not granted yet — requests to ${host} are blocked. Granting this allows the request, not a routine running on the host's pages.`
     },
     () => hasHostOrigin(origin),
     () => ensureHostOrigin(origin)

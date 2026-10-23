@@ -97,11 +97,12 @@ export function renderSites(pane: HTMLElement): void {
     })
   );
 
+  const onCommon = store.sameScope(scope, COMMON);
   pane.append(
     row(
       {
-        class: store.sameScope(scope, COMMON) ? "is-sel" : "",
-        "aria-pressed": store.sameScope(scope, COMMON) ? "true" : "false",
+        class: onCommon ? "is-sel" : "",
+        "aria-pressed": onCommon ? "true" : "false",
         onClick: () => store.selectScope(COMMON)
       },
       h("span", { class: "avatar avatar-globe" }, icon("globe")),
@@ -117,15 +118,30 @@ export function renderSites(pane: HTMLElement): void {
       grantBadge(hasEverywhere)
     )
   );
+  // The panel for whatever is selected sits right under the row that opened
+  // it, not at the bottom of a list that may have scrolled it out of sight —
+  // the same "expands where you clicked" rule the Routines column follows.
+  if (onCommon) pane.append(commonCard());
 
   const groups = groupSites(config.sites);
   if (groups.length > 0) pane.append(h("div", { class: "sectionlabel", text: "Your sites" }));
 
   for (const group of groups) {
     pane.append(siteRow(group.site, here, false));
+    if (store.sameScope(scope, { kind: "site", siteId: group.site.id })) {
+      pane.append(siteSettings(group.site.id));
+    }
     if (group.areas.length === 0) continue;
     pane.append(
-      h("div", { class: "arealist" }, ...group.areas.map((area) => siteRow(area, here, true)))
+      h(
+        "div",
+        { class: "arealist" },
+        ...group.areas.flatMap((area) => {
+          const el = [siteRow(area, here, true)];
+          if (store.sameScope(scope, { kind: "site", siteId: area.id })) el.push(siteSettings(area.id));
+          return el;
+        })
+      )
     );
   }
 
@@ -135,7 +151,6 @@ export function renderSites(pane: HTMLElement): void {
       url: matched.some((m) => m.level === "url")
     })
   );
-  pane.append(scope.kind === "site" ? siteSettings(scope.siteId) : commonCard());
 }
 
 function siteRow(site: Site, here: Set<string>, isArea: boolean): HTMLElement {
@@ -209,12 +224,22 @@ function addButton(pageUrl: string | null, claimed: { domain: boolean; url: bool
   );
 }
 
-function siteWording(label: string): { granted: string; missing: string } {
+// One sentence per place this row appears, not one phrase with a noun
+// swapped in — a site grant is about routines running there, the Common
+// grant is about reaching every site at all, and (see stepsPane.ts) a fetch
+// grant is about a network request, never about running on a page. Blurring
+// those into one template reads as accurate everywhere and precise nowhere.
+function siteWording(label: "this site" | "this area"): { granted: string; missing: string } {
   return {
-    granted: `Access granted — ${label} will fire.`,
-    missing: `Not granted yet — ${label} will not fire.`
+    granted: `Access granted — routines can run on ${label}.`,
+    missing: `Not granted yet — routines cannot run on ${label}.`
   };
 }
+
+const commonWording: { granted: string; missing: string } = {
+  granted: "Access granted — routines can run on supported sites.",
+  missing: "Not granted yet — routines cannot run anywhere until this is granted."
+};
 
 function commonCard(): HTMLElement {
   return h(
@@ -225,7 +250,7 @@ function commonCard(): HTMLElement {
         "Routines in Common work on every site. Put things you need everywhere here — " +
         "for example, pasting a test password."
     }),
-    grantStatusRow(siteWording("Common routines"), hasEverywhere, ensureEverywhere).element
+    grantStatusRow(commonWording, hasEverywhere, ensureEverywhere).element
   );
 }
 
@@ -319,7 +344,13 @@ function siteSettings(siteId: string): HTMLElement {
       add,
       // The field adds nothing until this is pressed — said once, plainly,
       // rather than left for someone to discover by trial.
-      h("span", { class: "hint", text: "Write the domain, then press Enter to add it." }),
+      h(
+        "span",
+        { class: "hint" },
+        "Write the domain, then press ",
+        h("strong", { text: "Enter" }),
+        " to add it."
+      ),
       patternProblem,
       // The three shapes a pattern can take, said as plainly as the add
       // field's own placeholder: what you'd type, and what it means. Run

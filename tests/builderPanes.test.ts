@@ -133,6 +133,19 @@ describe("the Sites column", () => {
     expect(store.getConfig().sites[0].patterns).toEqual([]);
   });
 
+  it("opens a site's settings right under its own row, not after Add site", () => {
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    const children = [...panes.sites.children];
+    const rowIndex = children.findIndex((el) => el.textContent?.includes("dzo.lh"));
+    const settingsIndex = children.findIndex((el) => el.classList.contains("settings"));
+    const addIndex = children.findIndex((el) => el.classList.contains("btn-dashed"));
+
+    expect(settingsIndex).toBeGreaterThan(rowIndex);
+    expect(settingsIndex).toBeLessThan(addIndex);
+  });
+
   it("adds a pattern on Enter, and says so while there are none", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     store.patchSite("local", { patterns: [] });
@@ -485,8 +498,8 @@ describe("the Actions column", () => {
 
     await vi.waitFor(() => {
       const row = panes.steps.querySelector(".cardbody .grantrow")!;
-      expect(row.textContent).toContain("KeyRoutine cannot call api.test");
-      expect(row.textContent).toContain("not run on its pages");
+      expect(row.textContent).toContain("requests to api.test are blocked");
+      expect(row.textContent).toContain("not a routine running on the host's pages");
     });
 
     (panes.steps.querySelector(".cardbody .grantrow button") as HTMLElement).click();
