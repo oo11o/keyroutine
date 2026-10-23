@@ -5,6 +5,7 @@ import type { Site } from "../core/schema";
 import * as store from "./store";
 import { COMMON } from "./store";
 import { ensureEverywhere, ensureOrigin, hasEverywhere, hasOrigin } from "./grant";
+import { grantStatusRow } from "./grantRow";
 
 // Column 1 — where. Which pages a stack is allowed to fire on: everywhere
 // ("Common"), or one of the sites below. The row for the page the builder was
@@ -208,34 +209,11 @@ function addButton(pageUrl: string | null, claimed: { domain: boolean; url: bool
   );
 }
 
-// Reused by both the Common card and a site's settings: whether Chrome has
-// actually granted the access a stack here needs to run, with one button to
-// ask for it. The check is async and the row starts blank rather than
-// guessing, so it never claims "granted" before it has actually looked.
-// `refresh` is returned so a caller can re-check right after its own
-// ensureOrigin() call, instead of waiting for the next unrelated render.
-function grantStatusRow(
-  label: string,
-  check: () => Promise<boolean>,
-  request: () => Promise<boolean>
-): { element: HTMLElement; refresh: () => void } {
-  const text = h("span", { class: "hint" });
-  const button = h("button", {
-    type: "button",
-    class: "btn btn-sm",
-    text: "Grant access",
-    onClick: () => void request().then(refresh)
-  });
-  const element = h("div", { class: "field grantrow" }, text, button);
-
-  function refresh(): void {
-    void check().then((granted) => {
-      text.textContent = granted ? `Access granted — ${label} will fire.` : `Not granted yet — ${label} will not fire.`;
-      button.hidden = granted;
-    });
-  }
-  refresh();
-  return { element, refresh };
+function siteWording(label: string): { granted: string; missing: string } {
+  return {
+    granted: `Access granted — ${label} will fire.`,
+    missing: `Not granted yet — ${label} will not fire.`
+  };
 }
 
 function commonCard(): HTMLElement {
@@ -247,7 +225,7 @@ function commonCard(): HTMLElement {
         "Stacks in Common work on every site. Put things you need everywhere here — " +
         "for example, pasting a test password."
     }),
-    grantStatusRow("Common stacks", hasEverywhere, ensureEverywhere).element
+    grantStatusRow(siteWording("Common stacks"), hasEverywhere, ensureEverywhere).element
   );
 }
 
@@ -292,7 +270,7 @@ function siteSettings(siteId: string): HTMLElement {
   const count = store.stackCount({ kind: "site", siteId: site.id });
 
   const grant = grantStatusRow(
-    parent ? "this area" : "this site",
+    siteWording(parent ? "this area" : "this site"),
     () => hasAllOrigins(site),
     () => ensureAllOrigins(site)
   );

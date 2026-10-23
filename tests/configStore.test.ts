@@ -72,6 +72,18 @@ describe("a config saved before a step type was retired", () => {
     ).toEqual([{ id: "s3", type: "wait", ms: 30_000 }]);
   });
 
+  it("rewrites copyBySelector as a plain read, since nothing writes the clipboard now", () => {
+    const config = parsed(
+      stackWith([{ id: "s1", type: "copyBySelector", selector: "#tender_id" }])
+    );
+
+    // Lossy on purpose: the element is still read (and referenceable as
+    // $s1), but the clipboard write is a capability Keystack no longer has.
+    expect(config.stacks[0].steps).toEqual([
+      { id: "s1", type: "readBySelector", selector: "#tender_id" }
+    ]);
+  });
+
   it("still refuses a type that never existed", () => {
     expect(errorsOf(stackWith([{ id: "s1", type: "teleport", selector: "#x" }]))).toEqual([
       'stack "logout" step #1: unknown step type "teleport"'
@@ -102,8 +114,9 @@ describe("parseConfig — migration", () => {
     expect(config.schemaVersion).toBe(SCHEMA_VERSION);
     expect(config.sites).toEqual([]);
     expect(config.stacks[0].siteId).toBeNull();
+    // copyBySelector is gone; migrateStep rewrites it to the plain read.
     expect(config.stacks[0].steps).toEqual([
-      { id: "s1", type: "copyBySelector", selector: "#tender_id" }
+      { id: "s1", type: "readBySelector", selector: "#tender_id" }
     ]);
   });
 
@@ -180,8 +193,8 @@ describe("parseConfig — errors as data", () => {
   });
 
   it("names a required field that is missing or blank", () => {
-    const raw = { stacks: [{ ...V1.stacks[0], steps: [{ id: "s1", type: "copyBySelector" }] }] };
-    expect(errorsOf(raw)).toContain('stack "copy-id" step #1: copyBySelector needs "Element"');
+    const raw = { stacks: [{ ...V1.stacks[0], steps: [{ id: "s1", type: "readBySelector" }] }] };
+    expect(errorsOf(raw)).toContain('stack "copy-id" step #1: readBySelector needs "Element"');
 
     const blank = { stacks: [{ ...V1.stacks[0], steps: [{ id: "s1", type: "fetchUrl", url: "" }] }] };
     expect(errorsOf(blank)).toContain('stack "copy-id" step #1: fetchUrl needs "URL"');
@@ -254,7 +267,7 @@ describe("parseConfig — errors as data", () => {
   it("collects every problem, so the builder can list them all at once", () => {
     const raw = {
       stacks: [
-        { ...V1.stacks[0], steps: [{ id: "s1", type: "copyBySelector" }] },
+        { ...V1.stacks[0], steps: [{ id: "s1", type: "readBySelector" }] },
         { id: "b", binding: { code: "Digit2" }, steps: [{ id: "s1", type: "nope" }] }
       ]
     };

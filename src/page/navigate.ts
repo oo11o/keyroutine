@@ -1,6 +1,6 @@
 // URL handling shared by the URL steps (openUrlInNewTab, openUrlInCurrentTab,
 // fetchUrl). Touches `location`, so it lives in page/ rather than core/ —
-// same split as dom.ts and clipboard.ts.
+// same split as dom.ts.
 import { resolve, type RunContext } from "../core/context";
 
 // Relative URLs resolve against the current page, so a stack can say

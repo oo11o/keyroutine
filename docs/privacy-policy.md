@@ -4,7 +4,7 @@ _Last updated: 2026-10-22_
 
 Keystack is a Chrome extension that lets you bind keyboard shortcuts to a
 sequence of actions you define yourself — click an element, fill a field,
-copy text, fetch a URL, open a tab — scoped to the sites you choose. This
+read text, fetch a URL, open a tab — scoped to the sites you choose. This
 page explains what Keystack does and does not do with your data.
 
 ## Keystack is a local automation tool, not a data-collection service
@@ -29,7 +29,7 @@ by design, not merely by configuration.
 In fact, Keystack ships with exactly one built-in behavior: listening for
 the keyboard shortcut you've bound, and matching it to a stack. It does not
 come with any pre-built automation, site integration, or default action of
-its own. Every action type (click an element, fill a field, copy text,
+its own. Every action type (click an element, fill a field, read text,
 fetch a URL, open a tab, and so on) is a generic building block; it does
 nothing until you — the user — assemble some of them into a stack in the
 options page. That's the whole point of Keystack: it lets you automate your
@@ -67,13 +67,18 @@ stack at a site — or choose "Everywhere" for one that should work on every
 site — Chrome asks you to confirm access to exactly that site, and only
 that site, before Keystack can act on it: reading the page's URL, title, or
 current selection; reading or writing an element you've pointed it at;
-copying text to your clipboard; fetching a URL or opening a tab. A stack
-only ever does what you configured it to do — for instance, a `fetchUrl`
+fetching a URL or opening a tab. A stack only ever does what you
+configured it to do — for instance, a `fetchUrl`
 step you build yourself requests exactly the URL you entered, optionally
 with one of your own variables substituted in. Keystack does not read,
 collect, or transmit anything from a site you haven't granted it access to —
 and any site in your list that you haven't granted is marked as such, so you
 can see at a glance where Keystack cannot act.
+
+Granting access to an address a `fetchUrl` step calls is deliberately not
+the same as adding it as a site: Keystack runs its page code only where you
+pointed a stack, so a host you only wanted to *call* is called and nothing
+more — no keyboard listener and no page reading on it.
 
 ## Data Keystack does not collect
 

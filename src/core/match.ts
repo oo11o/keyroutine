@@ -201,6 +201,52 @@ export function permissionOrigin(pattern: string): string {
   return host === "" ? "" : `*://${host}/*`;
 }
 
+// The origin a fetchUrl step needs granted before the worker will call it
+// (see background/worker.ts). Stricter than permissionOrigin(): a step URL is
+// a template, so a host still holding a variable ("$base/items") names no
+// origin to ask for, and neither does a non-http scheme. Returns "" in both
+// cases, so the builder stays quiet rather than offering a grant on a host
+// that may not be the one the step ends up calling.
+export function fetchOrigin(url: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return "";
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+  if (parsed.host === "" || /[$\{]/.test(parsed.host)) return "";
+  return `*://${parsed.host.toLowerCase()}/*`;
+}
+
+// "Everywhere" has no host to derive a permission from — it means literally
+// every site, which is its own grant rather than a per-pattern one.
+export const EVERYWHERE_ORIGIN = "<all_urls>";
+
+// Which of the granted origins Keystack may actually run its content script
+// on. Not simply "everything granted": a fetchUrl target is granted so the
+// worker can *call* it (see background/worker.ts), and calling an API is no
+// reason to inject a key listener into its pages and read their DOM. So the
+// injection set is derived from the config — the sites the user pointed a
+// stack at — and intersected with what Chrome has actually granted.
+//
+// This is the only place the two capabilities are separated. Chrome's own
+// grant does not distinguish them: a granted origin authorises both, and it
+// is this function declining to register the script that keeps a fetch-only
+// host un-injected.
+export function injectableOrigins(granted: string[], sites: Site[]): string[] {
+  const wanted = new Set<string>();
+  for (const site of sites) {
+    for (const pattern of site.patterns) {
+      const origin = permissionOrigin(pattern);
+      if (origin !== "") wanted.add(origin);
+    }
+  }
+  // Everywhere is an injection choice by definition — the user asked for
+  // stacks that fire on every site, so there is no narrower set to derive.
+  return granted.filter((origin) => origin === EVERYWHERE_ORIGIN || wanted.has(origin));
+}
+
 // The path a pattern narrows to, or "" when it claims the whole host.
 export function patternPath(pattern: string): string {
   const expanded = expandPattern(pattern);

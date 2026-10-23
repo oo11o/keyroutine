@@ -442,6 +442,32 @@ describe("the Actions column", () => {
     );
   });
 
+  // A fetchUrl step calls a host of its own, which the worker refuses until
+  // that host is granted — and granting it here must not turn api.test into
+  // a site Keystack runs on.
+  it("offers the fetch step its own call-only grant", async () => {
+    const fake = stubChromePermissions(); // nothing granted
+    openStep("s2");
+
+    await vi.waitFor(() => {
+      const row = panes.steps.querySelector(".cardbody .grantrow")!;
+      expect(row.textContent).toContain("Keystack cannot call api.test");
+      expect(row.textContent).toContain("not run on its pages");
+    });
+
+    (panes.steps.querySelector(".cardbody .grantrow button") as HTMLElement).click();
+
+    await vi.waitFor(() => expect(fake.requested).toEqual([["*://api.test/*"]]));
+  });
+
+  it("says nothing about granting when the fetch URL names no concrete host", async () => {
+    stubChromePermissions();
+    store.patchStep("s2", { url: "https://$base/items" });
+    openStep("s2");
+
+    await vi.waitFor(() => expect(panes.steps.querySelector(".cardbody .grantrow")).toBeNull());
+  });
+
   it("gives a long value a field that wraps instead of scrolling sideways", () => {
     openStep("s2");
     const url = panes.steps.querySelector("#f-url") as HTMLTextAreaElement;

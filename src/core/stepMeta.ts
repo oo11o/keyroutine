@@ -149,22 +149,12 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Read element",
     group: "read",
     icon: "eye",
-    help: "Reads an element's value or text, so later actions can use it. The clipboard is left alone.",
+    help: "Reads an element's value or text, so later actions can use it.",
     produces: true,
     outNote: "The element's value, or its text when it is not a field.",
     varName: "text",
     summary: (s) => text(s, "selector"),
     fields: [selectorField, saveAsField]
-  },
-  copyBySelector: {
-    label: "Copy element to clipboard",
-    group: "read",
-    icon: "copy",
-    help: "Reads the text of an element on the page and puts it on the system clipboard.",
-    produces: false,
-    outNote: "No result — the text goes to the clipboard only, so there is no variable for later actions.",
-    summary: (s) => text(s, "selector"),
-    fields: [selectorField]
   },
   fetchUrl: {
     label: "Fetch URL",

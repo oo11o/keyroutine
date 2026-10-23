@@ -64,6 +64,12 @@ function migrateStep(raw: Record<string, unknown>): Record<string, unknown> {
   // same two fields, in one go.
   if (raw.type === "typeToSelector") return { ...raw, type: "inputToSelector" };
 
+  // Put an element's text on the clipboard. Keystack no longer writes to the
+  // clipboard from a stack, so the nearest surviving action is the plain read
+  // — the element is still read, and later steps can reference it as $<id>,
+  // but nothing lands on the clipboard any more.
+  if (raw.type === "copyBySelector") return { ...raw, type: "readBySelector" };
+
   // Waited for an element to appear. Nothing waits on a condition any more, so
   // the nearest thing is a flat pause of the budget it was given — slower than
   // it used to be when the element arrives early, and a guess where it used to

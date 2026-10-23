@@ -8,8 +8,8 @@ manifest stands against it.
 | Item | Status | Notes |
 |---|---|---|
 | Manifest V3 | ✅ | Already on MV3, no remote code, no `eval`. |
-| `permissions: ["clipboardWrite", "storage", "scripting"]` | ✅ used | `storage` → `chrome.storage.local`/`.session` (config, vars, resume). `clipboardWrite` → the copy-to-clipboard step and the export dialog's copy button, both fired from a user action. `scripting` → registering the content script dynamically (see below), instead of declaring it statically against every site. |
-| `optional_host_permissions: ["<all_urls>"]` | ✅ | No permission is granted at install. A user grants access per-site (or, once, for "Everywhere" stacks) from the Sites tab — `chrome.permissions.request()`, called directly from that click — and the background worker registers the content script against exactly what has been granted (`src/background/contentScripts.ts`). This replaced a static `host_permissions: ["<all_urls>"]` + `content_scripts` entry that ran on every page from install onward. |
+| `permissions: ["storage", "scripting"]` | ✅ used | `storage` → `chrome.storage.local`/`.session` (config, vars, resume). `scripting` → registering the content script dynamically (see below), instead of declaring it statically against every site. `clipboardWrite` was dropped, along with the clipboard action itself: no stack writes to the clipboard any more. The one remaining copy is the builder's own export button (`src/options/portJson.ts`), a click on an extension page, where `navigator.clipboard.writeText` needs no permission. |
+| `optional_host_permissions: ["<all_urls>"]` | ✅ | No permission is granted at install. A user grants access per-site (or, once, for "Everywhere" stacks) from the Sites tab — `chrome.permissions.request()`, called directly from that click. The content script is then registered against the granted origins a *site* points at, not against everything granted (`injectableOrigins` in `src/core/match.ts`, used by `src/background/contentScripts.ts`) — see "Reading a page and calling an API are separate" below. This replaced a static `host_permissions: ["<all_urls>"]` + `content_scripts` entry that ran on every page from install onward. |
 | `web_accessible_resources` → `config/settings.json` | ✅ | Deliberately excludes the vars/secrets store — see the comment in `src/core/context.ts`. Worth restating in the review notes since it's exactly the kind of thing a reviewer checks by hand. |
 | Icons | ✅ | 16/32/48/128 present as of the icon commit. |
 | CSP / inline scripts | ✅ | Options page already uses a separate bundle instead of inline `<script>` (manifest V3 forbids it anyway). |
@@ -19,6 +19,29 @@ favors `optional_host_permissions` requested at the moment of use over a
 blanket `host_permissions: ["<all_urls>"]` declared at install. The
 justification text in the Developer Dashboard's permissions form should say
 exactly that — see the single-purpose statement below.
+
+## Reading a page and calling an API are separate
+
+Chrome's grant does not distinguish the two: a granted origin authorises both
+injecting a content script into its pages and calling it from the worker.
+Keystack narrows that itself, in code:
+
+- `injectableOrigins(granted, sites)` (`src/core/match.ts`) returns the
+  granted origins that a site in the user's config actually points at, plus
+  `<all_urls>` when the user chose "Everywhere". That is the content
+  script's entire match list.
+- A `fetchUrl` step's host is granted from the step's own card in the
+  builder, not by adding it as a site. So an API the user only wants to
+  *call* is granted, the worker's fetch check (`src/background/worker.ts`)
+  passes for it, and no content script is ever registered on its pages —
+  no key listener, no DOM read.
+- The registration is re-derived whenever a grant changes *and* whenever the
+  config changes, since adding a site to an already-granted host has no
+  permission event behind it.
+
+Worth stating plainly in the review notes: the narrowing is enforced by
+Keystack declining to register the script, not by the permission Chrome
+issued. The permission prompt the user sees is the same either way.
 
 ## Data handling — what has to be disclosed
 
@@ -31,7 +54,7 @@ Even so, the Store's "Privacy practices" tab requires an affirmative answer
 for any category that's *stored*, not just transmitted. That means declaring:
 
 - **Authentication information** (the vars/tokens a user saves) — collected: yes, sold: no, used only for the extension's stated function.
-- **Website content** (selection/DOM reads for steps like "copy element") — same.
+- **Website content** (DOM reads for steps like "read element") — same.
 - Everything else (location, health, financial, personal comms, web history) — no.
 
 This also requires certifying compliance with the **Limited Use** policy
@@ -79,7 +102,7 @@ surface as "my hotkeys stopped working."
 > Keystack ships with exactly one built-in behavior out of the box:
 > listening for a keyboard shortcut and matching it to a stack. It includes
 > no pre-built automation and no default action of any kind — every action
-> type (click, fill, copy, fetch, navigate, …) is a generic, inert building
+> type (click, fill, read, fetch, navigate, …) is a generic, inert building
 > block until the user assembles some of them into a stack themselves. The
 > extension's entire purpose is letting a user automate their own repetitive
 > actions behind a hotkey; it does not act on its own behalf in any way.
@@ -87,16 +110,24 @@ surface as "my hotkeys stopped working."
 ## Single-purpose statement (for the review form, not the listing)
 
 > Keystack lets a user bind keyboard shortcuts to a sequence of actions
-> (click, fill, copy, fetch, navigate) they define themselves, scoped to
+> (click, fill, read, fetch, navigate) they define themselves, scoped to
 > the sites they choose. No site is reachable until the user explicitly
 > grants it from the Sites tab — there is no permission active at install
 > that the user has not asked for by name. Nothing is collected or
 > transmitted beyond what the user's own stack does.
 
+If the review form asks what the extension can actually do, the full action
+inventory is in `docs/store-listing.md` ("Complete action list") — eleven
+types, two of which produce a value, none of which runs on its own.
+
 ## Open decisions (not mine to make)
 
 1. Where to host the privacy policy (GitHub Pages under this repo is the
    obvious zero-infra choice, but it's a judgment call).
-2. Whether `clipboardWrite` is still needed once the gesture requirement is
-   checked against actual Clipboard API behavior — worth a quick manual
-   test rather than removing it speculatively.
+2. ~~Whether `clipboardWrite` is still needed~~ — closed by removing the
+   clipboard action ("Copy element to clipboard") outright, so nothing a
+   stack does touches the clipboard and the permission has no call site
+   left. A config written before this has its copy steps rewritten to the
+   plain "Read element" on load (`migrateStep` in `src/core/configStore.ts`)
+   — lossy by design: the read survives, the clipboard write does not. Worth
+   a line in the release notes.

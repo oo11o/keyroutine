@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   applicableSections,
+  fetchOrigin,
   groupSites,
+  injectableOrigins,
   patternHost,
   patternsOverlap,
   patternPath,
@@ -29,7 +31,7 @@ function stack(id: string, code: string, siteId?: string | null): Stack {
     name: id,
     binding: { code, ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
-    steps: [{ id: "s1", type: "copyBySelector", selector: "#x" }],
+    steps: [{ id: "s1", type: "readBySelector", selector: "#x" }],
     siteId
   };
 }
@@ -455,5 +457,54 @@ describe("a path with no wildcard covers what is under it", () => {
   it("still cannot be smuggled past the anchors", () => {
     expect(matchesUrl("https://evil.test/?next=https://dzo.lh/tenders", section)).toBe(false);
     expect(matchesUrl("https://stage.dzo.com.ua.evil.test/tenders", section)).toBe(false);
+  });
+});
+
+describe("fetchOrigin", () => {
+  it("names the host-wide origin a fetchUrl step needs granted", () => {
+    expect(fetchOrigin("https://api.dzo.com.ua/items/4821")).toBe("*://api.dzo.com.ua/*");
+    expect(fetchOrigin("  http://API.dzo.com.ua/items  ")).toBe("*://api.dzo.com.ua/*");
+  });
+
+  it("names nothing for a URL whose host is still a template", () => {
+    // Nothing to ask Chrome for: which host this calls is not known yet.
+    expect(fetchOrigin("https://$base/items")).toBe("");
+    expect(fetchOrigin("$base/items")).toBe("");
+  });
+
+  it("names nothing for a blank or non-http URL", () => {
+    expect(fetchOrigin("")).toBe("");
+    expect(fetchOrigin("not a url")).toBe("");
+    expect(fetchOrigin("file:///etc/passwd")).toBe("");
+  });
+
+  it("keeps a port, which is part of the origin", () => {
+    expect(fetchOrigin("http://localhost:8080/api")).toBe("*://localhost:8080/*");
+  });
+});
+
+describe("injectableOrigins", () => {
+  const site = (host: string) => ({ id: host, name: host, patterns: [host] });
+
+  it("keeps a granted origin a site points at", () => {
+    expect(injectableOrigins(["*://dzo.lh/*"], [site("dzo.lh")])).toEqual(["*://dzo.lh/*"]);
+  });
+
+  it("drops a granted origin no site points at — a fetch target is not a place to run", () => {
+    expect(injectableOrigins(["*://dzo.lh/*", "*://api.dzo.lh/*"], [site("dzo.lh")])).toEqual([
+      "*://dzo.lh/*"
+    ]);
+  });
+
+  it("matches a site scoped to a path, since the grant is host-wide either way", () => {
+    expect(injectableOrigins(["*://dzo.lh/*"], [site("dzo.lh/tenders")])).toEqual(["*://dzo.lh/*"]);
+  });
+
+  it("keeps an Everywhere grant with no site behind it", () => {
+    expect(injectableOrigins(["<all_urls>"], [])).toEqual(["<all_urls>"]);
+  });
+
+  it("drops a site's origin that was never granted", () => {
+    expect(injectableOrigins([], [site("dzo.lh")])).toEqual([]);
   });
 });

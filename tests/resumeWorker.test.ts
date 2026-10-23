@@ -48,6 +48,8 @@ beforeEach(async () => {
     },
     storage: {
       local: { get: async () => ({}), set: async () => {} },
+      // The worker re-syncs the content script when the config changes.
+      onChanged: { addListener: () => {} },
       session: {
         get: async (k: string) => ({ [k]: store[k] }),
         set: async (entries: Record<string, unknown>) => Object.assign(store, entries),

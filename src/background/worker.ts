@@ -8,7 +8,8 @@
 //      a half-finished stack has to be parked somewhere that does;
 //   3. seed the stored config on install, and open the builder when the
 //      toolbar icon is clicked.
-import { seedIfEmpty } from "../core/configStore";
+import { CONFIG_KEY, clearCache, loadConfig, seedIfEmpty } from "../core/configStore";
+import { injectableOrigins } from "../core/match";
 import { syncContentScripts, injectIntoOpenTabs } from "./contentScripts";
 import {
   FETCH_MESSAGE_TYPE,
@@ -112,11 +113,31 @@ chrome.runtime.onStartup.addListener(() => {
 // A grant made from the builder (see options/grant.ts) lands here: re-register
 // the content script against the new set of origins, then reach into tabs
 // already open on one of them so the user is not left to reload by hand.
+// Filtered through the same rule as the registration itself — a grant made
+// only so a fetchUrl step can call an API must not inject into tabs open on
+// that API's host either.
 chrome.permissions.onAdded.addListener((permissions) => {
-  void syncContentScripts().then(() => injectIntoOpenTabs(permissions.origins ?? []));
+  void (async () => {
+    await syncContentScripts();
+    const config = await loadConfig().catch(() => null);
+    await injectIntoOpenTabs(injectableOrigins(permissions.origins ?? [], config?.sites ?? []));
+  })();
 });
 
 chrome.permissions.onRemoved.addListener(() => {
+  void syncContentScripts();
+});
+
+// A site added to a host that was already granted (because a fetchUrl step
+// there was granted earlier, say) changes the injection set without any
+// permission event to hang it on — so the config itself is a trigger.
+// clearCache() here rather than watchConfigChanges(): loadConfig memoizes,
+// and this listener has to read the config written by *this* change, which
+// means dropping the cache before the read instead of trusting that another
+// listener registered earlier already did.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !(CONFIG_KEY in changes)) return;
+  clearCache();
   void syncContentScripts();
 });
 

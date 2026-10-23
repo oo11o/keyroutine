@@ -2,14 +2,14 @@
 
 ## Short description (max 132 characters)
 
-> Bind hotkeys to your own click/fill/copy/fetch sequences, scoped to the sites you choose.
+> Bind hotkeys to your own click/fill/read/fetch sequences, scoped to the sites you choose.
 
 (91 characters — room to spare if a reviewer asks for more specificity.)
 
 ## Detailed description
 
 Keystack turns a keyboard shortcut into whatever sequence of actions you'd
-otherwise do by hand: click a button, fill a field, copy an element's text,
+otherwise do by hand: click a button, fill a field, read an element's text,
 fetch a URL, open a tab, wait for a popup to confirm it ran. You build the
 sequence once in the options page and fire it with a hotkey from then on.
 
@@ -32,14 +32,59 @@ full breakdown.
 
 **What you can chain together:**
 - Click or fill an element you've picked on the page
-- Copy an element's text to the clipboard
-- Read a value into a variable for later steps to use
+- Read an element's text into a variable later actions can use
 - Fetch a URL or open it in a new or current tab
 - Navigate the current tab, with the stack resuming after the page loads
 - Show a popup to confirm a stack ran, or to surface what it found
 
 **No account, no sync, no telemetry.** Install it, open the options page,
 build your first stack, and press the hotkey.
+
+## Complete action list (paste into the review form if asked what Keystack can do)
+
+Eleven action types, all of them inert until a user puts one in a stack of
+their own. Nothing here runs on install, and nothing runs on a site the user
+has not granted. Grouped as the builder groups them.
+
+**Read**
+| Action | What it does | Result |
+|---|---|---|
+| Read element | Reads the value or text of an element the user picked | `$text` |
+| Fetch URL | Requests a user-entered URL through the service worker, so the page's CORS rules do not apply. One request at a time | `$response` |
+
+**Act on the page**
+| Action | What it does | Result |
+|---|---|---|
+| Set field value | Sets an input's value through the native setter and fires `input`/`change` | — |
+| Focus element | Moves keyboard focus to an element | — |
+| Click element | Clicks an element | — |
+| Press key | Sends one `KeyboardEvent.key` to whatever has focus | — |
+
+**Wait**
+| Action | What it does | Result |
+|---|---|---|
+| Wait (fixed) | A flat pause, capped at 30 seconds | — |
+
+**Show**
+| Action | What it does | Result |
+|---|---|---|
+| Show popup | An in-page panel that blocks the stack until the user dismisses it | — |
+| Show popup (JSON) | The same panel with a live line filter, for long bodies | — |
+
+**Navigate**
+| Action | What it does | Result |
+|---|---|---|
+| Open URL in a new tab | Opens a user-entered URL in a new tab; this page keeps running the stack | — |
+| Go to URL (this tab) | Leaves this page; the remaining actions resume on the next page in this tab, within 15 seconds | — |
+
+Worth noting for a reviewer: every URL, selector and value above is typed by
+the user. Two actions produce a variable (`Read element`, `Fetch URL`); the
+other nine return nothing. No action writes to the clipboard, reads browsing
+history, or reaches a site outside the user's own granted rules.
+
+Retired types still accepted from an older config and rewritten on load
+(`migrateStep` in `src/core/configStore.ts`): `copyBySelector` → Read
+element, `typeToSelector` → Set field value, `waitForSelector` → Wait.
 
 ## Category
 
@@ -54,7 +99,7 @@ checklist's open decision on where.)
 
 **Optional host permission — `<all_urls>`:**
 > Not granted at install. Keystack's hotkeys run user-defined action
-> sequences (click, fill, copy, fetch, navigate) against whatever page the
+> sequences (click, fill, read, fetch, navigate) against whatever page the
 > user is on, scoped by the user's own site rules — so access to a given
 > site is requested, via `chrome.permissions.request()`, only when the user
 > adds that site (or chooses "Everywhere") from the Sites tab. No site is
@@ -64,8 +109,11 @@ checklist's open decision on where.)
 
 **`scripting`:**
 > Registers the content script (`chrome.scripting.registerContentScripts`)
-> against exactly the origins the user has granted, instead of declaring it
-> statically against every site in the manifest.
+> against exactly the origins the user has granted *and* pointed a site
+> rule at, instead of declaring it statically against every site in the
+> manifest. A host granted only so a user's "fetch URL" action can call it
+> is never injected into: calling an API and reading its pages are kept
+> separate in code.
 
 **`storage`:**
 > Stores the user's own stacks and variables (e.g. an API token referenced
@@ -73,7 +121,6 @@ checklist's open decision on where.)
 > without re-entering values on every browser restart. Nothing stored here
 > is transmitted by the extension itself.
 
-**`clipboardWrite`:**
-> Backs the "copy element to clipboard" step and the options page's
-> export-to-clipboard button — both triggered directly by a user action
-> (a hotkey press or a button click).
+Keystack declares no `clipboardWrite`: no action a stack can run writes to
+the clipboard. The one copy left is the builder's own export button, a click
+on the extension's own options page, which needs no clipboard permission.

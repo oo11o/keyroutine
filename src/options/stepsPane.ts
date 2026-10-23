@@ -6,6 +6,9 @@ import { availableVars, referencedVars } from "../core/vars";
 import * as store from "./store";
 import * as probe from "./probe";
 import { renderField } from "./fields";
+import { grantStatusRow } from "./grantRow";
+import { ensureHostOrigin, hasHostOrigin } from "./grant";
+import { fetchOrigin } from "../core/match";
 import { keyCaps } from "./chordInput";
 
 // Column 3 — what. The actions of the open stack as a pipeline: the hotkey that
@@ -225,8 +228,37 @@ function actionBody(step: Step, index: number): HTMLElement {
     body.append(details);
   }
 
+  if (step.type === "fetchUrl") {
+    const row = fetchGrantRow(step.url);
+    if (row) body.append(row);
+  }
+
   body.append(resultBox(step));
   return body;
+}
+
+// A fetchUrl step calls a host of its own, which the worker refuses until
+// that host is granted (see background/worker.ts). It is deliberately *not*
+// granted by adding the host as a site: a site is a place stacks run, and
+// scoping one here would register the content script on every page of an API
+// the user only wanted to call. So the step asks for its own origin, and that
+// grant stays call-only — see injectableOrigins in core/match.ts.
+//
+// Nothing is shown when the URL names no concrete host (empty, or a host
+// still holding a variable): there is no origin to ask for, and the worker's
+// runtime message is the honest place to find that out.
+function fetchGrantRow(url: string): HTMLElement | null {
+  const origin = fetchOrigin(url);
+  if (origin === "") return null;
+  const host = new URL(url.trim()).host;
+  return grantStatusRow(
+    {
+      granted: `Access granted — Keystack can call ${host}.`,
+      missing: `Not granted yet — Keystack cannot call ${host}. Granting this lets it call the host, not run on its pages.`
+    },
+    () => hasHostOrigin(origin),
+    () => ensureHostOrigin(origin)
+  ).element;
 }
 
 /* ── the Result box ────────────────────────────────────────────────────── */

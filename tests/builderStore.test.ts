@@ -482,7 +482,7 @@ describe("import and export", () => {
           name: "Old",
           binding: { code: "Digit4", ctrl: true, alt: true, shift: false, meta: false },
           enabled: true,
-          steps: [{ id: "s1", type: "copyBySelector", selector: "#x" }]
+          steps: [{ id: "s1", type: "readBySelector", selector: "#x" }]
         }
       ]
     });
