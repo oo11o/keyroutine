@@ -317,16 +317,23 @@ function siteSettings(siteId: string): HTMLElement {
       h("span", { class: "label", text: "Matches these URLs" }),
       site.patterns.length > 0 ? chips : null,
       add,
+      // The field adds nothing until this is pressed — said once, plainly,
+      // rather than left for someone to discover by trial.
+      h("span", { class: "hint", text: "Write the domain, then press Enter to add it." }),
       patternProblem,
       // The three shapes a pattern can take, said as plainly as the add
-      // field's own placeholder: what you'd type, and what it means.
+      // field's own placeholder: what you'd type, and what it means. Run
+      // together as one line rather than a list — four short facts, not
+      // four separate ideas.
       h(
-        "ul",
+        "p",
         { class: "patternlegend hint" },
-        h("li", {}, h("code", { text: "example.com" }), " — every page on this domain."),
-        h("li", {}, h("code", { text: "example.com/reports" }), " — this page, and everything under it."),
-        h("li", {}, h("code", { text: "*.example.com" }), " — every subdomain of it."),
-        h("li", { class: "hint" }, "A pattern cannot claim every website — that is what Common is for.")
+        h("code", { text: "example.com" }),
+        " — every page on this domain. ",
+        h("code", { text: "example.com/reports" }),
+        " — this page, and everything under it. ",
+        h("code", { text: "*.example.com" }),
+        " — every subdomain of it. A pattern cannot claim every website — that is what Common is for."
       ),
       siteScope(site) === "domain" && host !== ""
         ? h("span", {

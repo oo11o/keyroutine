@@ -724,8 +724,8 @@ textarea.wrapbox {
 
 .grantrow { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .grantrow .hint { margin: 0; }
-.patternlegend { margin: 0; padding: 0; list-style: none; }
-.patternlegend li code { font-size: 12px; }
+.patternlegend { margin: 0; line-height: 1.6; }
+.patternlegend code { font-size: 12px; }
 
 /* ── import / export dialog ────────────────────────────────────────────── */
 

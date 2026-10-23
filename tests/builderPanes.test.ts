@@ -254,16 +254,23 @@ describe("the Sites column", () => {
     );
   });
 
-  it("spells out the pattern shapes a user can type, and the one they cannot", () => {
+  it("spells out the pattern shapes a user can type, and the one they cannot, as one line", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     draw();
 
-    expect(texts(panes.sites, ".patternlegend li")).toEqual([
-      "example.com — every page on this domain.",
-      "example.com/reports — this page, and everything under it.",
-      "*.example.com — every subdomain of it.",
-      "A pattern cannot claim every website — that is what Common is for."
-    ]);
+    const legend = panes.sites.querySelector(".patternlegend")?.textContent;
+    expect(legend).toContain("example.com — every page on this domain.");
+    expect(legend).toContain("example.com/reports — this page, and everything under it.");
+    expect(legend).toContain("*.example.com — every subdomain of it.");
+    expect(legend).toContain("A pattern cannot claim every website — that is what Common is for.");
+    expect(panes.sites.querySelectorAll(".patternlegend li")).toHaveLength(0);
+  });
+
+  it("says pressing Enter is what adds a typed pattern", () => {
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    expect(panes.sites.textContent).toContain("Write the domain, then press Enter to add it.");
   });
 
   it("refuses a pattern that claims every website, and says where those routines go", () => {
