@@ -23,7 +23,7 @@ const SEED = {
       binding: { code: "Digit7", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       steps: [
-        { id: "s1", type: "readBySelector", selector: "#tender_id" },
+        { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "inputToSelector", selector: "#note", value: "$s1" },
         { id: "s3", type: "popupJson", title: "Tender", body: "$s1" }
       ]
@@ -37,7 +37,7 @@ const SEED = {
       enabled: true,
       siteId: "local",
       steps: [
-        { id: "s1", type: "readBySelector", selector: "#tender_id" },
+        { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "fetchUrl", url: "https://api.test/t/$s1", saveAs: "tender" },
         { id: "s3", type: "popupJson", title: "Tender", body: "$tender" }
       ]
@@ -347,19 +347,16 @@ describe("the Routines column", () => {
 
   it("still warns when the two routines are on the same site", () => {
     store.selectScope({ kind: "site", siteId: "local" });
-    store.addRoutine("One");
-    store.addRoutine("Two");
-    store.patchRoutine(store.currentRoutine()!.id, {
-      binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false }
-    });
-    store.patchRoutine("one", {
-      binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false }
-    });
+    const one = store.addRoutine("One");
+    const two = store.addRoutine("Two");
+    const chord = { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false };
+    store.patchRoutine(two.id, { binding: chord });
+    store.patchRoutine(one.id, { binding: chord });
     draw();
 
     expect(panes.routines.querySelector(".conflict")?.textContent).toContain("Same hotkey as Two");
     expect(panes.routines.querySelector(".keys.is-conflict")).not.toBeNull();
-    store.selectRoutine("one");
+    store.selectRoutine(one.id);
     draw();
     expect(panes.routines.textContent).toContain("Record a different hotkey");
   });
@@ -423,7 +420,8 @@ describe("the Actions column", () => {
   });
 
   it("chips the variable a producing action leaves behind", () => {
-    expect(texts(panes.steps, ".stephead .outchip")).toEqual(["→ $s1", "→ $s2"]);
+    // The chip shows the Save as name, which the seed spells out, not the id.
+    expect(texts(panes.steps, ".stephead .outchip")).toEqual(["→ $s1", "→ $tender"]);
   });
 
   it("chips an action whose field names a variable nothing produces", () => {
@@ -551,7 +549,8 @@ describe("the Actions column", () => {
   it("names the result of a producing action, and nothing for the rest", () => {
     openStep("s2");
     expect(panes.steps.textContent).toContain("Later actions can use it as");
-    expect((panes.steps.querySelector("#step-var") as HTMLInputElement).value).toBe("s2");
+    expect(panes.steps.textContent).toContain("Save as");
+    expect((panes.steps.querySelector("#step-var") as HTMLInputElement).value).toBe("tender");
 
     openStep("s3");
     // A popup leaves nothing behind, so there is no variable to name — and
@@ -560,15 +559,18 @@ describe("the Actions column", () => {
     expect(panes.steps.querySelector(".outbox")?.textContent).toContain("No result");
   });
 
-  it("renames the variable on blur, and the chips follow", () => {
-    openStep("s2"); // nothing reads $s2, so this rename breaks nothing
+  it("renames the result on blur, and the chips follow — while the id stays put", () => {
+    // The popup below reads $tender, so the rename is confirmed rather than
+    // silent; the next test is the one that declines.
+    vi.stubGlobal("confirm", () => true);
+    openStep("s2");
     const name = panes.steps.querySelector("#step-var") as HTMLInputElement;
 
     name.value = "tenderJson";
     name.dispatchEvent(new Event("blur"));
     draw();
 
-    expect(store.currentRoutine()!.steps[1].id).toBe("tenderJson");
+    expect(store.currentRoutine()!.steps[1]).toMatchObject({ id: "s2", saveAs: "tenderJson" });
     expect(texts(panes.steps, ".stephead .outchip")).toEqual(["→ $s1", "→ $tenderJson"]);
   });
 
@@ -746,11 +748,8 @@ describe("a Common routine and the actions it may not hold", () => {
     // Pushed into the draft directly: the menu would not allow it, which is
     // exactly the config an older version could have written.
     const routine = store.currentRoutine()!;
-    store.getConfig().routines.find((s) => s.id === routine.id)!.steps.push({
-      id: "leak",
-      type: "fetchUrl",
-      url: "https://api.test/x"
-    });
+    store.getConfig().routines.find((s) => s.id === routine.id)!.steps.push({ id: "leak", type: "fetchUrl",
+      url: "https://api.test/x", saveAs: "leak" });
     openStep("leak");
 
     expect(texts(panes.steps, ".stephead .errchip")).toContain("Needs a site");
@@ -825,13 +824,15 @@ describe("building the user's example from scratch", () => {
 
     await expect(store.save()).resolves.toEqual({ ok: true });
 
-    // The names come from what each action holds, not from a counter — and the
-    // stored shape is the same one a hand-written config has always used.
+    // The names come from what each action holds, not from a counter, and the
+    // ids are generated and say nothing — the two are separate things now.
     const routine = store.getConfig().routines.find((s) => s.name === "jsonShow")!;
-    expect(routine.steps).toEqual([
-      { id: "text", type: "readBySelector", selector: "#tender_id" },
-      { id: "response", type: "fetchUrl", url: "https://api.test/tenders/$text" },
-      { id: "s1", type: "popupJson", body: "$response" }
+    expect(routine.steps).toMatchObject([
+      { type: "readBySelector", selector: "#tender_id", saveAs: "text" },
+      { type: "fetchUrl", url: "https://api.test/tenders/$text", saveAs: "response" },
+      { type: "popupJson", body: "$response" }
     ]);
+    expect(routine.steps[2]).not.toHaveProperty("saveAs"); // a popup holds nothing
+    for (const step of routine.steps) expect(step.id).toMatch(/^[a-z0-9]{8}$/);
   });
 });

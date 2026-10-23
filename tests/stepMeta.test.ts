@@ -40,10 +40,9 @@ describe("STEP_META", () => {
     ]);
   });
 
-  it("offers saveAs on the producers and nowhere else", () => {
+  it("keeps saveAs out of every type's fields — it names the result, it does not configure the step", () => {
     for (const type of STEP_TYPES) {
-      const hasSaveAs = STEP_META[type].fields.some((f) => f.name === "saveAs");
-      expect(hasSaveAs, type).toBe(STEP_META[type].produces);
+      expect(STEP_META[type].fields.some((f) => f.name === "saveAs"), type).toBe(false);
     }
   });
 
@@ -52,19 +51,18 @@ describe("STEP_META", () => {
       const meta = STEP_META[type];
       expect(meta.icon, type).toBeTruthy();
       expect(meta.outNote, type).toBeTruthy();
-      // The variable name a producer's result arrives under, which is also the
-      // step's default id. A step that produces nothing must not suggest one.
+      // The name a producer's result arrives under by default, before anyone
+      // edits Save as. A step that produces nothing must not suggest one.
       expect(Boolean(meta.varName), type).toBe(meta.produces);
       if (meta.varName) expect(meta.varName, type).toMatch(/^\w+$/);
     }
   });
 
   it("keeps the result's own name out of the form fields", () => {
-    // saveAs names the result rather than configuring the step, so the builder
-    // edits it in the Result box. It stays in `fields` — an imported config may
-    // carry one, and parseConfig reads this list.
+    // saveAs names the result rather than configuring the step: the builder
+    // edits it in the Result box, and parseConfig carries it across by hand.
     expect(formFields("fetchUrl").map((f) => f.name)).toEqual(["url"]);
-    expect(STEP_META.fetchUrl.fields.map((f) => f.name)).toEqual(["url", "saveAs"]);
+    expect(STEP_META.fetchUrl.fields.map((f) => f.name)).toEqual(["url"]);
   });
 
   it("never marks a required field as advanced — nothing mandatory may hide", () => {
@@ -98,7 +96,7 @@ describe("STEP_META", () => {
     }
     // The summary sits under the action's title in a mono line, so it carries
     // the thing that varies and nothing else — the title already said "Fetch".
-    expect(STEP_META.fetchUrl.summary({ id: "s2", type: "fetchUrl", url: "https://a.test/$s1" })).toBe(
+    expect(STEP_META.fetchUrl.summary({ id: "s2", type: "fetchUrl", url: "https://a.test/$s1", saveAs: "s2" })).toBe(
       "https://a.test/$s1"
     );
     expect(
@@ -115,12 +113,19 @@ describe("STEP_META", () => {
 });
 
 describe("blankStep", () => {
-  it("fills in the required fields and leaves optional ones out", () => {
-    // saveAs is optional, so a new step does not carry an empty one.
-    expect(blankStep("readBySelector", "s3")).toEqual({
-      id: "s3",
+  it("fills in the required fields, and the name only when one is given", () => {
+    // The id and the name are separate arguments now: the builder generates
+    // one of each, and a step built without a name simply has none.
+    expect(blankStep("readBySelector", "abc12345")).toEqual({
+      id: "abc12345",
       type: "readBySelector",
       selector: ""
+    });
+    expect(blankStep("readBySelector", "abc12345", "text")).toEqual({
+      id: "abc12345",
+      type: "readBySelector",
+      selector: "",
+      saveAs: "text"
     });
   });
 

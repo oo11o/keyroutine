@@ -16,7 +16,7 @@ function routine(): Routine {
     binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
     steps: [
-      { id: "s1", type: "readBySelector", selector: "#tender_id" },
+      { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
       { id: "s2", type: "openUrlInCurrentTab", url: "http://dzo.lh/tenders/new" },
       { id: "s3", type: "inputToSelector", selector: "#field", value: "$s1" }
     ]

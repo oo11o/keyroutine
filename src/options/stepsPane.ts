@@ -162,7 +162,10 @@ function actionCard(step: Step, index: number, total: number, open: boolean): HT
 
   const missing = missingVars(step, index);
   if (missing) head.append(h("span", { class: "errchip mono", text: `$${missing} undefined` }));
-  if (meta.produces) head.append(h("span", { class: "outchip mono", text: `→ $${step.id}` }));
+  if (meta.produces) {
+    const name = (step as { saveAs?: string }).saveAs;
+    head.append(h("span", { class: "outchip mono", text: name ? `→ $${name}` : "→ unnamed" }));
+  }
 
   card.append(
     h(
@@ -295,63 +298,60 @@ function resultBox(step: Step): HTMLElement {
     return box;
   }
 
+  const name = (step as { saveAs?: string }).saveAs ?? "";
   box.append(
     h(
       "div",
       { class: "outline" },
       h("span", { text: "Later actions can use it as" }),
-      h("span", { class: "outchip mono", text: `$${step.id}` })
+      h("span", { class: "outchip mono", text: name === "" ? "— unnamed" : `$${name}` })
     ),
-    varNameField(step),
+    saveAsField(step, name),
     h("div", { class: "hint", text: meta.outNote })
   );
-
-  const saveAs = (step as { saveAs?: string }).saveAs;
-  if (saveAs) {
-    box.append(
-      h(
-        "div",
-        { class: "outline" },
-        h("span", { class: "hint", text: "Also available as" }),
-        h("span", { class: "outchip mono", text: `$${saveAs}` })
-      )
-    );
-  }
   return box;
 }
 
-// The variable's name is the action's id — $<id> is how the runner binds it —
-// so renaming it can break a later template. The rename is applied on blur, not
-// per keystroke, or every intermediate spelling would count as a rename.
-function varNameField(step: Step): HTMLElement {
+// Save as: the one name a producer's result is read back by. Generated when
+// the action is added ($text, $response) so a routine works before anyone has
+// named anything, and editable here — renaming it can break a later template,
+// which is what the confirm is for. Applied on blur rather than per keystroke,
+// or every intermediate spelling would count as a rename.
+//
+// The action's id is not this and is not editable: it identifies the action,
+// it is not what anything reads.
+function saveAsField(step: Step, current: string): HTMLElement {
   const routine = store.currentRoutine()!;
-  const input = h("input", { id: "step-var", class: "input mono", type: "text", value: step.id });
+  const input = h("input", { id: "step-var", class: "input mono", type: "text", value: current });
   const problem = h("div", { class: "errtext", hidden: true });
 
   const refuse = (message: string): void => {
     problem.textContent = message;
     problem.hidden = false;
-    input.value = step.id;
+    input.value = current;
   };
 
   const commit = (): void => {
     const next = input.value.trim();
-    if (next === step.id) return;
+    if (next === current) return;
     if (!/^\w+$/.test(next)) return refuse("letters, digits and _ only — it is used as $name");
-    if (routine.steps.some((s) => s.id === next)) return refuse(`"${next}" is already taken in this routine`);
+    const taken = routine.steps.some(
+      (s) => s.id !== step.id && (s as { saveAs?: string }).saveAs === next
+    );
+    if (taken) return refuse(`"${next}" is already taken in this routine`);
 
-    const breaks = store.renamesBreak(routine, step.id);
+    const breaks = store.renamesBreak(routine, current);
     if (breaks.length > 0) {
       const ok = confirm(
         `${breaks.map((b) => b.message).join("\n")}\n\n` +
           `Renaming this variable will not update those. Rename anyway?`
       );
       if (!ok) {
-        input.value = step.id;
+        input.value = current;
         return;
       }
     }
-    store.setStepId(step.id, next);
+    store.setStepVarName(step.id, next);
   };
 
   input.addEventListener("blur", commit);
@@ -362,7 +362,7 @@ function varNameField(step: Step): HTMLElement {
   return h(
     "label",
     { class: "field" },
-    h("span", { class: "label", text: "Variable name" }),
+    h("span", { class: "label", text: "Save as" }),
     input,
     h("span", { class: "hint", text: "Name it after what it holds, so later actions read clearly." }),
     problem

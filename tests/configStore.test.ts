@@ -80,7 +80,7 @@ describe("a config saved before a step type was retired", () => {
     // Lossy on purpose: the element is still read (and referenceable as
     // $s1), but the clipboard write is a capability KeyRoutine no longer has.
     expect(config.routines[0].steps).toEqual([
-      { id: "s1", type: "readBySelector", selector: "#tender_id" }
+      { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" }
     ]);
   });
 
@@ -123,6 +123,33 @@ describe("a config saved before a step type was retired", () => {
     expect(config.routines.map((r) => r.id)).toEqual(["new"]);
   });
 
+  it("takes an action's old id as its Save as name, so $<old id> keeps resolving", () => {
+    // Before the split, an action's id *was* the name its result was read
+    // back by. A config written then references $s1, and must go on working.
+    const config = parsed(
+      routineWith([
+        { id: "s1", type: "readBySelector", selector: "#tender_id" },
+        { id: "s2", type: "popup", body: "$s1" }
+      ])
+    );
+
+    expect(config.routines[0].steps[0]).toMatchObject({ id: "s1", saveAs: "s1" });
+  });
+
+  it("leaves a name the config already spells out alone", () => {
+    const config = parsed(
+      routineWith([{ id: "abc12345", type: "fetchUrl", url: "https://api.test/x", saveAs: "order" }])
+    );
+
+    expect(config.routines[0].steps[0]).toMatchObject({ id: "abc12345", saveAs: "order" });
+  });
+
+  it("gives an action that holds nothing no name, whatever its id", () => {
+    const config = parsed(routineWith([{ id: "s1", type: "popup", body: "hi" }]));
+
+    expect(config.routines[0].steps[0]).not.toHaveProperty("saveAs");
+  });
+
   it("still refuses a type that never existed", () => {
     expect(errorsOf(routineWith([{ id: "s1", type: "teleport", selector: "#x" }]))).toEqual([
       'routine "logout" step #1: unknown step type "teleport"'
@@ -155,7 +182,7 @@ describe("parseConfig — migration", () => {
     expect(config.routines[0].siteId).toBeNull();
     // copyBySelector is gone; migrateStep rewrites it to the plain read.
     expect(config.routines[0].steps).toEqual([
-      { id: "s1", type: "readBySelector", selector: "#tender_id" }
+      { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" }
     ]);
   });
 
@@ -188,7 +215,7 @@ describe("parseConfig — migration", () => {
         {
           ...V1.routines[0],
           steps: [
-            { id: "s1", type: "fetchUrl", url: "https://api.test/?run=$secret_runToken" },
+            { id: "s1", type: "fetchUrl", url: "https://api.test/?run=$secret_runToken", saveAs: "s1" },
             { id: "s2", type: "inputToSelector", selector: "#f", value: "$secret_pass" },
             { id: "s3", type: "popup", title: "t", body: "$secret_runToken and $s1" }
           ]
@@ -232,10 +259,10 @@ describe("parseConfig — errors as data", () => {
   });
 
   it("names a required field that is missing or blank", () => {
-    const raw = { routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "readBySelector" }] }] };
+    const raw = { routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "readBySelector", saveAs: "s1" }] }] };
     expect(errorsOf(raw)).toContain('routine "copy-id" step #1: readBySelector needs "Element"');
 
-    const blank = { routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "fetchUrl", url: "" }] }] };
+    const blank = { routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "fetchUrl", url: "", saveAs: "s1" }] }] };
     expect(errorsOf(blank)).toContain('routine "copy-id" step #1: fetchUrl needs "URL"');
   });
 
@@ -250,7 +277,7 @@ describe("parseConfig — errors as data", () => {
       routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "readBySelector", selector: "#x", saveAs: "my-var" }] }]
     };
     expect(errorsOf(raw)).toContain(
-      'routine "copy-id" step #1: "Also available as" may only use letters, digits and _'
+      'routine "copy-id" step #1: "my-var" may only use letters, digits and _ — it is read back as $my-var'
     );
   });
 
@@ -260,8 +287,8 @@ describe("parseConfig — errors as data", () => {
         {
           ...V1.routines[0],
           steps: [
-            { id: "s1", type: "readBySelector", selector: "#a" },
-            { id: "s1", type: "readBySelector", selector: "#b" }
+            { id: "s1", type: "readBySelector", selector: "#a", saveAs: "s1" },
+            { id: "s1", type: "readBySelector", selector: "#b", saveAs: "s1" }
           ]
         }
       ]
@@ -306,7 +333,7 @@ describe("parseConfig — errors as data", () => {
   it("collects every problem, so the builder can list them all at once", () => {
     const raw = {
       routines: [
-        { ...V1.routines[0], steps: [{ id: "s1", type: "readBySelector" }] },
+        { ...V1.routines[0], steps: [{ id: "s1", type: "readBySelector", saveAs: "s1" }] },
         { id: "b", binding: { code: "Digit2" }, steps: [{ id: "s1", type: "nope" }] }
       ]
     };

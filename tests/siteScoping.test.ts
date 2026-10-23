@@ -21,7 +21,7 @@ const CONFIG = {
       name: "Sync (anywhere)",
       binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
-      steps: [{ id: "s1", type: "readBySelector", selector: "#x" }]
+      steps: [{ id: "s1", type: "readBySelector", selector: "#x", saveAs: "s1" }]
     },
     {
       id: "sync-test",
@@ -29,7 +29,7 @@ const CONFIG = {
       binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       siteId: "test",
-      steps: [{ id: "s1", type: "readBySelector", selector: "#y" }]
+      steps: [{ id: "s1", type: "readBySelector", selector: "#y", saveAs: "s1" }]
     },
     {
       id: "local-only",
@@ -37,7 +37,7 @@ const CONFIG = {
       binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       siteId: "local",
-      steps: [{ id: "s1", type: "readBySelector", selector: "#z" }]
+      steps: [{ id: "s1", type: "readBySelector", selector: "#z", saveAs: "s1" }]
     },
     {
       id: "new-tender-only",
@@ -45,7 +45,7 @@ const CONFIG = {
       binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       siteId: "new-tender",
-      steps: [{ id: "s1", type: "readBySelector", selector: "#w" }]
+      steps: [{ id: "s1", type: "readBySelector", selector: "#w", saveAs: "s1" }]
     }
   ]
 };

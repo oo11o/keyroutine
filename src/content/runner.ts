@@ -85,7 +85,9 @@ export async function runRoutine(
             throw new Error(`too many variables (max ${MAX_VARS})`);
           }
           remember(ctx, written, "value", value);
-          remember(ctx, written, step.id, value); // every producer is reachable as $<its own id>, free of charge
+          // The name the builder generated for this action (or the one the
+          // user typed into Save as) — never the id, which is opaque now and
+          // nothing a template could sensibly reference.
           if ("saveAs" in step && step.saveAs) remember(ctx, written, step.saveAs, value);
         }
         if (note) notes.push(note);

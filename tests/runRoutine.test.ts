@@ -18,7 +18,7 @@ describe("runRoutine — $<step.id> auto-binding", () => {
       binding: { code: "Digit2", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       steps: [
-        { id: "s1", type: "readBySelector", selector: "#tender_id" },
+        { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "inputToSelector", selector: "#search", value: "$s1" }
       ]
     };
@@ -40,7 +40,7 @@ describe("runRoutine — $<step.id> auto-binding", () => {
       binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       steps: [
-        { id: "s1", type: "readBySelector", selector: "#tender_id" },
+        { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "inputToSelector", selector: "#search", value: "$value" }
       ]
     };
@@ -58,7 +58,7 @@ describe("runRoutine — $<step.id> auto-binding", () => {
       name: "Producer",
       binding: { code: "Digit4", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
-      steps: [{ id: "s1", type: "readBySelector", selector: "#a" }]
+      steps: [{ id: "s1", type: "readBySelector", selector: "#a", saveAs: "s1" }]
     };
     const consumer: Routine = {
       id: "c",
@@ -80,7 +80,7 @@ describe("runRoutine — $<step.id> auto-binding", () => {
       binding: { code: "Digit2", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       steps: [
-        { id: "s1", type: "readBySelector", selector: "#tender_id" },
+        { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "inputToSelector", selector: "#search", value: "$s1" }
       ]
     };
@@ -117,7 +117,7 @@ describe("runRoutine — the popup step", () => {
       binding: { code: "Digit6", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       steps: [
-        { id: "s1", type: "readBySelector", selector: "#tender_id" },
+        { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "popup", body: "ID: $s1" }
       ]
     };

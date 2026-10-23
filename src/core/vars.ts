@@ -33,8 +33,8 @@ export function referencedVars(template: string): string[] {
 // actually binds, and in the same order of interest: this routine's own
 // producers first, then the page builtins, then your own variables.
 //
-// A producer writes three names — $value, $<its id> and $<saveAs> — so all
-// three are offered. $value is only listed for the most recent producer,
+// A producer writes two names — $value and the one in its Save as field — so
+// both are offered. $value is only listed for the most recent producer,
 // because that is the only step it still refers to by the time this one runs.
 export function availableVars(
   routine: Routine,
@@ -47,15 +47,17 @@ export function availableVars(
     .filter((step) => STEP_META[step.type]?.produces);
 
   for (const step of producers) {
-    vars.push({ name: step.id, origin: "step", note: `${STEP_META[step.type].label} (step ${step.id})` });
     const saveAs = (step as { saveAs?: string }).saveAs;
-    if (saveAs) {
-      vars.push({ name: saveAs, origin: "step", note: `saved by step ${step.id}` });
-    }
+    if (saveAs) vars.push({ name: saveAs, origin: "step", note: STEP_META[step.type].label });
   }
   const last = producers[producers.length - 1];
   if (last) {
-    vars.push({ name: "value", origin: "step", note: `whatever step ${last.id} produced` });
+    const name = (last as { saveAs?: string }).saveAs;
+    vars.push({
+      name: "value",
+      origin: "step",
+      note: name ? `whatever $${name} produced` : `whatever ${STEP_META[last.type].label} produced`
+    });
   }
 
   for (const name of BUILTINS) {

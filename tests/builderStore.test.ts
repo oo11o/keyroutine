@@ -19,7 +19,7 @@ const SEED = {
       name: "Copy Tender",
       binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
-      steps: [{ id: "s1", type: "readBySelector", selector: "#tender_id" }]
+      steps: [{ id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" }]
     },
     {
       id: "local-sync",
@@ -125,42 +125,54 @@ describe("adding things", () => {
     expect(store.addRoutine("B").binding.code).toBe("Digit3");
   });
 
-  it("never reuses a routine id", async () => {
+  it("gives a routine an opaque id that owes nothing to its name", async () => {
     await open();
 
-    // Ids are slugged from the name, so two routines called the same thing are
-    // exactly the collision that has to be handled — a reused id would break
-    // resume, which finds its routine by id.
-    expect(store.addRoutine("Log out").id).toBe("log-out");
-    expect(store.addRoutine("Log out").id).toBe("log-out-2");
-    expect(store.addRoutine("Log out").id).toBe("log-out-3");
+    const first = store.addRoutine("Log out");
+    const second = store.addRoutine("Log out");
+
+    // Two routines called the same thing: ids are generated, so there is no
+    // collision to resolve and no slug to read anything into.
+    expect(first.id).not.toBe(second.id);
+    expect(first.id).toMatch(/^[a-z0-9]{8}$/);
+    expect(first.id).not.toContain("log");
+  });
+
+  it("keeps a routine's id when its name changes", async () => {
+    await open();
+    const routine = store.addRoutine("Log out");
+
+    store.patchRoutine(routine.id, { name: "Sign out, actually" });
+
+    expect(store.getConfig().routines.find((r) => r.id === routine.id)?.name).toBe(
+      "Sign out, actually"
+    );
   });
 
   it("names a producing step after what it holds, and keeps it unique", async () => {
     await open();
     store.selectRoutine("copy-id");
 
-    // The id is the name a later action reads the result by ($response), so it
-    // comes from the type rather than from a counter.
+    // The name is what a later action reads the result by ($response), so it
+    // comes from the type rather than from a counter — while the id behind it
+    // is generated and says nothing.
     store.addStep("fetchUrl");
-    expect(store.currentStep()?.id).toBe("response");
+    expect(store.currentStep()).toMatchObject({ saveAs: "response" });
     store.addStep("fetchUrl");
-    expect(store.currentStep()?.id).toBe("response2");
+    expect(store.currentStep()).toMatchObject({ saveAs: "response2" });
     store.addStep("readBySelector");
-    expect(store.currentStep()?.id).toBe("text");
+    expect(store.currentStep()).toMatchObject({ saveAs: "text" });
+    expect(store.currentStep()?.id).toMatch(/^[a-z0-9]{8}$/);
   });
 
-  it("numbers steps that hold nothing from the first free id, not from the count", async () => {
+  it("gives an action that holds nothing no name at all", async () => {
     await open();
     store.selectRoutine("copy-id");
 
-    store.addStep("popup"); // s1 is taken by the seed's copy step
-    expect(store.currentStep()?.id).toBe("s2");
-
-    store.deleteStep("s1");
     store.addStep("popup");
-    // s1 is free again, but s2 still exists and a template may point at it.
-    expect(store.currentRoutine()?.steps.map((s) => s.id)).toEqual(["s2", "s1"]);
+
+    expect(store.currentStep()).not.toHaveProperty("saveAs");
+    expect(store.currentStep()?.id).toMatch(/^[a-z0-9]{8}$/);
   });
 
   it("fills a new step with its required fields blank and nothing else", async () => {
@@ -169,7 +181,8 @@ describe("adding things", () => {
 
     store.addStep("readBySelector");
 
-    expect(store.currentStep()).toEqual({ id: "text", type: "readBySelector", selector: "" });
+    expect(store.currentStep()).toMatchObject({ type: "readBySelector", selector: "", saveAs: "text" });
+    expect(store.currentStep()!.id).toMatch(/^[a-z0-9]{8}$/);
   });
 
   it("selects a new site so its routines can be added straight away", async () => {
@@ -186,15 +199,15 @@ describe("editing steps", () => {
   it("drops an optional field that was cleared, rather than storing an empty one", async () => {
     await open();
     store.selectRoutine("copy-id");
-    // Opening a routine opens none of its actions, so this one is asked for.
-    store.selectStep("s1");
-    store.patchStep("s1", { saveAs: "tender" });
-    expect(store.currentStep()).toMatchObject({ saveAs: "tender" });
+    store.addStep("popup");
+    const popup = store.currentStep()!.id;
+    store.patchStep(popup, { title: "Tender" });
+    expect(store.currentStep()).toMatchObject({ title: "Tender" });
 
-    store.patchStep("s1", { saveAs: "" });
+    store.patchStep(popup, { title: "" });
 
     // The handlers read `timeoutMs ?? DEFAULT`, which an empty string defeats.
-    expect("saveAs" in (store.currentStep() as object)).toBe(false);
+    expect("title" in (store.currentStep() as object)).toBe(false);
   });
 
   it("refuses to save an action queued behind a popup", async () => {
@@ -218,25 +231,27 @@ describe("editing steps", () => {
     await open();
     store.selectRoutine("copy-id");
     store.addStep("popup");
+    const added = store.currentStep()!.id;
     const ids = () => store.currentRoutine()!.steps.map((s) => s.id);
 
-    store.moveStep("s2", -1);
-    expect(ids()).toEqual(["s2", "s1"]);
+    store.moveStep(added, -1);
+    expect(ids()).toEqual([added, "s1"]);
 
-    store.moveStep("s2", -1);
-    expect(ids()).toEqual(["s2", "s1"]);
+    store.moveStep(added, -1);
+    expect(ids()).toEqual([added, "s1"]);
 
     store.moveStep("s1", 1);
-    expect(ids()).toEqual(["s2", "s1"]);
+    expect(ids()).toEqual([added, "s1"]);
   });
 
   it("keeps a sensible selection after a delete", async () => {
     await open();
     store.selectRoutine("copy-id");
     store.addStep("popup");
-    store.selectStep("s2");
+    const added = store.currentStep()!.id;
+    store.selectStep(added);
 
-    store.deleteStep("s2");
+    store.deleteStep(added);
 
     expect(store.currentStep()?.id).toBe("s1");
   });
@@ -245,11 +260,13 @@ describe("editing steps", () => {
     await open();
     store.selectRoutine("copy-id");
     store.addStep("fetchUrl");
-    store.patchStep("response", { url: "https://api.test/t/$s1" });
+    const fetcher = store.currentStep()!.id;
+    store.patchStep(fetcher, { url: "https://api.test/t/$s1" });
 
+    // "s1" is the seed read action's name, which the fetch above reads.
     const breaks = store.renamesBreak(store.currentRoutine()!, "s1");
 
-    expect(breaks).toMatchObject([{ stepId: "response" }]);
+    expect(breaks).toMatchObject([{ stepId: fetcher }]);
     expect(breaks[0].message).toContain("$s1");
   });
 
@@ -392,24 +409,24 @@ describe("deleting a site", () => {
 describe("saving", () => {
   it("writes the draft to storage and clears the dirty flag", async () => {
     await open();
-    store.addRoutine("Logout");
+    const added = store.addRoutine("Logout");
 
     await expect(store.save()).resolves.toEqual({ ok: true });
 
     expect(store.isDirty()).toBe(false);
     const stored = storage.data[CONFIG_KEY] as { routines: { id: string }[] };
-    expect(stored.routines.map((s) => s.id)).toContain("logout");
+    expect(stored.routines.map((s) => s.id)).toContain(added.id);
   });
 
   it("makes the saved config what the hotkey path reads next", async () => {
     await open();
-    store.addRoutine("Logout");
+    const added = store.addRoutine("Logout");
     await store.save();
 
     // The content script reads the same store; this is why a Save is live on the
     // next keystroke instead of the next reload.
     await expect(loadConfig()).resolves.toMatchObject({
-      routines: expect.arrayContaining([expect.objectContaining({ id: "logout" })])
+      routines: expect.arrayContaining([expect.objectContaining({ id: added.id })])
     });
   });
 
@@ -429,7 +446,8 @@ describe("saving", () => {
     await open();
     store.selectRoutine("copy-id");
     store.addStep("fetchUrl");
-    store.patchStep("response", { url: "https://api.test/t/$tender" });
+    const fetcher = store.currentStep()!.id;
+    store.patchStep(fetcher, { url: "https://api.test/t/$tender" });
 
     const result = await store.save();
 
@@ -437,7 +455,7 @@ describe("saving", () => {
     if (result.ok) return;
     expect(result.problems[0].message).toContain("$tender");
     expect(result.problems[0].message).toContain("url");
-    expect(result.problems[0].stepId).toBe("response");
+    expect(result.problems[0].stepId).toBe(fetcher);
   });
 
   // On the site-scoped routine, here and below: a fetch is a site-only action.
@@ -446,9 +464,9 @@ describe("saving", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     store.selectRoutine("local-sync");
     store.addStep("readBySelector");
-    store.patchStep("text", { selector: "#tender_id", saveAs: "tender" });
+    store.patchStep(store.currentStep()!.id, { selector: "#tender_id", saveAs: "tender" });
     store.addStep("fetchUrl");
-    store.patchStep("response", { url: "https://api.test/t/$tender" });
+    store.patchStep(store.currentStep()!.id, { url: "https://api.test/t/$tender" });
 
     await expect(store.save()).resolves.toEqual({ ok: true });
   });
@@ -458,10 +476,10 @@ describe("saving", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     store.selectRoutine("local-sync");
     store.addStep("fetchUrl");
-    store.patchStep("response", { url: "https://api.test/?run=$runToken" });
+    store.patchStep(store.currentStep()!.id, { url: "https://api.test/?run=$runToken" });
     await expect(store.save()).resolves.toEqual({ ok: true });
 
-    store.patchStep("response", { url: "https://api.test/?run=$nope" });
+    store.patchStep(store.currentStep()!.id, { url: "https://api.test/?run=$nope" });
     await expect(store.save()).resolves.toMatchObject({ ok: false });
   });
 
@@ -478,7 +496,7 @@ describe("saving", () => {
           name: "Leaky",
           binding: { code: "Digit5", ctrl: true, alt: true, shift: false, meta: false },
           enabled: true,
-          steps: [{ id: "s1", type: "fetchUrl", url: "https://api.test/x" }]
+          steps: [{ id: "s1", type: "fetchUrl", url: "https://api.test/x", saveAs: "s1" }]
         }
       ]
     });
@@ -495,11 +513,8 @@ describe("saving", () => {
     await open();
     store.selectScope({ kind: "common" });
     store.selectRoutine("copy-id");
-    store.getConfig().routines.find((s) => s.id === "copy-id")!.steps.push({
-      id: "leak",
-      type: "fetchUrl",
-      url: "https://api.test/x"
-    });
+    store.getConfig().routines.find((s) => s.id === "copy-id")!.steps.push({ id: "leak", type: "fetchUrl",
+      url: "https://api.test/x", saveAs: "leak" });
 
     const saved = await store.save();
     expect(saved.ok).toBe(false);
@@ -513,9 +528,10 @@ describe("saving", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     store.selectRoutine("local-sync");
     store.addStep("fetchUrl");
-    store.patchStep("response", { url: "https://api.test/x" });
+    const fetcher = store.currentStep()!.id;
+    store.patchStep(fetcher, { url: "https://api.test/x" });
 
-    expect(store.blocksCommon("local-sync").map((s) => s.id)).toEqual(["response"]);
+    expect(store.blocksCommon("local-sync").map((s) => s.id)).toEqual([fetcher]);
     // A routine with nothing site-only in it is free to move.
     expect(store.blocksCommon("copy-id")).toEqual([]);
   });
@@ -541,7 +557,7 @@ describe("import and export", () => {
           name: "Old",
           binding: { code: "Digit4", ctrl: true, alt: true, shift: false, meta: false },
           enabled: true,
-          steps: [{ id: "s1", type: "readBySelector", selector: "#x" }]
+          steps: [{ id: "s1", type: "readBySelector", selector: "#x", saveAs: "s1" }]
         }
       ]
     });

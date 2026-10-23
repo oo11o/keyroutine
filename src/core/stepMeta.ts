@@ -129,17 +129,6 @@ const selectorField: FieldSpec = {
   help: "Press Pick and click the element on the page, or paste a CSS selector from DevTools (right-click › Copy › Copy selector)."
 };
 
-const saveAsField: FieldSpec = {
-  name: "saveAs",
-  label: "Also available as",
-  kind: "varName",
-  required: false,
-  advanced: true,
-  result: true,
-  placeholder: "tender",
-  help: "A second name for the result. The action's own variable name works anyway, so this is only here for configs that were written by hand."
-};
-
 const titleField: FieldSpec = {
   name: "title",
   label: "Title",
@@ -162,7 +151,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     outNote: "The element's value, or its text when it is not a field.",
     varName: "text",
     summary: (s) => text(s, "selector"),
-    fields: [selectorField, saveAsField]
+    fields: [selectorField]
   },
   fetchUrl: {
     label: "Fetch URL",
@@ -182,8 +171,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         required: true,
         placeholder: "https://api.example.com/items/$text",
         help: "http(s) only. Each substituted value is URL-encoded, so a value with & cannot add a parameter."
-      },
-      saveAsField
+      }
     ]
   },
   inputToSelector: {
@@ -389,8 +377,35 @@ export function templateFields(type: Step["type"]): FieldSpec[] {
 
 // A new step of this type, with every default filled in and nothing else.
 // Ids are the caller's business — only it knows which are taken.
-export function blankStep(type: Step["type"], id: string): Step {
+// The name a producer's result is read back by, defaulted from what the
+// action holds — $text, $response — and numbered only when that name is
+// already taken in this routine. Generated rather than asked for, because a
+// routine is useful the moment it is built and naming is a thing the user may
+// do later, in the Save as field, or never.
+export function freeVarName(type: Step["type"], taken: Set<string>): string | null {
+  const base = STEP_META[type].varName;
+  if (!base) return null; // not a producer — there is no result to name
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n++) {
+    const candidate = `${base}${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+// Every name a routine's producers currently claim, so a new one can avoid
+// them. Shared by the builder and the config migration.
+export function varNamesIn(steps: Step[]): Set<string> {
+  const names = new Set<string>();
+  for (const step of steps) {
+    const saveAs = (step as { saveAs?: string }).saveAs;
+    if (saveAs) names.add(saveAs);
+  }
+  return names;
+}
+
+export function blankStep(type: Step["type"], id: string, saveAs?: string): Step {
   const step: Record<string, unknown> = { id, type };
+  if (saveAs) step.saveAs = saveAs;
   for (const f of STEP_META[type].fields) {
     if (f.default !== undefined) step[f.name] = f.default;
     else if (f.required) step[f.name] = f.kind === "number" ? 0 : "";

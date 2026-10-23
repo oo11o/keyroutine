@@ -2,7 +2,16 @@ import type { Binding, Config, Site, Routine, Step } from "../core/schema";
 import { SCHEMA_VERSION } from "../core/schema";
 import { isParsed, parseConfig, saveConfig, seedIfEmpty } from "../core/configStore";
 import { isCommon, siteFor, siteScope, sitesOverlap } from "../core/match";
-import { STEP_META, blankStep, siteOnlyReason, siteOnlySteps, templateFields } from "../core/stepMeta";
+import {
+  STEP_META,
+  blankStep,
+  freeVarName,
+  siteOnlyReason,
+  siteOnlySteps,
+  templateFields,
+  varNamesIn
+} from "../core/stepMeta";
+import { freshId } from "../core/ids";
 import { referencedVars, unknownVars } from "../core/vars";
 
 // The builder's draft. Edits land here, not in storage: a half-typed selector
@@ -168,21 +177,6 @@ function freeId(base: string, taken: Set<string>): string {
   }
 }
 
-// A step's id is also the name its result is read back by ($<id>), so a
-// producer gets one named after what it holds — $text, $response — and only a
-// step with no result falls back to s1, s2. First free rather than
-// steps.length + 1: after a delete that would reuse a name an earlier template
-// may still point at.
-function freeStepId(routine: Routine, type: Step["type"]): string {
-  const taken = new Set(routine.steps.map((s) => s.id));
-  const base = STEP_META[type].varName;
-  if (base && !taken.has(base)) return base;
-  for (let n = base ? 2 : 1; ; n++) {
-    const candidate = base ? `${base}${n}` : `s${n}`;
-    if (!taken.has(candidate)) return candidate;
-  }
-}
-
 /* ── sites ─────────────────────────────────────────────────────────────── */
 
 export function addSite(name: string, patterns: string[]): Site {
@@ -243,7 +237,9 @@ const DEFAULT_BINDING: Binding = {
 
 export function addRoutine(name: string): Routine {
   const routine: Routine = {
-    id: freeId(slug(name, "routine"), new Set(config.routines.map((s) => s.id))),
+    // Generated, never derived from the name: the name is the user's to
+    // change whenever they like, and nothing should have to follow it.
+    id: freshId(new Set(config.routines.map((s) => s.id))),
     name: name.trim() === "" ? "New routine" : name.trim(),
     binding: freeBinding(),
     enabled: true,
@@ -317,7 +313,14 @@ function withSteps(id: string, fn: (steps: Step[]) => Step[]): void {
 export function addStep(type: Step["type"]): void {
   const routine = currentRoutine();
   if (!routine) return;
-  const step = blankStep(type, freeStepId(routine, type));
+  // Two separate things, deliberately: an opaque id nobody edits, and — for a
+  // producer — a short name for its result, taken from what the action holds
+  // ($text, $response) and numbered only if that is already in use here.
+  const step = blankStep(
+    type,
+    freshId(new Set(routine.steps.map((s) => s.id))),
+    freeVarName(type, varNamesIn(routine.steps)) ?? undefined
+  );
   withSteps(routine.id, (steps) => [...steps, step]);
   stepId = step.id;
   announce();
@@ -340,15 +343,15 @@ export function patchStep(id: string, patch: Record<string, unknown>): void {
   );
 }
 
-// Renaming a step id is renaming a variable: $<old id> in a later template
-// stops resolving. Reported by the caller, which has the list from renamesBreak.
-export function setStepId(oldId: string, newId: string): void {
+// Renaming a producer's result is renaming a variable: $<old name> in a later
+// template stops resolving. Reported by the caller, which has the list from
+// renamesBreak. The step's id is untouched — it is not a name and never moves.
+export function setStepVarName(id: string, name: string): void {
   const routine = currentRoutine();
   if (!routine) return;
   withSteps(routine.id, (steps) =>
-    steps.map((step) => (step.id === oldId ? ({ ...step, id: newId } as Step) : step))
+    steps.map((step) => (step.id === id ? ({ ...step, saveAs: name } as Step) : step))
   );
-  if (stepId === oldId) stepId = newId;
   announce();
 }
 
@@ -367,12 +370,22 @@ export function duplicateStep(id: string): void {
   if (!routine) return;
   const index = routine.steps.findIndex((s) => s.id === id);
   if (index < 0) return;
+  const source = routine.steps[index];
+  // A copy is a new action: its own id, and its own name for its result —
+  // two producers writing the same $name would leave the second silently
+  // shadowing the first.
   const copy = {
-    ...structuredClone(routine.steps[index]),
-    id: freeStepId(routine, routine.steps[index].type)
-  } as Step;
-  withSteps(routine.id, (steps) => [...steps.slice(0, index + 1), copy, ...steps.slice(index + 1)]);
-  stepId = copy.id;
+    ...structuredClone(source),
+    id: freshId(new Set(routine.steps.map((s) => s.id)))
+  } as Record<string, unknown>;
+  const name = freeVarName(source.type, varNamesIn(routine.steps));
+  if (name) copy.saveAs = name;
+  withSteps(routine.id, (steps) => [
+    ...steps.slice(0, index + 1),
+    copy as unknown as Step,
+    ...steps.slice(index + 1)
+  ]);
+  stepId = copy.id as string;
   announce();
 }
 
@@ -503,16 +516,20 @@ export function isBareKey(binding: Binding): boolean {
   return !binding.ctrl && !binding.alt && !binding.meta;
 }
 
-// Which later steps a step-id rename would break. Offered before the rename,
-// not after: the templates are the user's, and rewriting them silently is worse
-// than telling them.
-export function renamesBreak(routine: Routine, oldId: string): Problem[] {
-  return unknownVars({ ...routine, steps: routine.steps.map((s) => (s.id === oldId ? { ...s, id: " " } : s)) })
-    .filter((v) => v.name === oldId)
+// Which later steps renaming a producer's result would break. Offered before
+// the rename, not after: the templates are the user's, and rewriting them
+// silently is worse than telling them. The action's id is not involved — it is
+// not a name, and renaming cannot touch it.
+export function renamesBreak(routine: Routine, oldName: string): Problem[] {
+  const blanked = routine.steps.map((s) =>
+    (s as { saveAs?: string }).saveAs === oldName ? ({ ...s, saveAs: " " } as Step) : s
+  );
+  return unknownVars({ ...routine, steps: blanked })
+    .filter((v) => v.name === oldName)
     .map((v) => ({
       routineId: routine.id,
       stepId: v.stepId,
-      message: `the action "${v.stepId}" still uses $${oldId}`
+      message: `the action "${v.stepId}" still uses $${oldName}`
     }));
 }
 

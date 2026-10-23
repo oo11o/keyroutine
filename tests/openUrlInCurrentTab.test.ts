@@ -35,7 +35,7 @@ function routineWith(url: string): Routine {
     binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
     steps: [
-      { id: "s1", type: "readBySelector", selector: "#tender_id" },
+      { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
       { id: "s2", type: "openUrlInCurrentTab", url }
     ]
   };

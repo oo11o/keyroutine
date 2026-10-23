@@ -31,7 +31,7 @@ function routine(id: string, code: string, siteId?: string | null): Routine {
     name: id,
     binding: { code, ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
-    steps: [{ id: "s1", type: "readBySelector", selector: "#x" }],
+    steps: [{ id: "s1", type: "readBySelector", selector: "#x", saveAs: "s1" }],
     siteId
   };
 }

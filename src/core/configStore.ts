@@ -114,6 +114,23 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
     return null;
   }
   const step: Record<string, unknown> = { id: raw.id, type: raw.type };
+  // The name a producer's result is read back by. Not one of the step's form
+  // fields — the builder edits it in its own Save as box — so it is carried
+  // across by hand, under the same \w+ rule core/context.ts's resolve() needs
+  // to be able to find it at all.
+  //
+  // Falling back to the id is the migration: an action's id *was* the name
+  // ($<id>) before the two were separated, so a config written then keeps
+  // every later template resolving, and is written back in the new shape the
+  // next time the builder saves.
+  if (STEP_META[raw.type].produces) {
+    const name = typeof raw.saveAs === "string" && raw.saveAs !== "" ? raw.saveAs : raw.id;
+    if (!/^\w+$/.test(name)) {
+      errors.push(`${where}: "${name}" may only use letters, digits and _ — it is read back as $${name}`);
+    } else {
+      step.saveAs = name;
+    }
+  }
   for (const spec of STEP_META[raw.type].fields) {
     const value = raw[spec.name];
     if (value === undefined || value === "") {

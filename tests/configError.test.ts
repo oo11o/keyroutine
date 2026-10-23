@@ -26,7 +26,7 @@ const VALID = {
       name: "Copy Tender",
       binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
-      steps: [{ id: "s1", type: "readBySelector", selector: "#tender_id" }]
+      steps: [{ id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" }]
     }
   ]
 };

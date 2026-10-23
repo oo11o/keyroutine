@@ -10,7 +10,7 @@ function jsonShow(): Routine {
     binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
     steps: [
-      { id: "s1", type: "readBySelector", selector: "#tender_id" },
+      { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
       { id: "s2", type: "fetchUrl", url: "https://api.test/t/$s1", saveAs: "json" },
       { id: "s3", type: "popupJson", title: "Tender", body: "$json" }
     ]
@@ -25,26 +25,25 @@ describe("availableVars", () => {
     expect(names(jsonShow(), 0)).toEqual(["url", "title", "selection", "routines", "routineName"]);
   });
 
-  it("offers an earlier producer by its step id", () => {
+  it("offers an earlier producer by the name in its Save as", () => {
     expect(names(jsonShow(), 1)).toContain("s1");
   });
 
-  it("offers a producer's saveAs name as well as its id", () => {
+  it("offers a producer by its name and never by its id", () => {
     const at3 = names(jsonShow(), 2);
-    expect(at3).toContain("s2");
-    expect(at3).toContain("json");
+    expect(at3).toContain("json"); // the fetch's Save as
+    expect(at3).not.toContain("s2"); // its id, which nothing reads
   });
 
   it("does not offer a step its own output, or a later step's", () => {
-    // $s2 at step 2 would be the value this step has not produced yet.
-    expect(names(jsonShow(), 1)).not.toContain("s2");
+    // $json at step 2 would be the value this step has not produced yet.
     expect(names(jsonShow(), 1)).not.toContain("json");
   });
 
   it("offers $value only for the most recent producer", () => {
     const vars = availableVars(jsonShow(), 2);
     const value = vars.find((v) => v.name === "value");
-    expect(value?.note).toMatch(/step s2/);
+    expect(value?.note).toMatch(/\$json/);
   });
 
   it("does not offer $value before anything has produced one", () => {

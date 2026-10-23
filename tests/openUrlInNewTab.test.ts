@@ -21,7 +21,7 @@ function routineWith(url: string, selector = "#tender_id"): Routine {
     binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
     steps: [
-      { id: "s1", type: "readBySelector", selector },
+      { id: "s1", type: "readBySelector", selector, saveAs: "s1" },
       { id: "s2", type: "openUrlInNewTab", url }
     ]
   };

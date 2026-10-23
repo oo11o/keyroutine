@@ -109,8 +109,8 @@ describe("fetchUrl", () => {
       enabled: true,
       siteId: "dzo",
       steps: [
-        { id: "s1", type: "readBySelector", selector: "#tender_id" },
-        { id: "s2", type: "fetchUrl", url: "http://dzo.lh/sync.php?id=$s1" }
+        { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
+        { id: "s2", type: "fetchUrl", url: "http://dzo.lh/sync.php?id=$s1", saveAs: "s2" }
       ]
     };
     document.body.innerHTML = `<input id="tender_id" value="abc&run=evil" />`;

@@ -86,7 +86,9 @@ config is refused, and the runner refuses the action outright — so neither
 an import nor a hand-edited storage entry can get a fetch to run unscoped.
 
 Worth noting for a reviewer: every URL, selector and value above is typed by
-the user. Two actions produce a variable (`Read element`, `Fetch URL`); the
+the user. Two actions produce a variable (`Read element`, `Fetch URL`), each
+under a short name the builder generates and the user can change in that
+action's "Save as" box; the
 other nine return nothing. No action writes to the clipboard, reads browsing
 history, or reaches a site outside the user's own granted rules.
 
