@@ -95,7 +95,7 @@ surface as "my hotkeys stopped working."
 
 - Short description, ≤132 characters.
 - Detailed description — lead with the single-purpose statement (see below), Google's reviewers check the listing against it.
-- At least one screenshot, 1280×800 or 640×400. `docs/screenshot-config.json` is a demo config to import into the builder first — reserved example.com/example.org hosts only, one stack per feature worth a frame (the call-only fetch grant among them).
+- At least one screenshot, 1280×800 or 640×400. One is ready: `docs/screenshots/listing-1280x800.png` (the builder with the demo config loaded). `docs/screenshot-config.json` is that config — reserved example.com/example.org hosts only, one stack per feature worth a frame (the call-only fetch grant among them). See "Screenshots" in the listing doc for what is shot and what is still missing.
 - Category: Productivity (or Developer Tools).
 - Privacy policy URL (see above).
 
@@ -133,6 +133,9 @@ surface as "my hotkeys stopped working."
 If the review form asks what the extension can actually do, the full action
 inventory is in `docs/store-listing.md` ("Complete action list") — eleven
 types, two of which produce a value, none of which runs on its own.
+
+The order of what is left — merges, hosting, assets, the bugs found while
+preparing all this — is in `docs/release-roadmap.md`.
 
 ## Open decisions (not mine to make)
 

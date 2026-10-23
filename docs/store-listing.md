@@ -94,6 +94,27 @@ Retired types still accepted from an older config and rewritten on load
 (`migrateStep` in `src/core/configStore.ts`): `copyBySelector` → Read
 element, `typeToSelector` → Set field value, `waitForSelector` → Wait.
 
+## Screenshots
+
+Taken with `docs/screenshot-config.json` loaded, so nothing real appears in
+any of them. The Store wants 1280×800 or 640×400, 24-bit PNG with no alpha.
+
+| File | Shows | Status |
+|---|---|---|
+| `screenshots/listing-1-builder-1280x800.png` | The primary frame: all three columns, sites with `/orders` nested under its host, the open stack with its hotkey, and a click → wait → navigate pipeline on the right. Saved draft, nothing in an error state | ready |
+| `screenshots/listing-2-site-only-fetch-1280x800.png` | The same builder with a fetch stack open, showing the rule in the Site field: a stack holding Fetch URL cannot move to Common | ready |
+| `screenshots/*-original.png` | The unpadded sources (1327×722, 1340×713, 589×668) — kept to re-cut from, never for upload | source |
+
+Still worth shooting:
+
+- The Fetch URL card open on an **ungranted** host, so "Granting this lets it call the host, not run on its pages" is visible — the privacy story in one frame.
+- A popup fired by a hotkey on a real page, which is the only frame showing Keystack doing its job rather than being configured.
+- The action menu open, which is the only frame showing the whole vocabulary. The one taken so far is cropped to 589×668 and cut mid-row; it needs the full window.
+- Optionally the Sites list with a "Not granted" chip, showing nothing is reachable until it is granted.
+
+All frames are padded to 1280×800 at the bottom with the page background
+(`#121214`), so the window reads as continuing rather than being cut.
+
 ## Category
 
 Productivity (secondary: Developer Tools, if the Store allows one)
