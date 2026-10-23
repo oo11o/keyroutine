@@ -45,11 +45,14 @@ easy option since there's no backend) before the listing can be submitted.
 A profile that already had stacks configured before this change has none of
 the new per-site grants — the old `host_permissions: ["<all_urls>"]` covered
 everything, so nothing needed asking. After updating, every site a stack
-was scoped to shows "Not granted yet" on its settings card until the user
-clicks "Grant access" there (or on Common, for an "everywhere" stack). This
-is a one-time cost of the narrower permission model and is worth calling out
-in the update's release notes rather than letting it surface as "my hotkeys
-stopped working."
+was scoped to is marked "Not granted" in the Sites list and shows "Not
+granted yet" on its settings card until the user clicks "Grant access"
+there (or on Common, for an "everywhere" stack). The list marks only the
+sites that still need a grant — once one is granted, its row carries no
+badge at all — so after updating, the remaining work is exactly what is
+still flagged. This is a one-time cost of the narrower permission model and
+is worth calling out in the update's release notes rather than letting it
+surface as "my hotkeys stopped working."
 
 ## Listing assets still needed
 

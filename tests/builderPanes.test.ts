@@ -230,12 +230,12 @@ describe("the Sites column", () => {
     await vi.waitFor(() => expect(fake.requested).toEqual([["<all_urls>"]]));
   });
 
-  it("badges each row in the list with its grant status, not just the open one", async () => {
+  it("badges only the rows that cannot fire yet, not the granted ones", async () => {
     stubChromePermissions(["*://dzo.lh/*"]); // Common not granted, dzo.lh is
     draw();
 
     await vi.waitFor(() =>
-      expect(texts(panes.sites, ".row .outchip, .row .errchip")).toEqual(["Not granted", "Granted"])
+      expect(texts(panes.sites, ".row .outchip, .row .errchip")).toEqual(["Not granted"])
     );
   });
 

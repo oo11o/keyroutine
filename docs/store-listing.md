@@ -58,7 +58,9 @@ checklist's open decision on where.)
 > user is on, scoped by the user's own site rules — so access to a given
 > site is requested, via `chrome.permissions.request()`, only when the user
 > adds that site (or chooses "Everywhere") from the Sites tab. No site is
-> reachable before the user names it.
+> reachable before the user names it, and the Sites tab flags any site whose
+> access has not been granted, so the user can always see which of their own
+> rules are inert.
 
 **`scripting`:**
 > Registers the content script (`chrome.scripting.registerContentScripts`)

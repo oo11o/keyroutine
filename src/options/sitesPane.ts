@@ -41,16 +41,20 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-// A small pill next to a row, so whether access is actually granted is
-// visible in the list itself — not only after opening a site's settings.
-// Starts hidden rather than guessing, since the check is async and a wrong
-// guess for even a moment is worse than nothing for one.
+// A small pill next to a row, flagging the rows that cannot fire yet — a
+// granted site says nothing, since "works" is the expected state and the
+// list is easier to read when only the exceptions are marked. Starts hidden
+// rather than guessing, since the check is async and a wrong guess for even
+// a moment is worse than nothing for one.
 function grantBadge(check: () => Promise<boolean>): HTMLElement {
-  const badge = h("span", { class: "outchip", hidden: true });
+  const badge = h("span", { class: "errchip", hidden: true });
   void check().then((granted) => {
+    if (granted) {
+      badge.remove();
+      return;
+    }
     badge.hidden = false;
-    badge.className = granted ? "outchip" : "errchip";
-    badge.textContent = granted ? "Granted" : "Not granted";
+    badge.textContent = "Not granted";
   });
   return badge;
 }

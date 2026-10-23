@@ -71,7 +71,9 @@ copying text to your clipboard; fetching a URL or opening a tab. A stack
 only ever does what you configured it to do — for instance, a `fetchUrl`
 step you build yourself requests exactly the URL you entered, optionally
 with one of your own variables substituted in. Keystack does not read,
-collect, or transmit anything from a site you haven't granted it access to.
+collect, or transmit anything from a site you haven't granted it access to —
+and any site in your list that you haven't granted is marked as such, so you
+can see at a glance where Keystack cannot act.
 
 ## Data Keystack does not collect
 
