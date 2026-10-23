@@ -3,7 +3,7 @@ import { showResultToast } from "../src/ui/toast";
 
 function getToastEl(): HTMLElement {
   const host = document.getElementById("keyroutine-toast-host")!;
-  const container = host.shadowRoot!.getElementById("container")!;
+  const container = host.shadowRoot!.getElementById("zone")!;
   return container.firstElementChild as HTMLElement;
 }
 

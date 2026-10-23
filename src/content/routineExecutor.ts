@@ -6,7 +6,7 @@ import { runRoutine, StepError, type Resume } from "./runner";
 import { logDebug } from "./debugLog";
 import { present } from "./presenter";
 import { loadVars } from "./vars";
-import type { RunOutcome } from "../ui/toast";
+import { showStartedToast, type RunOutcome } from "../ui/toast";
 
 async function loadSettings(): Promise<Settings> {
   try {
@@ -43,9 +43,12 @@ async function resolveOutcome(
   }
 }
 
-// Runs an already-resolved routine end to end: debug logging, execution, and
-// presenting the outcome (toast) — unless a popup step already showed the
-// confirmation.
+// Runs an already-resolved routine end to end: debug logging, an immediate
+// "this is what fired" toast, execution, and — only on failure — the
+// detailed report. A successful run leaves the started toast as the only one
+// shown: a second toast replacing it the instant the run finishes would cut
+// its 3 seconds short for no reason, and a popup step (or a page it changed)
+// is already the confirmation of what the routine found.
 export async function executeRoutine(
   routine: Routine,
   sections: RoutineSection[],
@@ -55,6 +58,11 @@ export async function executeRoutine(
   const chord = formatBinding(routine.binding);
   logDebug(chord, routine, settings.debug);
 
+  // Not for a resumed run: there was no keypress on *this* page, so nothing
+  // to acknowledge here — the routine already got its toast on the page that
+  // started it, before the navigation that parked it.
+  if (!resume) showStartedToast(chord, routine.name, settings.toast);
+
   const outcome = await resolveOutcome(routine, sections, vars, resume);
-  present(chord, routine, outcome, settings);
+  if (!outcome.ok) present(chord, routine, outcome, settings);
 }

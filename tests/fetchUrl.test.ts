@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { runRoutine, StepError } from "../src/content/runner";
+import { showStartedToast } from "../src/ui/toast";
 import type { Routine } from "../src/core/schema";
 import type { FetchResponse } from "../src/background/protocol";
 
@@ -250,7 +251,7 @@ describe("fetchUrl", () => {
 
   describe("the spinner", () => {
     function spinnerText(): string | null {
-      const host = document.getElementById("keyroutine-spinner-host");
+      const host = document.getElementById("keyroutine-toast-host");
       return host?.shadowRoot?.querySelector(".spinner")?.textContent ?? null;
     }
 
@@ -292,6 +293,36 @@ describe("fetchUrl", () => {
 
       resolveFetch({ ok: true, status: 200, body: "" });
       await run;
+    });
+
+    // The two used to be entirely separate fixed-position elements pinned to
+    // the same screen coordinates — a fetch starting right after the
+    // hotkey's own toast fired would render on top of it, burying it rather
+    // than appearing alongside it. Each now has its own slot, stacked.
+    it("shows the spinner alongside the hotkey's own toast, not on top of it", async () => {
+      const zone = () => document.getElementById("keyroutine-toast-host")!.shadowRoot!.querySelector("#zone")!;
+      const toastShown = () => zone().querySelector(".toast") !== null;
+      const spinnerShown = () => zone().querySelector(".spinner") !== null;
+
+      showStartedToast("Ctrl+Alt+7", "Sync Tender", "max");
+      expect(toastShown()).toBe(true);
+      expect(spinnerShown()).toBe(false);
+
+      let resolveFetch!: (r: FetchResponse) => void;
+      sendMessage.mockReturnValue(new Promise((r) => (resolveFetch = r)));
+      const run = runRoutine(routineWith("http://dzo.lh/cron/sync.php"));
+      await new Promise((r) => setTimeout(r, 0));
+
+      // Both up at once — the fetch did not touch the toast's own slot.
+      expect(toastShown()).toBe(true);
+      expect(spinnerShown()).toBe(true);
+
+      resolveFetch({ ok: true, status: 200, body: "done" });
+      await run;
+
+      // The spinner clears; the toast is untouched and still up.
+      expect(toastShown()).toBe(true);
+      expect(spinnerShown()).toBe(false);
     });
   });
 });

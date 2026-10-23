@@ -71,6 +71,9 @@ export function renderRoutines(pane: HTMLElement): void {
             "aria-expanded": selected ? "true" : "false",
             onClick: () => store.toggleRoutine(routine.id)
           },
+          // The chord leads: scanning a list of routines for "what runs on
+          // ⌃⌥7" reads left to right, the same direction the chord is typed.
+          keyCaps(routine.binding, clash ? "is-conflict" : ""),
           h(
             "span",
             { class: "steptext" },
@@ -80,8 +83,7 @@ export function renderRoutines(pane: HTMLElement): void {
               style: "margin:0",
               text: `${plural(routine.steps.length, "action")} · ${routine.enabled ? "on" : "off"}`
             })
-          ),
-          keyCaps(routine.binding, clash ? "is-conflict" : "")
+          )
         ),
         h("button", {
           type: "button",
@@ -143,8 +145,7 @@ export function renderRoutines(pane: HTMLElement): void {
           h(
             "span",
             { class: "rowbody" },
-            h("span", { class: "rowtitle", style: "font-size:14px", text: `+${common} more from Common` }),
-            h("span", { class: "rowsub", text: "These also work on this site" })
+            h("span", { class: "rowtitle", style: "font-size:14px", text: `+${common} more from Common` })
           ),
           icon("chevronRight")
         )
@@ -162,9 +163,11 @@ function rivalNames(siteId: string | null, rivals: store.Rival[]): string {
     .join(", ");
 }
 
-// Which routine wins where both apply, said from this card's point of view. A
-// narrower routine beats a wider one — this URL, then this domain, then
-// everywhere — so these read as "instead of", never as a problem.
+// Which routine wins where both apply, said from the loser's card — the
+// winner needs no note of its own, it already behaves exactly as its own
+// card describes. A narrower routine beats a wider one — this URL, then
+// this domain, then everywhere — so this reads as "instead of", never as a
+// problem.
 function precedenceNotes(
   routine: Routine,
   relation: store.ChordRelations | undefined
@@ -172,21 +175,6 @@ function precedenceNotes(
   if (!relation) return [];
   const mine = routine.siteId ?? null;
   const notes: HTMLElement[] = [];
-  if (relation.overrides.length > 0) {
-    notes.push(
-      h(
-        "div",
-        { class: "precedence" },
-        icon("check", 16),
-        h(
-          "span",
-          {},
-          "Runs here instead of ",
-          h("strong", { text: rivalNames(mine, relation.overrides) })
-        )
-      )
-    );
-  }
   if (relation.overriddenBy.length > 0) {
     notes.push(
       h(
@@ -197,7 +185,7 @@ function precedenceNotes(
           "span",
           {},
           h("strong", { text: rivalNames(mine, relation.overriddenBy) }),
-          " runs instead on the pages it covers"
+          " runs instead"
         )
       )
     );

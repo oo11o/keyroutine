@@ -1,10 +1,10 @@
 import type { Settings, Routine } from "../core/schema";
 import { showResultToast, type RunOutcome } from "../ui/toast";
 
-// A popup step is already the visible confirmation of success — a toast
-// on top of it would be redundant. Failure still needs the toast: the
-// popup may never have been reached, or the error may be about the popup
-// step itself (e.g. an unknown $var in its body).
+// Called only on failure now (see content/routineExecutor.ts) — a success
+// already got its toast the instant the hotkey matched, before this step
+// even ran. This one replaces it with the detail: which step broke, and (on
+// "max") everything that ran before it.
 
 export function present(
   chord: string,
@@ -12,7 +12,5 @@ export function present(
   outcome: RunOutcome,
   settings: Settings
 ): void {
-  const sawPopup = routine.steps.some((step) => step.type === "popup");
-  if (outcome.ok && sawPopup) return;
   showResultToast(chord, routine.name, outcome, settings.toast);
 }

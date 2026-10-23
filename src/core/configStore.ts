@@ -84,7 +84,7 @@ function migrateStep(raw: Record<string, unknown>): Record<string, unknown> {
 }
 
 // Variables lost their "secret_" prefix in 0.7, so a config written before
-// then references $secret_runToken for what is now $runToken. The cheatsheet
+// then references $secret_example for what is now $example. The cheatsheet
 // builtin was $stacks before the rename, for what is now $routines. Both are
 // rewritten on the way in, next to migrateStep, and written back in the new
 // spelling the next time the builder saves. "$$" is an escaped literal dollar

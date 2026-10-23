@@ -114,4 +114,19 @@ describe("present", () => {
 
     expect(toastText()).toContain("ksdjfgnsaerhtoiaerhg");
   });
+
+  // present() runs after a popup step has already resolved — it blocks the
+  // routine until dismissed — so a toast here never overlaps the panel. It
+  // used to be skipped on a successful run with a popup in it; now it always
+  // shows, because the popup confirms what the routine found and the toast
+  // is the only place the chord that fired it is shown.
+  it("still toasts the chord on success, even when the routine ended in a popup", () => {
+    const withPopup: Routine = { ...routine, steps: [{ id: "s1", type: "popup", body: "done" }] };
+    const outcome = { ok: true as const, notes: ['popup "done"'] };
+
+    present("Ctrl+Alt+3", withPopup, outcome, settings);
+
+    const chordLine = () => document.getElementById("keyroutine-toast-host")?.shadowRoot?.querySelector(".chord");
+    expect(chordLine()?.textContent).toBe("Ctrl+Alt+3");
+  });
 });

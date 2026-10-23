@@ -347,16 +347,15 @@ describe("the Routines column", () => {
 
     expect(panes.routines.querySelector(".conflict")).toBeNull();
     expect(panes.routines.querySelector(".keys.is-conflict")).toBeNull();
-    // On the site card: the narrower routine is the one that runs here.
-    expect(panes.routines.querySelector(".precedence")?.textContent).toContain(
-      "Runs here instead of Show Tender (Common)"
-    );
+    // The site card (the narrower, winning routine) gets no note of its own —
+    // it already behaves exactly as it describes.
+    expect(panes.routines.querySelector(".precedence")).toBeNull();
 
-    // And from Common, the same pair read the other way round.
+    // From Common (the loser here), the pair is said out loud.
     store.selectScope({ kind: "common" });
     draw();
     expect(panes.routines.querySelector(".precedence")?.textContent).toContain(
-      "Local thing (dzo.lh) runs instead on the pages it covers"
+      "Local thing (dzo.lh) runs instead"
     );
   });
 

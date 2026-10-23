@@ -4,7 +4,7 @@ import { BUILTINS } from "../core/context";
 import { VARS_KEY } from "../content/vars";
 
 // The variables editor. A variable is a value you store once and reference by
-// name: $runToken, $apiBase, $testPassword. The builder's variable picker
+// name: $example, $apiBase, $testPassword. The builder's variable picker
 // offers the names from here, so the two belong on one page.
 //
 // They were called secrets and read as $secret_<name> until 0.7. The prefix
@@ -19,7 +19,7 @@ const status = h("span", { class: "status" });
 // a thing people screen share and screenshot, and a token on display is a token
 // out in the open.
 function addRow(name = "", value = ""): void {
-  const nameEl = h("input", { class: "name input mono", type: "text", placeholder: "runToken", value: name });
+  const nameEl = h("input", { class: "name input mono", type: "text", placeholder: "example", value: name });
   const valueEl = h("input", {
     class: "value input mono",
     type: "password",
@@ -107,9 +107,9 @@ export async function renderVars(pane: HTMLElement, onSaved: (names: string[]) =
       "Values a routine can reference as ",
       h("code", { text: "$<name>" }),
       " — a name of ",
-      h("code", { text: "runToken" }),
+      h("code", { text: "example" }),
       " is used as ",
-      h("code", { text: "$runToken" }),
+      h("code", { text: "$example" }),
       ". They never touch the config, so a routine stays shareable."
     ),
     h("p", {
