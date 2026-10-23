@@ -1,8 +1,8 @@
-import type { Stack, Step } from "./schema";
+import type { Routine, Step } from "./schema";
 import { BUILTINS } from "./context";
 import { STEP_META, templateFields } from "./stepMeta";
 
-// Which $names are legal at a given point in a stack, and which ones a stack
+// Which $names are legal at a given point in a routine, and which ones a routine
 // references that are not. The runtime already answers the first question, but
 // only by failing: resolve() throws `unknown variable "$typo"` when the hotkey
 // is pressed. Answering it statically is what lets the builder offer a picker
@@ -30,19 +30,19 @@ export function referencedVars(template: string): string[] {
 }
 
 // Everything a step at `stepIndex` may read. Mirrors what content/runner.ts
-// actually binds, and in the same order of interest: this stack's own
+// actually binds, and in the same order of interest: this routine's own
 // producers first, then the page builtins, then your own variables.
 //
 // A producer writes three names — $value, $<its id> and $<saveAs> — so all
 // three are offered. $value is only listed for the most recent producer,
 // because that is the only step it still refers to by the time this one runs.
 export function availableVars(
-  stack: Stack,
+  routine: Routine,
   stepIndex: number,
   varNames: string[] = []
 ): AvailableVar[] {
   const vars: AvailableVar[] = [];
-  const producers = stack.steps
+  const producers = routine.steps
     .slice(0, Math.max(0, stepIndex))
     .filter((step) => STEP_META[step.type]?.produces);
 
@@ -76,14 +76,14 @@ function dedupe(vars: AvailableVar[]): AvailableVar[] {
 
 export type UnknownVar = { stepIndex: number; stepId: string; field: string; name: string };
 
-// Every $name a stack references that will not exist when it runs. This is
+// Every $name a routine references that will not exist when it runs. This is
 // the check that turns "the hotkey silently did nothing useful" into a
 // message next to the field that caused it.
-export function unknownVars(stack: Stack, varNames: string[] = []): UnknownVar[] {
+export function unknownVars(routine: Routine, varNames: string[] = []): UnknownVar[] {
   const found: UnknownVar[] = [];
-  stack.steps.forEach((step: Step, stepIndex) => {
+  routine.steps.forEach((step: Step, stepIndex) => {
     if (!STEP_META[step.type]) return; // an unknown step type is a different error
-    const known = new Set(availableVars(stack, stepIndex, varNames).map((v) => v.name));
+    const known = new Set(availableVars(routine, stepIndex, varNames).map((v) => v.name));
     for (const spec of templateFields(step.type)) {
       const value = (step as unknown as Record<string, unknown>)[spec.name];
       if (typeof value !== "string") continue;

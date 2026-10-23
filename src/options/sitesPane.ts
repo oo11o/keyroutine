@@ -7,15 +7,15 @@ import { COMMON } from "./store";
 import { ensureEverywhere, ensureOrigin, hasEverywhere, hasOrigin } from "./grant";
 import { grantStatusRow } from "./grantRow";
 
-// Column 1 — where. Which pages a stack is allowed to fire on: everywhere
+// Column 1 — where. Which pages a routine is allowed to fire on: everywhere
 // ("Common"), or one of the sites below. The row for the page the builder was
 // opened from says so, and that page is what a new site is pre-filled with,
-// because "make this work here" is how a stack usually starts.
+// because "make this work here" is how a routine usually starts.
 //
 // A host and its sections are one group, not three unrelated rows:
 // stage.example.com owns the list, and stage.example.com/reports sits under it
 // as an area. The nesting is read out of the patterns (see groupSites) —
-// nothing in the config declares it, so it cannot disagree with where stacks
+// nothing in the config declares it, so it cannot disagree with where routines
 // fire.
 
 function hostOf(url: string): string {
@@ -60,8 +60,8 @@ function grantBadge(check: () => Promise<boolean>): HTMLElement {
   return badge;
 }
 
-// A site's stacks need every one of its patterns reachable, not just one —
-// a stack scoped to the narrower of two patterns would otherwise look live
+// A site's routines need every one of its patterns reachable, not just one —
+// a routine scoped to the narrower of two patterns would otherwise look live
 // while the pattern it actually depends on has no grant behind it.
 async function hasAllOrigins(site: Site): Promise<boolean> {
   if (site.patterns.length === 0) return false;
@@ -93,7 +93,7 @@ export function renderSites(pane: HTMLElement): void {
       eyebrow: "1 · Where",
       title: "Sites",
       count: config.sites.length + 1,
-      sub: ["Where your stacks work"]
+      sub: ["Where your routines work"]
     })
   );
 
@@ -111,7 +111,7 @@ export function renderSites(pane: HTMLElement): void {
         h("span", { class: "rowtitle", text: "Common" }),
         h("span", {
           class: "rowsub",
-          text: `Every site · ${plural(store.stackCount(COMMON), "stack")}`
+          text: `Every site · ${plural(store.routineCount(COMMON), "routine")}`
         })
       ),
       grantBadge(hasEverywhere)
@@ -161,7 +161,7 @@ function siteRow(site: Site, here: Set<string>, isArea: boolean): HTMLElement {
         class: "rowsub",
         // "this page" is the one thing a site row can say that the config
         // cannot: whether it claims the tab the user came from.
-        text: plural(store.stackCount(scopeOf), "stack") + (here.has(site.id) ? " · this page" : "")
+        text: plural(store.routineCount(scopeOf), "routine") + (here.has(site.id) ? " · this page" : "")
       })
     ),
     site.patterns.length > 0 ? grantBadge(() => hasAllOrigins(site)) : null
@@ -222,10 +222,10 @@ function commonCard(): HTMLElement {
     { class: "card infocard" },
     h("p", {
       text:
-        "Stacks in Common work on every site. Put things you need everywhere here — " +
+        "Routines in Common work on every site. Put things you need everywhere here — " +
         "for example, pasting a test password."
     }),
-    grantStatusRow(siteWording("Common stacks"), hasEverywhere, ensureEverywhere).element
+    grantStatusRow(siteWording("Common routines"), hasEverywhere, ensureEverywhere).element
   );
 }
 
@@ -267,7 +267,7 @@ function siteSettings(siteId: string): HTMLElement {
   );
   const parent = group && group.site.id !== site.id ? group.site : null;
   const areas = group && group.site.id === site.id ? group.areas : [];
-  const count = store.stackCount({ kind: "site", siteId: site.id });
+  const count = store.routineCount({ kind: "site", siteId: site.id });
 
   const grant = grantStatusRow(
     siteWording(parent ? "this area" : "this site"),
@@ -294,7 +294,7 @@ function siteSettings(siteId: string): HTMLElement {
     parent
       ? h("div", {
           class: "hint",
-          text: `An area of ${parent.name} — its stacks win here, over the ones on ${parent.name} itself.`
+          text: `An area of ${parent.name} — its routines win here, over the ones on ${parent.name} itself.`
         })
       : null,
     h("label", { class: "field" }, h("span", { class: "label", text: "Name" }), name),
@@ -316,10 +316,10 @@ function siteSettings(siteId: string): HTMLElement {
       siteScope(site) === "domain" && host !== ""
         ? h("span", {
             class: "hint",
-            text: `A pattern with a path (${host}/contracts) becomes its own area here, with its own stacks.`
+            text: `A pattern with a path (${host}/contracts) becomes its own area here, with its own routines.`
           })
         : null,
-      // A site with no patterns matches nothing, so every stack on it is dead.
+      // A site with no patterns matches nothing, so every routine on it is dead.
       // Said here rather than only at save time, where it would arrive long
       // after the mistake.
       site.patterns.length === 0
@@ -341,33 +341,33 @@ function siteSettings(siteId: string): HTMLElement {
   );
 }
 
-// The stacks are the question, not the site: deleting them and promoting them
+// The routines are the question, not the site: deleting them and promoting them
 // to "runs everywhere" each lose something the other keeps, so both are asked
 // for explicitly and neither is the default.
 //
 // The areas are not part of the question. They are sites in their own right
-// with their own stacks, so deleting the host leaves them standing — said out
+// with their own routines, so deleting the host leaves them standing — said out
 // loud, because the indentation suggests otherwise.
-function confirmDelete(siteId: string, name: string, stacks: number, areas: Site[]): void {
+function confirmDelete(siteId: string, name: string, routines: number, areas: Site[]): void {
   const orphans =
     areas.length > 0
       ? `\n\nIts ${plural(areas.length, "area")} (${areas.map((a) => a.name).join(", ")}) ` +
         `keep working and move up to the top of the list.`
       : "";
-  if (stacks === 0) {
+  if (routines === 0) {
     if (confirm(`Delete the site "${name}"?${orphans}`)) store.deleteSite(siteId, false);
     return;
   }
   const keep = confirm(
-    `"${name}" has ${stacks} stack${stacks === 1 ? "" : "s"}.${orphans}\n\n` +
-      `OK — keep them as common stacks, running everywhere.\n` +
+    `"${name}" has ${routines} routine${routines === 1 ? "" : "s"}.${orphans}\n\n` +
+      `OK — keep them as common routines, running everywhere.\n` +
       `Cancel — choose to delete them instead.`
   );
   if (keep) {
     store.deleteSite(siteId, true);
     return;
   }
-  if (confirm(`Delete "${name}" and its ${stacks} stack${stacks === 1 ? "" : "s"} for good?`)) {
+  if (confirm(`Delete "${name}" and its ${routines} routine${routines === 1 ? "" : "s"} for good?`)) {
     store.deleteSite(siteId, false);
   }
 }

@@ -1,8 +1,8 @@
-import type { Settings, Stack } from "../core/schema";
-import type { StackSection } from "../core/match";
+import type { Settings, Routine } from "../core/schema";
+import type { RoutineSection } from "../core/match";
 import { DEFAULT_SETTINGS } from "../core/schema";
 import { formatBinding } from "../core/keys";
-import { runStack, StepError, type Resume } from "./runner";
+import { runRoutine, StepError, type Resume } from "./runner";
 import { logDebug } from "./debugLog";
 import { present } from "./presenter";
 import { loadVars } from "./vars";
@@ -18,16 +18,16 @@ async function loadSettings(): Promise<Settings> {
   }
 }
 
-// Runs a stack and maps the result (or thrown StepError) to a RunOutcome.
+// Runs a routine and maps the result (or thrown StepError) to a RunOutcome.
 // Pure with respect to presentation: no logging, no toast.
 async function resolveOutcome(
-  stack: Stack,
-  sections: StackSection[],
+  routine: Routine,
+  sections: RoutineSection[],
   vars: Record<string, string>,
   resume?: Resume
 ): Promise<RunOutcome> {
   try {
-    const notes = await runStack(stack, sections, vars, resume);
+    const notes = await runRoutine(routine, sections, vars, resume);
     return { ok: true, notes };
   } catch (err) {
     if (err instanceof StepError) {
@@ -43,18 +43,18 @@ async function resolveOutcome(
   }
 }
 
-// Runs an already-resolved stack end to end: debug logging, execution, and
+// Runs an already-resolved routine end to end: debug logging, execution, and
 // presenting the outcome (toast) — unless a popup step already showed the
 // confirmation.
-export async function executeStack(
-  stack: Stack,
-  sections: StackSection[],
+export async function executeRoutine(
+  routine: Routine,
+  sections: RoutineSection[],
   resume?: Resume
 ): Promise<void> {
   const [settings, vars] = await Promise.all([loadSettings(), loadVars()]);
-  const chord = formatBinding(stack.binding);
-  logDebug(chord, stack, settings.debug);
+  const chord = formatBinding(routine.binding);
+  logDebug(chord, routine, settings.debug);
 
-  const outcome = await resolveOutcome(stack, sections, vars, resume);
-  present(chord, stack, outcome, settings);
+  const outcome = await resolveOutcome(routine, sections, vars, resume);
+  present(chord, routine, outcome, settings);
 }

@@ -15,7 +15,7 @@ let listener: Listener;
 let store: Record<string, unknown>;
 
 function record(over: Partial<ResumeRecord> = {}): ResumeRecord {
-  return { stackId: "sync", nextStep: 2, vars: [], notes: [], expiresAt: Date.now() + 15_000, ...over };
+  return { routineId: "sync", nextStep: 2, vars: [], notes: [], expiresAt: Date.now() + 15_000, ...over };
 }
 
 function send(message: unknown, tabId: number | undefined): Promise<unknown> {
@@ -92,7 +92,7 @@ describe("resume records in the worker", () => {
     expect((await take()).record).toBeNull();
   });
 
-  it("does not let another tab claim this tab's stack", async () => {
+  it("does not let another tab claim this tab's routine", async () => {
     await save(record(), 1);
 
     expect((await take(2)).record).toBeNull();

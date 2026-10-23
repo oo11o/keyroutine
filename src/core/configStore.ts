@@ -1,21 +1,21 @@
-import type { Binding, Config, Site, Stack, Step } from "./schema";
+import type { Binding, Config, Site, Routine, Step } from "./schema";
 import { SCHEMA_VERSION } from "./schema";
 import { MAX_WAIT_MS } from "./limits";
 import { STEP_META, isStepType } from "./stepMeta";
 
 // Where the config lives, and the only place it is validated.
 //
-// Until now stacks were a bundled file re-fetched over HTTP on every keydown,
+// Until now routines were a bundled file re-fetched over HTTP on every keydown,
 // which made them unwritable by the extension and cost a request per
 // keystroke. They now live in chrome.storage.local — reachable directly from a
 // content script (as the Variables tab's values already are), writable by the
 // builder, and cheap enough to read that a keydown no longer touches the
-// network. The bundled config/stacks.json survives as the first-run seed,
+// network. The bundled config/routines.json survives as the first-run seed,
 // nothing more.
 
 export const CONFIG_KEY = "config";
 
-export const EMPTY_CONFIG: Config = { schemaVersion: SCHEMA_VERSION, stacks: [], sites: [] };
+export const EMPTY_CONFIG: Config = { schemaVersion: SCHEMA_VERSION, routines: [], sites: [] };
 
 // Errors are returned, not thrown: this runs inside a keydown listener on one
 // side and inside a form on the other, and neither wants an exception. The
@@ -52,7 +52,7 @@ function parseBinding(raw: unknown, where: string, errors: string[]): Binding | 
 
 // Retiring a step type must not brick a profile. A stored config is parsed as
 // one unit, so a single step of a type that no longer exists used to fail the
-// whole config — and with it every stack, including the ones that never used
+// whole config — and with it every routine, including the ones that never used
 // it. These are rewritten on the way in instead, and written back in their new
 // shape the next time the builder saves.
 //
@@ -64,8 +64,8 @@ function migrateStep(raw: Record<string, unknown>): Record<string, unknown> {
   // same two fields, in one go.
   if (raw.type === "typeToSelector") return { ...raw, type: "inputToSelector" };
 
-  // Put an element's text on the clipboard. Keystack no longer writes to the
-  // clipboard from a stack, so the nearest surviving action is the plain read
+  // Put an element's text on the clipboard. KeyRoutine no longer writes to the
+  // clipboard from a routine, so the nearest surviving action is the plain read
   // — the element is still read, and later steps can reference it as $<id>,
   // but nothing lands on the clipboard any more.
   if (raw.type === "copyBySelector") return { ...raw, type: "readBySelector" };
@@ -84,15 +84,19 @@ function migrateStep(raw: Record<string, unknown>): Record<string, unknown> {
 }
 
 // Variables lost their "secret_" prefix in 0.7, so a config written before
-// then references $secret_runToken for what is now $runToken. Rewritten on the
-// way in, next to migrateStep, and written back in the new spelling the next
-// time the builder saves. "$$" is an escaped literal dollar and is left alone.
-const LEGACY_VAR_RE = /\$\$|\$secret_(\w+)/g;
+// then references $secret_runToken for what is now $runToken. The cheatsheet
+// builtin was $stacks before the rename, for what is now $routines. Both are
+// rewritten on the way in, next to migrateStep, and written back in the new
+// spelling the next time the builder saves. "$$" is an escaped literal dollar
+// and is left alone.
+const LEGACY_VAR_RE = /\$\$|\$secret_(\w+)|\$stacks\b/g;
 
 export function migrateTemplate(value: string): string {
-  return value.replace(LEGACY_VAR_RE, (whole, name: string | undefined) =>
-    whole === "$$" ? whole : `$${name}`
-  );
+  return value.replace(LEGACY_VAR_RE, (whole, name: string | undefined) => {
+    if (whole === "$$") return whole;
+    if (whole === "$stacks") return "$routines";
+    return `$${name}`;
+  });
 }
 
 function parseStep(rawStep: unknown, where: string, errors: string[]): Step | null {
@@ -157,17 +161,17 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
   return step as unknown as Step;
 }
 
-function parseStack(raw: unknown, index: number, siteIds: Set<string>, errors: string[]): Stack | null {
-  const where = `stack #${index + 1}`;
+function parseRoutine(raw: unknown, index: number, siteIds: Set<string>, errors: string[]): Routine | null {
+  const where = `routine #${index + 1}`;
   if (!isRecord(raw)) {
-    errors.push(`${where}: not a stack`);
+    errors.push(`${where}: not a routine`);
     return null;
   }
   if (typeof raw.id !== "string" || raw.id === "") {
     errors.push(`${where}: needs an id`);
     return null;
   }
-  const label = `stack "${raw.id}"`;
+  const label = `routine "${raw.id}"`;
   const binding = parseBinding(raw.binding, label, errors);
   if (!binding) return null;
   if (!Array.isArray(raw.steps)) {
@@ -222,7 +226,7 @@ function parseSite(raw: unknown, index: number, errors: string[]): Site | null {
     ? raw.patterns.filter((p): p is string => typeof p === "string" && p.trim() !== "")
     : [];
   if (patterns.length === 0) {
-    // A site with no patterns matches nothing, so every stack scoped to it is
+    // A site with no patterns matches nothing, so every routine scoped to it is
     // dead. Worth saying out loud rather than leaving the user to wonder.
     errors.push(`site "${raw.id}": needs at least one URL pattern`);
   }
@@ -233,13 +237,18 @@ function parseSite(raw: unknown, index: number, errors: string[]): Site | null {
   };
 }
 
-// Accepts both shapes: schemaVersion 1 (stacks only) and 2 (stacks + sites).
-// A v1 config is a v2 config with no sites and every stack common, so the
+// Accepts both shapes: schemaVersion 1 (routines only) and 2 (routines + sites).
+// A v1 config is a v2 config with no sites and every routine common, so the
 // migration is additive and cannot lose anything.
 export function parseConfig(raw: unknown): ParseResult {
   const errors: string[] = [];
   if (!isRecord(raw)) return { errors: ["the config is not an object"] };
-  if (!Array.isArray(raw.stacks)) return { errors: ['no "stacks" array in the config'] };
+  // Routines were called stacks until the rename, and that word was the
+  // config's own key — so a config written before it, or exported from an
+  // older build, says "stacks". Read either and write the new one, the same
+  // way schemaVersion 1 is read and written as 2.
+  const rawRoutines = Array.isArray(raw.routines) ? raw.routines : raw.stacks;
+  if (!Array.isArray(rawRoutines)) return { errors: ['no "routines" array in the config'] };
 
   const sites: Site[] = [];
   const siteIds = new Set<string>();
@@ -258,22 +267,22 @@ export function parseConfig(raw: unknown): ParseResult {
     errors.push('"sites" must be an array');
   }
 
-  const stacks: Stack[] = [];
-  const stackIds = new Set<string>();
-  raw.stacks.forEach((rawStack, i) => {
-    const stack = parseStack(rawStack, i, siteIds, errors);
-    if (!stack) return;
-    if (stackIds.has(stack.id)) {
-      // A duplicate id breaks resume, which finds its stack by id.
-      errors.push(`two stacks share the id "${stack.id}"`);
+  const routines: Routine[] = [];
+  const routineIds = new Set<string>();
+  rawRoutines.forEach((rawRoutine, i) => {
+    const routine = parseRoutine(rawRoutine, i, siteIds, errors);
+    if (!routine) return;
+    if (routineIds.has(routine.id)) {
+      // A duplicate id breaks resume, which finds its routine by id.
+      errors.push(`two routines share the id "${routine.id}"`);
       return;
     }
-    stackIds.add(stack.id);
-    stacks.push(stack);
+    routineIds.add(routine.id);
+    routines.push(routine);
   });
 
   if (errors.length > 0) return { errors };
-  return { config: { schemaVersion: SCHEMA_VERSION, stacks, sites } };
+  return { config: { schemaVersion: SCHEMA_VERSION, routines, sites } };
 }
 
 // Memoized, and invalidated by the storage change below — so a keydown reads a
@@ -300,7 +309,7 @@ export function watchConfigChanges(): void {
 // parsed, so the caller can tell "nothing configured" (an empty config, fine)
 // from "your config is broken" (worth a toast). Seeding is the worker's job
 // (seedIfEmpty below): only an extension context may read the bundled file now
-// that config/stacks.json is no longer web-accessible.
+// that config/routines.json is no longer web-accessible.
 export async function loadConfig(): Promise<Config> {
   if (cached) return cached;
   const stored = (await chrome.storage.local.get(CONFIG_KEY)) as Record<string, unknown>;
@@ -319,11 +328,11 @@ export async function saveConfig(config: Config): Promise<void> {
 
 // The bundled file. Returns undefined rather than throwing when it is absent:
 // a config that was never shipped is not an error. Only callable from an
-// extension context (the worker, the options page) — config/stacks.json is
+// extension context (the worker, the options page) — config/routines.json is
 // deliberately not web-accessible, so a content script cannot read it.
 export async function readBundledConfig(): Promise<unknown> {
   try {
-    const res = await fetch(chrome.runtime.getURL("config/stacks.json"), { cache: "no-store" });
+    const res = await fetch(chrome.runtime.getURL("config/routines.json"), { cache: "no-store" });
     if (!res.ok) return undefined;
     return await res.json();
   } catch {
@@ -334,7 +343,7 @@ export async function readBundledConfig(): Promise<unknown> {
 // Run from the worker's onInstalled, and again when the builder opens — the
 // second is what covers a profile whose storage was cleared. Deliberately does
 // nothing when storage already holds a config: the bundled file is a seed, not
-// a default to be restored over the user's own stacks on every update.
+// a default to be restored over the user's own routines on every update.
 //
 // Returns what the config ended up as, so the builder can boot from it without
 // a second read.

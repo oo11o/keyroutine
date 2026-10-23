@@ -1,4 +1,4 @@
-import type { Config, Site, Stack } from "./schema";
+import type { Config, Site, Routine } from "./schema";
 
 // URL patterns, deliberately a small subset of Chrome's match patterns: "*"
 // is the only wildcard and everything else matches literally. We need our own
@@ -128,8 +128,8 @@ export function siteFor(url: string, sites: Site[]): Site | null {
   return (matched.find((m) => m.level === "url") ?? matched[0])?.site ?? null;
 }
 
-export function isCommon(stack: Stack): boolean {
-  return stack.siteId === undefined || stack.siteId === null;
+export function isCommon(routine: Routine): boolean {
+  return routine.siteId === undefined || routine.siteId === null;
 }
 
 // What applies here, in three tiers: these particular URLs, then this domain,
@@ -138,46 +138,46 @@ export function isCommon(stack: Stack): boolean {
 // the order it is *explained* in come from one place and cannot drift.
 //
 // Narrowest tier first, because that is the order precedence works in: the
-// stack that actually fires on this page is the first one listed, and the wider
+// routine that actually fires on this page is the first one listed, and the wider
 // tiers below it are what is left over. An empty tier is left out, not shown
 // empty.
-export type StackSection = { level: Level; label: string; stacks: Stack[] };
+export type RoutineSection = { level: Level; label: string; routines: Routine[] };
 
 const LEVEL_LABEL: Record<"domain" | "url", string> = {
   domain: "This domain",
   url: "This URL"
 };
 
-export function applicableSections(config: Config, url: string): StackSection[] {
-  const enabled = config.stacks.filter((s) => s.enabled);
-  const sections: StackSection[] = [];
+export function applicableSections(config: Config, url: string): RoutineSection[] {
+  const enabled = config.routines.filter((s) => s.enabled);
+  const sections: RoutineSection[] = [];
 
   const matched = sitesFor(url, config.sites);
   for (const level of ["url", "domain"] as const) {
     for (const { site } of matched.filter((m) => m.level === level)) {
-      const stacks = enabled.filter((s) => s.siteId === site.id);
-      if (stacks.length === 0) continue;
-      sections.push({ level, label: `${LEVEL_LABEL[level]} · ${site.name}`, stacks });
+      const routines = enabled.filter((s) => s.siteId === site.id);
+      if (routines.length === 0) continue;
+      sections.push({ level, label: `${LEVEL_LABEL[level]} · ${site.name}`, routines });
     }
   }
 
   const common = enabled.filter(isCommon);
-  if (common.length > 0) sections.push({ level: "common", label: "Everywhere", stacks: common });
+  if (common.length > 0) sections.push({ level: "common", label: "Everywhere", routines: common });
 
   return sections;
 }
 
-// Every enabled stack that could fire on this URL, narrowest scope first: a
-// URL-specific stack beats a domain one, which beats a common one. That is
+// Every enabled routine that could fire on this URL, narrowest scope first: a
+// URL-specific routine beats a domain one, which beats a common one. That is
 // already the order the sections are in, so this is the same list with the
 // headings taken off — the resolver picks a chord with a plain `.find()` and
 // never has to know that sites exist at all.
 //
-// A stack pointing at a siteId that no longer exists applies nowhere. It is
+// A routine pointing at a siteId that no longer exists applies nowhere. It is
 // deliberately not promoted to common: a deleted site must not hand its chords
 // to every page on the web.
-export function applicableStacks(config: Config, url: string): Stack[] {
-  return applicableSections(config, url).flatMap((section) => section.stacks);
+export function applicableRoutines(config: Config, url: string): Routine[] {
+  return applicableSections(config, url).flatMap((section) => section.routines);
 }
 
 // The host a pattern aims at, lowercased and with the scheme and path dropped.
@@ -192,9 +192,9 @@ export function patternHost(pattern: string): string {
   return (slash === -1 ? afterScheme : afterScheme.slice(0, slash)).toLowerCase();
 }
 
-// The chrome.permissions origin a pattern needs granted before a stack
-// scoped to it can run — host-only, even for a URL-level pattern. Keystack's
-// own matching (patternToRegExp) still decides which stacks fire once the
+// The chrome.permissions origin a pattern needs granted before a routine
+// scoped to it can run — host-only, even for a URL-level pattern. KeyRoutine's
+// own matching (patternToRegExp) still decides which routines fire once the
 // content script is there; this only decides whether it can be there at all.
 export function permissionOrigin(pattern: string): string {
   const host = patternHost(pattern);
@@ -223,12 +223,12 @@ export function fetchOrigin(url: string): string {
 // every site, which is its own grant rather than a per-pattern one.
 export const EVERYWHERE_ORIGIN = "<all_urls>";
 
-// Which of the granted origins Keystack may actually run its content script
+// Which of the granted origins KeyRoutine may actually run its content script
 // on. Not simply "everything granted": a fetchUrl target is granted so the
 // worker can *call* it (see background/worker.ts), and calling an API is no
 // reason to inject a key listener into its pages and read their DOM. So the
 // injection set is derived from the config — the sites the user pointed a
-// stack at — and intersected with what Chrome has actually granted.
+// routine at — and intersected with what Chrome has actually granted.
 //
 // This is the only place the two capabilities are separated. Chrome's own
 // grant does not distinguish them: a granted origin authorises both, and it
@@ -243,7 +243,7 @@ export function injectableOrigins(granted: string[], sites: Site[]): string[] {
     }
   }
   // Everywhere is an injection choice by definition — the user asked for
-  // stacks that fire on every site, so there is no narrower set to derive.
+  // routines that fire on every site, so there is no narrower set to derive.
   return granted.filter((origin) => origin === EVERYWHERE_ORIGIN || wanted.has(origin));
 }
 
@@ -277,7 +277,7 @@ export function siteScope(site: Site): "domain" | "url" {
 // The Where column's shape: a host, and the path-scoped sites nested under it.
 // Read out of the patterns rather than declared with a parent field, for the
 // same reason patternLevel is — a stored parent could disagree with the
-// patterns that actually decide where stacks fire.
+// patterns that actually decide where routines fire.
 export type SiteGroup = { site: Site; areas: Site[] };
 
 export function groupSites(sites: Site[]): SiteGroup[] {

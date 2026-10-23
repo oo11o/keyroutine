@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "stacks": [
+  "routines": [
     {
       "id": "hotkeys",
       "name": "Hotkeys",
       "binding": { "code": "Digit0", "ctrl": true, "alt": true, "shift": false, "meta": false },
       "enabled": true,
       "steps": [
-        { "id": "s1", "type": "popup", "title": "Keystack hotkeys", "body": "$stacks" }
+        { "id": "s1", "type": "popup", "title": "KeyRoutine hotkeys", "body": "$routines" }
       ]
     }
   ]

@@ -1,7 +1,7 @@
 {
   "name": "hotkey_plugin",
   "version": "0.6.0",
-  "description": "Keystack — hotkey macros for any site.",
+  "description": "KeyRoutine — hotkey macros for any site.",
   "type": "module",
   "scripts": {
     "clean": "rm -rf dist",

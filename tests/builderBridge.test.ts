@@ -58,7 +58,7 @@ describe("messages that are not ours", () => {
     // The worker's messages come through the same listener, and answering them
     // would be worse than ignoring them.
     const respond = vi.fn();
-    expect(listener({ type: "keystack-take-resume" }, {}, respond)).toBe(false);
+    expect(listener({ type: "keyroutine-take-resume" }, {}, respond)).toBe(false);
     expect(respond).not.toHaveBeenCalled();
   });
 });

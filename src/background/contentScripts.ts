@@ -2,12 +2,12 @@
 // matching <all_urls>. It is now registered dynamically, matching only the
 // origins the user has actually granted (see options/grant.ts) *and* pointed
 // a site at — so a fresh install reaches no page at all until the user scopes
-// a stack to one, and an origin granted only so a fetchUrl step can call it
+// a routine to one, and an origin granted only so a fetchUrl step can call it
 // never gets the script (see injectableOrigins in core/match.ts).
 import { loadConfig } from "../core/configStore";
 import { injectableOrigins } from "../core/match";
 
-const SCRIPT_ID = "keystack-content";
+const SCRIPT_ID = "keyroutine-content";
 
 // Re-registers the script against whatever the config currently calls for.
 // Called on install, on browser startup (registrations do not survive a

@@ -19,10 +19,10 @@ export async function loadVars(): Promise<Record<string, string>> {
       vars?: Record<string, string>;
       secrets?: Record<string, string>;
     };
-    // Read-side migration, so a stack keeps working on a profile that has not
+    // Read-side migration, so a routine keeps working on a profile that has not
     // opened the Variables tab since the rename. The tab writes the new key.
     return stored.vars ?? stored.secrets ?? none;
   } catch {
-    return none; // storage unavailable (or no permission) — stacks using $<name> fail loudly
+    return none; // storage unavailable (or no permission) — routines using $<name> fail loudly
   }
 }

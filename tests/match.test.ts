@@ -11,7 +11,7 @@ import {
   siteHost,
   sitesOverlap,
   siteScope,
-  applicableStacks,
+  applicableRoutines,
   expandPattern,
   isCommon,
   matchesPattern,
@@ -22,10 +22,10 @@ import {
   siteLevel,
   sitesFor
 } from "../src/core/match";
-import type { Config, Site, Stack } from "../src/core/schema";
+import type { Config, Site, Routine } from "../src/core/schema";
 import { SCHEMA_VERSION } from "../src/core/schema";
 
-function stack(id: string, code: string, siteId?: string | null): Stack {
+function routine(id: string, code: string, siteId?: string | null): Routine {
   return {
     id,
     name: id,
@@ -36,8 +36,8 @@ function stack(id: string, code: string, siteId?: string | null): Stack {
   };
 }
 
-function config(stacks: Stack[], sites: Site[] = []): Config {
-  return { schemaVersion: SCHEMA_VERSION, stacks, sites };
+function config(routines: Routine[], sites: Site[] = []): Config {
+  return { schemaVersion: SCHEMA_VERSION, routines, sites };
 }
 
 const local: Site = { id: "local", name: "dzo.lh", patterns: ["dzo.lh"] };
@@ -88,7 +88,7 @@ describe("matchesUrl", () => {
   });
 
   it("ignores a blank pattern rather than treating it as match-everything", () => {
-    // A half-filled row in the builder must not silently scope a stack to the
+    // A half-filled row in the builder must not silently scope a routine to the
     // entire web.
     expect(matchesUrl("https://anything.test/", [""])).toBe(false);
     expect(matchesUrl("https://anything.test/", ["  "])).toBe(false);
@@ -167,20 +167,20 @@ describe("siteFor", () => {
 describe("applicableSections", () => {
   it("groups what applies into this URL, this domain, everywhere — in that order", () => {
     const cfg = config(
-      [stack("c", "Digit1"), stack("d", "Digit2", "local"), stack("u", "Digit3", "page")],
+      [routine("c", "Digit1"), routine("d", "Digit2", "local"), routine("u", "Digit3", "page")],
       [local, page]
     );
 
     // Narrowest first: the one that actually fires here is the one at the top.
     expect(applicableSections(cfg, "http://dzo.lh/tenders/new")).toEqual([
-      { level: "url", label: "This URL · new tender", stacks: [cfg.stacks[2]] },
-      { level: "domain", label: "This domain · dzo.lh", stacks: [cfg.stacks[1]] },
-      { level: "common", label: "Everywhere", stacks: [cfg.stacks[0]] }
+      { level: "url", label: "This URL · new tender", routines: [cfg.routines[2]] },
+      { level: "domain", label: "This domain · dzo.lh", routines: [cfg.routines[1]] },
+      { level: "common", label: "Everywhere", routines: [cfg.routines[0]] }
     ]);
   });
 
-  it("omits a tier with no stacks in it", () => {
-    const cfg = config([stack("d", "Digit2", "local")], [local, page]);
+  it("omits a tier with no routines in it", () => {
+    const cfg = config([routine("d", "Digit2", "local")], [local, page]);
 
     expect(applicableSections(cfg, "http://dzo.lh/tenders/new").map((s) => s.level)).toEqual([
       "domain"
@@ -188,66 +188,66 @@ describe("applicableSections", () => {
   });
 });
 
-describe("applicableStacks", () => {
-  it("puts site-scoped stacks ahead of common ones, so the specific one wins a chord", () => {
-    const cfg = config([stack("common", "Digit9"), stack("scoped", "Digit9", "local")], [local]);
+describe("applicableRoutines", () => {
+  it("puts site-scoped routines ahead of common ones, so the specific one wins a chord", () => {
+    const cfg = config([routine("common", "Digit9"), routine("scoped", "Digit9", "local")], [local]);
 
-    const applicable = applicableStacks(cfg, "http://dzo.lh/x");
+    const applicable = applicableRoutines(cfg, "http://dzo.lh/x");
 
     expect(applicable.map((s) => s.id)).toEqual(["scoped", "common"]);
   });
 
-  it("leaves out a stack scoped to a site that does not match this URL", () => {
-    const cfg = config([stack("common", "Digit9"), stack("scoped", "Digit9", "local")], [local]);
+  it("leaves out a routine scoped to a site that does not match this URL", () => {
+    const cfg = config([routine("common", "Digit9"), routine("scoped", "Digit9", "local")], [local]);
 
-    expect(applicableStacks(cfg, "https://example.com/").map((s) => s.id)).toEqual(["common"]);
+    expect(applicableRoutines(cfg, "https://example.com/").map((s) => s.id)).toEqual(["common"]);
   });
 
-  it("treats a stack with no siteId as common", () => {
-    expect(isCommon(stack("a", "Digit1"))).toBe(true);
-    expect(isCommon(stack("a", "Digit1", null))).toBe(true);
-    expect(isCommon(stack("a", "Digit1", "local"))).toBe(false);
+  it("treats a routine with no siteId as common", () => {
+    expect(isCommon(routine("a", "Digit1"))).toBe(true);
+    expect(isCommon(routine("a", "Digit1", null))).toBe(true);
+    expect(isCommon(routine("a", "Digit1", "local"))).toBe(false);
   });
 
-  it("drops a disabled stack, scoped or not", () => {
-    const off = { ...stack("off", "Digit1"), enabled: false };
-    const offScoped = { ...stack("off-scoped", "Digit2", "local"), enabled: false };
+  it("drops a disabled routine, scoped or not", () => {
+    const off = { ...routine("off", "Digit1"), enabled: false };
+    const offScoped = { ...routine("off-scoped", "Digit2", "local"), enabled: false };
 
-    expect(applicableStacks(config([off, offScoped], [local]), "http://dzo.lh/x")).toEqual([]);
+    expect(applicableRoutines(config([off, offScoped], [local]), "http://dzo.lh/x")).toEqual([]);
   });
 
-  it("lets a URL-level stack beat a domain one, which beats a common one", () => {
+  it("lets a URL-level routine beat a domain one, which beats a common one", () => {
     const cfg = config(
-      [stack("common", "Digit9"), stack("domain", "Digit9", "local"), stack("url", "Digit9", "page")],
+      [routine("common", "Digit9"), routine("domain", "Digit9", "local"), routine("url", "Digit9", "page")],
       [local, page]
     );
 
     // All three share ⌃⌥9; the resolver takes the first, so order is the rule.
-    expect(applicableStacks(cfg, "http://dzo.lh/tenders/new").map((s) => s.id)).toEqual([
+    expect(applicableRoutines(cfg, "http://dzo.lh/tenders/new").map((s) => s.id)).toEqual([
       "url",
       "domain",
       "common"
     ]);
-    expect(applicableStacks(cfg, "http://dzo.lh/other").map((s) => s.id)).toEqual([
+    expect(applicableRoutines(cfg, "http://dzo.lh/other").map((s) => s.id)).toEqual([
       "domain",
       "common"
     ]);
-    expect(applicableStacks(cfg, "https://example.com/").map((s) => s.id)).toEqual(["common"]);
+    expect(applicableRoutines(cfg, "https://example.com/").map((s) => s.id)).toEqual(["common"]);
   });
 
   it("keeps config order between two sites of the same level", () => {
     const other: Site = { id: "other", name: "other", patterns: ["dzo.lh"] };
-    const cfg = config([stack("a", "Digit1", "local"), stack("b", "Digit2", "other")], [local, other]);
+    const cfg = config([routine("a", "Digit1", "local"), routine("b", "Digit2", "other")], [local, other]);
 
-    expect(applicableStacks(cfg, "http://dzo.lh/x").map((s) => s.id)).toEqual(["a", "b"]);
+    expect(applicableRoutines(cfg, "http://dzo.lh/x").map((s) => s.id)).toEqual(["a", "b"]);
   });
 
-  it("applies a stack pointing at a deleted site nowhere, rather than everywhere", () => {
+  it("applies a routine pointing at a deleted site nowhere, rather than everywhere", () => {
     // Promoting it to common would hand a site's chords to every page on the
     // web the moment its site was removed.
-    const cfg = config([stack("orphan", "Digit9", "gone")], []);
+    const cfg = config([routine("orphan", "Digit9", "gone")], []);
 
-    expect(applicableStacks(cfg, "http://dzo.lh/x")).toEqual([]);
+    expect(applicableRoutines(cfg, "http://dzo.lh/x")).toEqual([]);
   });
 });
 
@@ -266,7 +266,7 @@ describe("patternHost / patternPath", () => {
 
 describe("permissionOrigin", () => {
   it("narrows a pattern to the host-wide origin chrome.permissions understands", () => {
-    // A path-scoped pattern still asks for the whole host: Keystack's own
+    // A path-scoped pattern still asks for the whole host: KeyRoutine's own
     // matching (patternToRegExp) is what narrows it further once the content
     // script is running, not the permission.
     expect(permissionOrigin("stage.dzo.com.ua/tenders")).toBe("*://stage.dzo.com.ua/*");

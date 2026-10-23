@@ -1,14 +1,14 @@
 import { columnHead, h, row } from "./el";
 import { icon } from "./icons";
 import { chordText } from "../core/keys";
-import type { Stack } from "../core/schema";
+import type { Routine } from "../core/schema";
 import * as store from "./store";
 import { COMMON } from "./store";
 import { hotkeyField, keyCaps } from "./chordInput";
 import { siteOnlyReason } from "../core/stepMeta";
 
-// Column 2 — when. Every stack in the selected scope, each a card that expands
-// in place into its own editor: a stack is a hotkey plus a name plus where it
+// Column 2 — when. Every routine in the selected scope, each a card that expands
+// in place into its own editor: a routine is a hotkey plus a name plus where it
 // runs, and that is little enough to edit where it sits rather than in a
 // separate panel further down the page.
 
@@ -16,24 +16,24 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-export function renderStacks(pane: HTMLElement): void {
+export function renderRoutines(pane: HTMLElement): void {
   const scope = store.getScope();
-  const stacks = store.stacksInScope();
-  const current = store.currentStack();
+  const routines = store.routinesInScope();
+  const current = store.currentRoutine();
   const relations = store.chordRelations();
-  pane.className = "c-stack";
+  pane.className = "c-routine";
 
   const scopeLabel =
     scope.kind === "common" ? "Common" : store.siteName(scope.siteId);
 
   pane.append(
     columnHead({
-      id: "h-stacks",
-      tone: "stack",
+      id: "h-routines",
+      tone: "routine",
       glyph: "layers",
       eyebrow: "2 · When",
-      title: "Stacks",
-      count: stacks.length,
+      title: "Routines",
+      count: routines.length,
       sub: ["A hotkey that runs a sequence of actions"]
     })
   );
@@ -41,54 +41,54 @@ export function renderStacks(pane: HTMLElement): void {
   pane.append(
     h("div", {
       class: "sectionlabel",
-      text: scope.kind === "common" ? "Stacks in Common" : `Stacks on ${scopeLabel}`
+      text: scope.kind === "common" ? "Routines in Common" : `Routines on ${scopeLabel}`
     })
   );
 
-  if (stacks.length === 0) {
-    pane.append(h("div", { class: "empty", text: "No stacks here yet." }));
+  if (routines.length === 0) {
+    pane.append(h("div", { class: "empty", text: "No routines here yet." }));
   }
 
-  for (const stack of stacks) {
-    const selected = current?.id === stack.id;
-    const relation = relations.find((r) => r.stackId === stack.id);
+  for (const routine of routines) {
+    const selected = current?.id === routine.id;
+    const relation = relations.find((r) => r.routineId === routine.id);
     // Only a same-level pair is a clash. One level apart is precedence doing
     // its job, and the note below says which way round it goes.
     const clash = relation && relation.conflicts.length > 0 ? relation : undefined;
     const card = h("div", {
-      class: `card ${selected ? "is-sel" : ""} ${stack.enabled ? "" : "is-off"}`.trim()
+      class: `card ${selected ? "is-sel" : ""} ${routine.enabled ? "" : "is-off"}`.trim()
     });
 
     card.append(
       h(
         "div",
-        { class: "stackrow" },
+        { class: "routinerow" },
         h(
           "button",
           {
             type: "button",
-            class: "stackpick",
+            class: "routinepick",
             "aria-expanded": selected ? "true" : "false",
-            onClick: () => store.toggleStack(stack.id)
+            onClick: () => store.toggleRoutine(routine.id)
           },
           h(
             "span",
             { class: "steptext" },
-            h("span", { class: "stackname", text: stack.name }),
+            h("span", { class: "routinename", text: routine.name }),
             h("span", {
               class: "rowsub",
               style: "margin:0",
-              text: `${plural(stack.steps.length, "action")} · ${stack.enabled ? "on" : "off"}`
+              text: `${plural(routine.steps.length, "action")} · ${routine.enabled ? "on" : "off"}`
             })
           ),
-          keyCaps(stack.binding, clash ? "is-conflict" : "")
+          keyCaps(routine.binding, clash ? "is-conflict" : "")
         ),
         h("button", {
           type: "button",
-          class: `switch ${stack.enabled ? "is-on" : ""}`.trim(),
-          "aria-pressed": stack.enabled ? "true" : "false",
-          "aria-label": `Enabled: ${stack.name}`,
-          onClick: () => store.patchStack(stack.id, { enabled: !stack.enabled })
+          class: `switch ${routine.enabled ? "is-on" : ""}`.trim(),
+          "aria-pressed": routine.enabled ? "true" : "false",
+          "aria-label": `Enabled: ${routine.name}`,
+          onClick: () => store.patchRoutine(routine.id, { enabled: !routine.enabled })
         })
       )
     );
@@ -103,7 +103,7 @@ export function renderStacks(pane: HTMLElement): void {
             "span",
             {},
             "Same hotkey as ",
-            h("strong", { text: rivalNames(stack.siteId ?? null, clash.conflicts) })
+            h("strong", { text: rivalNames(routine.siteId ?? null, clash.conflicts) })
           )
         )
       );
@@ -111,9 +111,9 @@ export function renderStacks(pane: HTMLElement): void {
 
     // The same chord one level apart: worth saying, because the card cannot
     // otherwise explain why pressing it here does something else.
-    for (const note of precedenceNotes(stack, relation)) card.append(note);
+    for (const note of precedenceNotes(routine, relation)) card.append(note);
 
-    if (selected) card.append(stackEditor(clash !== undefined));
+    if (selected) card.append(routineEditor(clash !== undefined));
     pane.append(card);
   }
 
@@ -123,18 +123,18 @@ export function renderStacks(pane: HTMLElement): void {
       {
         type: "button",
         class: "btn btn-dashed",
-        onClick: () => store.addStack("New stack")
+        onClick: () => store.addRoutine("New routine")
       },
       icon("plus"),
-      "New stack"
+      "New routine"
     )
   );
 
-  // On a site, the stacks that also work here but live in Common. Not listed
+  // On a site, the routines that also work here but live in Common. Not listed
   // inline: they are not this site's, and showing them as if they were would
   // make "delete" and "move" ambiguous.
   if (scope.kind === "site") {
-    const common = store.stackCount(COMMON);
+    const common = store.routineCount(COMMON);
     if (common > 0) {
       pane.append(
         row(
@@ -155,22 +155,22 @@ export function renderStacks(pane: HTMLElement): void {
 
 // "Paste test password (Common)" — the site is only named when it is not the
 // one being looked at, because there it is the only thing that distinguishes
-// the two stacks.
+// the two routines.
 function rivalNames(siteId: string | null, rivals: store.Rival[]): string {
   return rivals
     .map((r) => (r.siteId === siteId ? r.name : `${r.name} (${r.siteName})`))
     .join(", ");
 }
 
-// Which stack wins where both apply, said from this card's point of view. A
-// narrower stack beats a wider one — this URL, then this domain, then
+// Which routine wins where both apply, said from this card's point of view. A
+// narrower routine beats a wider one — this URL, then this domain, then
 // everywhere — so these read as "instead of", never as a problem.
 function precedenceNotes(
-  stack: Stack,
+  routine: Routine,
   relation: store.ChordRelations | undefined
 ): HTMLElement[] {
   if (!relation) return [];
-  const mine = stack.siteId ?? null;
+  const mine = routine.siteId ?? null;
   const notes: HTMLElement[] = [];
   if (relation.overrides.length > 0) {
     notes.push(
@@ -205,58 +205,58 @@ function precedenceNotes(
   return notes;
 }
 
-function stackEditor(conflicted: boolean): HTMLElement {
-  const stack = store.currentStack()!;
+function routineEditor(conflicted: boolean): HTMLElement {
+  const routine = store.currentRoutine()!;
   const config = store.getConfig();
   const body = h("div", { class: "cardbody" });
 
-  const name = h("input", { id: "stack-name", class: "input", type: "text", value: stack.name });
-  name.addEventListener("input", () => store.patchStack(stack.id, { name: name.value }));
+  const name = h("input", { id: "routine-name", class: "input", type: "text", value: routine.name });
+  name.addEventListener("input", () => store.patchRoutine(routine.id, { name: name.value }));
   body.append(h("label", { class: "field" }, h("span", { class: "label", text: "Name" }), name));
 
   const hotkey = hotkeyField(
-    stack.binding,
-    (binding) => store.patchStack(stack.id, { binding }),
+    routine.binding,
+    (binding) => store.patchRoutine(routine.id, { binding }),
     (binding) =>
       // A chord with no modifier would eat an ordinary keypress on every page
-      // this stack applies to: the resolver only steps aside for text fields.
+      // this routine applies to: the resolver only steps aside for text fields.
       store.isBareKey(binding)
-        ? "no modifier — this would swallow that key on every page the stack applies to"
+        ? "no modifier — this would swallow that key on every page the routine applies to"
         : null
   );
   if (conflicted) {
     hotkey.append(
       h("span", {
         class: "errtext",
-        text: "Pressing it may run the wrong stack. Record a different hotkey for one of them."
+        text: "Pressing it may run the wrong routine. Record a different hotkey for one of them."
       })
     );
   }
   body.append(hotkey);
 
-  // A stack holding a site-only action (Fetch URL) cannot move to Common, so
+  // A routine holding a site-only action (Fetch URL) cannot move to Common, so
   // the option is not offered rather than accepted and then refused on save.
-  const blockers = store.blocksCommon(stack.id);
+  const blockers = store.blocksCommon(routine.id);
   const site = h(
     "select",
-    { id: "stack-site", class: "input" },
+    { id: "routine-site", class: "input" },
     h("option", {
       value: "",
       text: "Common (all sites)",
-      selected: stack.siteId == null,
+      selected: routine.siteId == null,
       disabled: blockers.length > 0
     }),
     ...config.sites.map((s) =>
-      h("option", { value: s.id, text: s.name, selected: stack.siteId === s.id })
+      h("option", { value: s.id, text: s.name, selected: routine.siteId === s.id })
     )
   );
   site.addEventListener("change", () => {
     const siteId = site.value === "" ? null : site.value;
-    store.patchStack(stack.id, { siteId });
-    // The stack has left the column it was in; follow it, or the selection
-    // would land on a stack the user never asked for.
+    store.patchRoutine(routine.id, { siteId });
+    // The routine has left the column it was in; follow it, or the selection
+    // would land on a routine the user never asked for.
     store.selectScope(siteId == null ? COMMON : { kind: "site", siteId });
-    store.selectStack(stack.id);
+    store.selectRoutine(routine.id);
   });
   body.append(
     h(
@@ -268,8 +268,8 @@ function stackEditor(conflicted: boolean): HTMLElement {
         class: blockers.length > 0 ? "errtext" : "hint",
         text:
           blockers.length > 0
-            ? `This stack cannot move to Common: ${siteOnlyReason(blockers[0].type)}`
-            : "Pick another site here to move this stack."
+            ? `This routine cannot move to Common: ${siteOnlyReason(blockers[0].type)}`
+            : "Pick another site here to move this routine."
       })
     )
   );
@@ -282,17 +282,17 @@ function stackEditor(conflicted: boolean): HTMLElement {
         type: "button",
         class: "btn btn-sm",
         text: "Duplicate",
-        onClick: () => store.duplicateStack(stack.id)
+        onClick: () => store.duplicateRoutine(routine.id)
       }),
       h("div", { class: "spacer" }),
       h("button", {
         type: "button",
         class: "btn btn-danger btn-sm",
-        text: "Delete stack",
+        text: "Delete routine",
         onClick: () => {
-          const what = `${stack.steps.length} action${stack.steps.length === 1 ? "" : "s"}`;
-          if (confirm(`Delete the stack "${stack.name}" and its ${what}?`)) {
-            store.deleteStack(stack.id);
+          const what = `${routine.steps.length} action${routine.steps.length === 1 ? "" : "s"}`;
+          if (confirm(`Delete the routine "${routine.name}" and its ${what}?`)) {
+            store.deleteRoutine(routine.id);
           }
         }
       })
@@ -300,8 +300,8 @@ function stackEditor(conflicted: boolean): HTMLElement {
   );
 
   // The spelled-out chord is in the hotkey field; this is the one place the
-  // whole stack is described in a sentence, for a screen reader reaching the
+  // whole routine is described in a sentence, for a screen reader reaching the
   // editor without having seen the keycaps.
-  body.setAttribute("aria-label", `${stack.name}, ${chordText(stack.binding)}`);
+  body.setAttribute("aria-label", `${routine.name}, ${chordText(routine.binding)}`);
   return body;
 }

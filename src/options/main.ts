@@ -2,7 +2,7 @@ import { clear, h } from "./el";
 import * as store from "./store";
 import * as probe from "./probe";
 import { renderSites } from "./sitesPane";
-import { renderStacks } from "./stacksPane";
+import { renderRoutines } from "./routinesPane";
 import { renderSteps } from "./stepsPane";
 import { loadVarNames, renderVars } from "./varsPane";
 import { openExport, openImport } from "./portJson";
@@ -40,12 +40,12 @@ function render(): void {
   clear(builder);
 
   const sites = h("section");
-  const stacks = h("section");
+  const routines = h("section");
   const steps = h("section");
   renderSites(sites);
-  renderStacks(stacks);
+  renderRoutines(routines);
   renderSteps(steps);
-  builder.append(sites, stacks, steps);
+  builder.append(sites, routines, steps);
 
   dirtyDot.hidden = !store.isDirty();
   saveButton.disabled = !store.isDirty();
@@ -119,7 +119,7 @@ async function save(): Promise<void> {
     setStatus(
       clashes === 0
         ? "Saved — your hotkeys are live"
-        : `Saved — but ${clashes} stack${clashes === 1 ? "" : "s"} share a hotkey with another`
+        : `Saved — but ${clashes} routine${clashes === 1 ? "" : "s"} share a hotkey with another`
     );
     return;
   }

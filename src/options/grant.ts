@@ -1,7 +1,7 @@
 import { EVERYWHERE_ORIGIN, permissionOrigin } from "../core/match";
 
 // chrome.permissions.request only works called directly from a user gesture
-// in an extension page — the builder is the one place Keystack can ever ask
+// in an extension page — the builder is the one place KeyRoutine can ever ask
 // for this, which is why every call site here is a click handler, not
 // something run on load or from a hotkey.
 

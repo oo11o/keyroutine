@@ -1,4 +1,4 @@
-import type { Stack, Step } from "./schema";
+import type { Routine, Step } from "./schema";
 import { isCommon } from "./match";
 import { MAX_WAIT_MS } from "./limits";
 
@@ -87,17 +87,17 @@ export type StepMeta = {
   // builder shows no variable name for those steps.
   outNote: string;
   // The default name a producer's result is stored under — the thing a later
-  // step reads as $<name>. Type-derived rather than s1/s2 so a stack reads as
+  // step reads as $<name>. Type-derived rather than s1/s2 so a routine reads as
   // prose: $text, $response. Non-producers have none.
   varName?: string;
-  // True when a stack reads as finished once this step has run: a popup is
+  // True when a routine reads as finished once this step has run: a popup is
   // the answer the hotkey was pressed for. The runner does not treat it
   // specially — it dismisses the panel and carries on — this is the builder
   // declining to offer "and then?" where there is nothing sensible to add.
-  endsStack?: boolean;
-  // True when the step may only appear in a stack scoped to a site, never in
+  endsRoutine?: boolean;
+  // True when the step may only appear in a routine scoped to a site, never in
   // a Common ("everywhere") one. Least privilege: an action that reaches off
-  // the page the user is on has no business in a stack that fires on every
+  // the page the user is on has no business in a routine that fires on every
   // page, where there is no site rule saying what it was for. Enforced in the
   // builder (the type is not offered), on save, and again in the runner — see
   // siteOnlySteps below.
@@ -219,7 +219,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Click element",
     group: "write",
     icon: "pointer",
-    help: "Clicks an element on the page. If the click navigates away, the rest of the stack is lost — put a Wait on the next page instead of assuming.",
+    help: "Clicks an element on the page. If the click navigates away, the rest of the routine is lost — put a Wait on the next page instead of assuming.",
     produces: false,
     outNote: "No result — it clicks and nothing else.",
     summary: (s) => text(s, "selector"),
@@ -268,10 +268,10 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Show popup",
     group: "show",
     icon: "window",
-    help: "An in-page panel that blocks the stack until dismissed, so a popup mid-stack is a checkpoint. On success it replaces the toast.",
+    help: "An in-page panel that blocks the routine until dismissed, so a popup mid-routine is a checkpoint. On success it replaces the toast.",
     produces: false,
     outNote: "No result — it shows the panel and waits for you to dismiss it.",
-    endsStack: true,
+    endsRoutine: true,
     summary: (s) => text(s, "title", text(s, "body")),
     fields: [
       titleField,
@@ -291,7 +291,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     help: "The same panel with a live, path-aware line filter — for bodies that run to hundreds of lines.",
     produces: false,
     outNote: "No result — it shows the panel and waits for you to dismiss it.",
-    endsStack: true,
+    endsRoutine: true,
     summary: (s) => text(s, "title", text(s, "body")),
     fields: [
       titleField,
@@ -308,7 +308,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Open URL in a new tab",
     group: "navigate",
     icon: "newTab",
-    help: "Opens a tab and leaves this page alone, so the rest of the stack keeps running here.",
+    help: "Opens a tab and leaves this page alone, so the rest of the routine keeps running here.",
     produces: false,
     outNote: "No result — the new tab is on its own.",
     summary: (s) => text(s, "url"),
@@ -326,7 +326,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Go to URL (this tab)",
     group: "navigate",
     icon: "navigate",
-    help: "Leaves this page. The rest of the stack is parked and picked up by the next page in this tab, within 15 seconds.",
+    help: "Leaves this page. The rest of the routine is parked and picked up by the next page in this tab, within 15 seconds.",
     produces: false,
     outNote: "No result — the actions after it continue on the next page.",
     summary: (s) => text(s, "url"),
@@ -343,19 +343,19 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
 };
 
 // The order the "Add action" menu offers, and the heading each group gets.
-// Which of a stack's steps may not run where it is scoped. Empty for every
-// site-scoped stack; for a Common one it is the stack's siteOnly steps. One
+// Which of a routine's steps may not run where it is scoped. Empty for every
+// site-scoped routine; for a Common one it is the routine's siteOnly steps. One
 // function for all three layers, so the builder, the save check and the
 // runner cannot drift from one another.
-export function siteOnlySteps(stack: Stack): Step[] {
-  if (!isCommon(stack)) return [];
-  return stack.steps.filter((step) => STEP_META[step.type].siteOnly === true);
+export function siteOnlySteps(routine: Routine): Step[] {
+  if (!isCommon(routine)) return [];
+  return routine.steps.filter((step) => STEP_META[step.type].siteOnly === true);
 }
 
-// Why a Common stack may not hold this action, in the one sentence the
+// Why a Common routine may not hold this action, in the one sentence the
 // builder, the save problem and the runtime error all use.
 export function siteOnlyReason(type: Step["type"]): string {
-  return `${STEP_META[type].label} is only available in a stack scoped to a site — a Common stack fires on every page, so there is no site rule to say what it may reach.`;
+  return `${STEP_META[type].label} is only available in a routine scoped to a site — a Common routine fires on every page, so there is no site rule to say what it may reach.`;
 }
 
 export const STEP_GROUPS: { group: StepGroup; label: string }[] = [

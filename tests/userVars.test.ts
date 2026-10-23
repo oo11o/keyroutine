@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { runStack, StepError } from "../src/content/runner";
+import { runRoutine, StepError } from "../src/content/runner";
 import { resolve, seedVars, type RunContext } from "../src/core/context";
 import { present } from "../src/content/presenter";
-import type { Stack } from "../src/core/schema";
+import type { Routine } from "../src/core/schema";
 
 // The values from the Variables tab: stored once, read as $<name>. They were
 // called secrets and carried a "secret_" prefix until 0.7 — see
@@ -10,7 +10,7 @@ import type { Stack } from "../src/core/schema";
 
 let open: ReturnType<typeof vi.spyOn>;
 
-function syncStack(url: string): Stack {
+function syncRoutine(url: string): Routine {
   return {
     id: "sync",
     name: "Sync Tender",
@@ -47,11 +47,11 @@ describe("seedVars", () => {
   });
 });
 
-describe("variables in a stack", () => {
+describe("variables in a routine", () => {
   it("substitutes one into an openUrlInNewTab template", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
 
-    await runStack(syncStack("http://dzo.lh/sync.php?id=$s1&run=$runToken"), undefined, {
+    await runRoutine(syncRoutine("http://dzo.lh/sync.php?id=$s1&run=$runToken"), undefined, {
       runToken: "ksdjfgnsaerhtoiaerhg"
     });
 
@@ -61,7 +61,7 @@ describe("variables in a stack", () => {
   it("fails loudly when a referenced variable has not been set", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
 
-    const err = await runStack(syncStack("http://dzo.lh/sync.php?run=$missing")).catch((e) => e);
+    const err = await runRoutine(syncRoutine("http://dzo.lh/sync.php?run=$missing")).catch((e) => e);
 
     expect(err).toBeInstanceOf(StepError);
     expect(err.message).toMatch(/unknown variable "\$missing"/);
@@ -74,7 +74,7 @@ describe("variables in a stack", () => {
 
     // 80 variables is well past MAX_VARS (64); only what steps *write* counts.
     await expect(
-      runStack(syncStack("http://dzo.lh/sync.php?id=$s1"), undefined, many)
+      runRoutine(syncRoutine("http://dzo.lh/sync.php?id=$s1"), undefined, many)
     ).resolves.toBeDefined();
   });
 
@@ -83,10 +83,10 @@ describe("variables in a stack", () => {
   // still be imported or hand-written.
   it("lets a variable shadow a builtin of the same name", async () => {
     document.body.innerHTML = `<input id="field" />`;
-    const stack = syncStack("http://dzo.lh/x");
-    stack.steps = [{ id: "s1", type: "inputToSelector", selector: "#field", value: "$url" }];
+    const routine = syncRoutine("http://dzo.lh/x");
+    routine.steps = [{ id: "s1", type: "inputToSelector", selector: "#field", value: "$url" }];
 
-    await runStack(stack, undefined, { url: "not-this-page" });
+    await runRoutine(routine, undefined, { url: "not-this-page" });
 
     expect(document.querySelector<HTMLInputElement>("#field")!.value).toBe("not-this-page");
   });
@@ -94,10 +94,10 @@ describe("variables in a stack", () => {
 
 describe("present", () => {
   const settings = { debug: false, toast: "max" as const };
-  const stack = syncStack("http://dzo.lh/sync.php?run=$runToken");
+  const routine = syncRoutine("http://dzo.lh/sync.php?run=$runToken");
 
   function toastText(): string {
-    const host = document.getElementById("keystack-toast-host");
+    const host = document.getElementById("keyroutine-toast-host");
     return host?.shadowRoot?.querySelector(".detail")?.textContent ?? "";
   }
 
@@ -110,7 +110,7 @@ describe("present", () => {
       notes: ['read "T-42"', "opened http://dzo.lh/sync.php?run=ksdjfgnsaerhtoiaerhg"]
     };
 
-    present("Ctrl+Alt+3", stack, outcome, settings);
+    present("Ctrl+Alt+3", routine, outcome, settings);
 
     expect(toastText()).toContain("ksdjfgnsaerhtoiaerhg");
   });

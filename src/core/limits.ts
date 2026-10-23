@@ -5,5 +5,5 @@
 // page/wait.ts re-exports them, so the handlers' imports are unchanged.
 
 // Nothing in a hotkey macro should block the page for minutes: a typo like
-// 600000 would otherwise wedge the stack with no way out but a reload.
+// 600000 would otherwise wedge the routine with no way out but a reload.
 export const MAX_WAIT_MS = 30_000;

@@ -28,7 +28,7 @@ beforeEach(() => {
     },
     storage: {
       local: {
-        get: async () => ({ [CONFIG_KEY]: { schemaVersion: SCHEMA_VERSION, stacks: [], sites } })
+        get: async () => ({ [CONFIG_KEY]: { schemaVersion: SCHEMA_VERSION, routines: [], sites } })
       }
     },
     scripting: {
@@ -75,7 +75,7 @@ describe("syncContentScripts", () => {
     await syncContentScripts();
 
     expect(registered).toEqual([
-      { id: "keystack-content", matches: ["*://stage.dzo.com.ua/*"], js: ["content.js"], runAt: "document_idle" }
+      { id: "keyroutine-content", matches: ["*://stage.dzo.com.ua/*"], js: ["content.js"], runAt: "document_idle" }
     ]);
   });
 

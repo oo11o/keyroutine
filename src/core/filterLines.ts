@@ -32,13 +32,13 @@ export type FilterResult = {
 // positions as numbers. A deep hit is meaningless without it — `"content":`
 // on its own says nothing about which bid it belongs to.
 //
-// Derived by walking the pretty-printed body once and keeping a stack of the
+// Derived by walking the pretty-printed body once and keeping a routine of the
 // containers we are inside. Lines that name nothing (the root brace, a
 // non-JSON body) get "", and the caller omits the header for those.
 export function pathsByLine(lines: string[]): string[] {
   const paths: string[] = [];
   const path: string[] = [];
-  const stack: { array: boolean; index: number; pushed: boolean }[] = [];
+  const routine: { array: boolean; index: number; pushed: boolean }[] = [];
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -46,13 +46,13 @@ export function pathsByLine(lines: string[]): string[] {
     // A closer belongs to the container it ends, so read the path before popping.
     if (trimmed.startsWith("}") || trimmed.startsWith("]")) {
       paths.push(path.join("."));
-      const frame = stack.pop();
+      const frame = routine.pop();
       if (frame?.pushed) path.pop();
       continue;
     }
 
     const key = trimmed.match(/^"((?:[^"\\]|\\.)*)"\s*:/)?.[1];
-    const top = stack[stack.length - 1];
+    const top = routine[routine.length - 1];
     // No key and inside an array means this is an element: its position names it.
     const own = key ?? (top?.array ? String(top.index++) : "");
     const full = own ? [...path, own] : [...path];
@@ -60,7 +60,7 @@ export function pathsByLine(lines: string[]): string[] {
 
     const last = trimmed.slice(-1);
     if (last === "{" || last === "[") {
-      stack.push({ array: last === "[", index: 0, pushed: own !== "" });
+      routine.push({ array: last === "[", index: 0, pushed: own !== "" });
       if (own) path.push(own);
     }
   }

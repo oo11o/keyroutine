@@ -10,7 +10,7 @@ let root: ShadowRoot | null = null;
 function getRoot(): ShadowRoot {
   if (root) return root;
   host = document.createElement("div");
-  host.id = "keystack-spinner-host";
+  host.id = "keyroutine-spinner-host";
   document.documentElement.appendChild(host);
 
   root = host.attachShadow({ mode: "open" });
@@ -38,9 +38,9 @@ function getRoot(): ShadowRoot {
       border-radius: 50%;
       border: 2px solid rgba(255, 255, 255, .3);
       border-top-color: #fff;
-      animation: keystack-spin .7s linear infinite;
+      animation: keyroutine-spin .7s linear infinite;
     }
-    @keyframes keystack-spin { to { transform: rotate(360deg); } }
+    @keyframes keyroutine-spin { to { transform: rotate(360deg); } }
   `;
   root.appendChild(style);
   return root;

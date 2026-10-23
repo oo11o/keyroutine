@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Keystack",
+  "name": "KeyRoutine",
   "version": "0.6.0",
   "description": "Hotkey macros for any site.",
   "icons": {
@@ -13,7 +13,7 @@
   "optional_host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js" },
   "action": {
-    "default_title": "Keystack — build stacks",
+    "default_title": "KeyRoutine — build routines",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

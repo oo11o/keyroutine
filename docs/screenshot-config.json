@@ -5,7 +5,7 @@
     { "id": "orders", "name": "/orders", "patterns": ["app.example.com/orders"] },
     { "id": "docs", "name": "docs.example.org", "patterns": ["docs.example.org"] }
   ],
-  "stacks": [
+  "routines": [
     {
       "id": "test-login",
       "name": "Fill test login",
@@ -24,7 +24,7 @@
       "binding": { "code": "Digit0", "ctrl": true, "alt": true, "shift": false, "meta": false },
       "enabled": true,
       "siteId": null,
-      "steps": [{ "id": "s1", "type": "popup", "title": "Keystack hotkeys", "body": "$stacks" }]
+      "steps": [{ "id": "s1", "type": "popup", "title": "KeyRoutine hotkeys", "body": "$routines" }]
     },
     {
       "id": "order-json",

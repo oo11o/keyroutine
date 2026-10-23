@@ -1,6 +1,6 @@
-// Born on keypress, wiped when the run ends — see runStack() in
+// Born on keypress, wiped when the run ends — see runRoutine() in
 // content/runner.ts. There is no global store, so a value cannot leak
-// between runs or between stacks: there is nowhere for it to persist.
+// between runs or between routines: there is nowhere for it to persist.
 export type RunContext = Map<string, string>;
 
 export const MAX_VARS = 64;
@@ -8,7 +8,7 @@ export const MAX_VARS = 64;
 // `transform` is applied to each substituted value, never to the literal
 // text around it — the URL steps pass encodeURIComponent so a value holding &
 // or = lands as one query parameter instead of injecting another, while the
-// &s the stack author typed in the template stay separators.
+// &s the routine author typed in the template stay separators.
 export function resolve(
   template: string,
   ctx: RunContext,
@@ -24,7 +24,7 @@ export function resolve(
 // Names of the built-in variables seeded by page/builtins.ts. Declared here
 // (not there) so anything needing the list doesn't have to import something
 // DOM-touching.
-export const BUILTINS = ["url", "title", "selection", "stacks", "stackName"] as const;
+export const BUILTINS = ["url", "title", "selection", "routines", "routineName"] as const;
 
 // The variables you define in the Variables tab, seeded next to the builtins
 // before step 1 and read as $<name> — a token, a base URL, a test password.

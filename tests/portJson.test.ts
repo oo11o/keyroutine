@@ -10,7 +10,7 @@ import { stubChromeStorage } from "./fakeChrome";
 const SEED = {
   schemaVersion: 2,
   sites: [],
-  stacks: [
+  routines: [
     {
       id: "one",
       name: "One",
@@ -24,7 +24,7 @@ const SEED = {
 const INCOMING = {
   schemaVersion: 2,
   sites: [{ id: "app", name: "app.example.com", patterns: ["app.example.com"] }],
-  stacks: [
+  routines: [
     {
       id: "two",
       name: "Two",
@@ -78,7 +78,7 @@ describe("the Import dialog", () => {
     area().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true }));
 
     expect(done).toBe(1);
-    expect(store.getConfig().stacks.map((s) => s.id)).toEqual(["two"]);
+    expect(store.getConfig().routines.map((s) => s.id)).toEqual(["two"]);
     expect(document.querySelector("dialog")).toBeNull(); // closed and removed
   });
 
@@ -89,7 +89,7 @@ describe("the Import dialog", () => {
     area().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
 
     expect(document.querySelector("dialog .problems")?.textContent).toContain("not valid JSON");
-    expect(store.getConfig().stacks.map((s) => s.id)).toEqual(["one"]); // draft untouched
+    expect(store.getConfig().routines.map((s) => s.id)).toEqual(["one"]); // draft untouched
   });
 
   it("leaves a plain Enter to the textarea, since JSON has newlines", () => {
@@ -99,6 +99,6 @@ describe("the Import dialog", () => {
     area().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
     expect(document.querySelector("dialog")).not.toBeNull();
-    expect(store.getConfig().stacks.map((s) => s.id)).toEqual(["one"]);
+    expect(store.getConfig().routines.map((s) => s.id)).toEqual(["one"]);
   });
 });

@@ -3,7 +3,7 @@ import * as store from "../src/options/store";
 import * as probe from "../src/options/probe";
 import { CONFIG_KEY, clearCache } from "../src/core/configStore";
 import { renderSites } from "../src/options/sitesPane";
-import { renderStacks } from "../src/options/stacksPane";
+import { renderRoutines } from "../src/options/routinesPane";
 import { renderSteps } from "../src/options/stepsPane";
 import { PICK_MESSAGE_TYPE } from "../src/core/builderProtocol";
 import { stubChromePermissions, stubChromeStorage, stubChromeTabs } from "./fakeChrome";
@@ -16,7 +16,7 @@ import { stubChromePermissions, stubChromeStorage, stubChromeTabs } from "./fake
 const SEED = {
   schemaVersion: 2,
   sites: [{ id: "local", name: "dzo.lh", patterns: ["dzo.lh"] }],
-  stacks: [
+  routines: [
     {
       id: "show-tender",
       name: "Show Tender",
@@ -29,8 +29,8 @@ const SEED = {
       ]
     },
     {
-      // The fetch pipeline lives on a site-scoped stack: Fetch URL is a
-      // site-only action, so a Common stack may not hold one at all.
+      // The fetch pipeline lives on a site-scoped routine: Fetch URL is a
+      // site-only action, so a Common routine may not hold one at all.
       id: "sync-tender",
       name: "Sync Tender",
       binding: { code: "Digit6", ctrl: true, alt: true, shift: false, meta: false },
@@ -48,14 +48,14 @@ const SEED = {
 // One pane per section, as main.ts lays them out.
 const panes = {
   sites: document.createElement("section"),
-  stacks: document.createElement("section"),
+  routines: document.createElement("section"),
   steps: document.createElement("section")
 };
 
 function draw(): void {
   for (const pane of Object.values(panes)) pane.replaceChildren();
   renderSites(panes.sites);
-  renderStacks(panes.stacks);
+  renderRoutines(panes.routines);
   renderSteps(panes.steps);
 }
 
@@ -92,7 +92,7 @@ function openStep(id: string): void {
 }
 
 beforeEach(async () => {
-  document.body.replaceChildren(panes.sites, panes.stacks, panes.steps);
+  document.body.replaceChildren(panes.sites, panes.routines, panes.steps);
   stubChromeStorage({ [CONFIG_KEY]: structuredClone(SEED) });
   probe.forgetAll();
   await store.init("http://dzo.lh/tenders/1", ["runToken"]);
@@ -105,22 +105,22 @@ afterEach(() => {
 });
 
 describe("the Sites column", () => {
-  it("lists Common first, then the sites, each with its stack count", () => {
+  it("lists Common first, then the sites, each with its routine count", () => {
     expect(texts(panes.sites, ".row .rowtitle")).toEqual(["Common", "dzo.lh"]);
-    expect(texts(panes.sites, ".row .rowsub")[0]).toBe("Every site · 1 stack");
+    expect(texts(panes.sites, ".row .rowsub")[0]).toBe("Every site · 1 routine");
   });
 
   it("says which site claims the page the builder was opened from", () => {
-    // dzo.lh owns the site-scoped Sync Tender stack.
-    expect(texts(panes.sites, ".row .rowsub")[1]).toBe("1 stack · this page");
+    // dzo.lh owns the site-scoped Sync Tender routine.
+    expect(texts(panes.sites, ".row .rowsub")[1]).toBe("1 routine · this page");
   });
 
-  it("selects Common when clicked, and the Stacks column follows", () => {
+  it("selects Common when clicked, and the Routines column follows", () => {
     clickWithText(panes.sites, ".row", "Common");
     draw();
 
     expect(store.getScope()).toEqual({ kind: "common" });
-    expect(texts(panes.stacks, ".stackname")).toEqual(["Show Tender"]);
+    expect(texts(panes.routines, ".routinename")).toEqual(["Show Tender"]);
   });
 
   it("shows the selected site's patterns as chips, and removes one", () => {
@@ -171,19 +171,19 @@ describe("the Sites column", () => {
     });
   });
 
-  it("nests an area under its host, and opens it on its own stacks", () => {
+  it("nests an area under its host, and opens it on its own routines", () => {
     store.addSite("/tenders", ["dzo.lh/tenders"]);
-    store.addStack("Area stack");
+    store.addRoutine("Area routine");
     draw();
 
     expect(texts(panes.sites, ".row .rowtitle")).toEqual(["Common", "dzo.lh", "/tenders"]);
     expect(texts(panes.sites, ".arealist .row .rowtitle")).toEqual(["/tenders"]);
     // Both claim the page the builder was opened from, at their own level.
     expect(texts(panes.sites, ".row .rowsub").slice(1)).toEqual([
-      "1 stack · this page",
-      "1 stack · this page"
+      "1 routine · this page",
+      "1 routine · this page"
     ]);
-    expect(texts(panes.stacks, ".stackname")).toEqual(["Area stack"]);
+    expect(texts(panes.routines, ".routinename")).toEqual(["Area routine"]);
   });
 
   it("offers nothing in particular once an area already claims the page", () => {
@@ -266,147 +266,147 @@ describe("the Sites column", () => {
   });
 });
 
-describe("the Stacks column", () => {
+describe("the Routines column", () => {
   beforeEach(() => {
     store.selectScope({ kind: "common" });
-    // The builder boots with every stack closed, so these start with the click
+    // The builder boots with every routine closed, so these start with the click
     // the user makes first: opening the one they came to work on.
-    store.selectStack("show-tender");
+    store.selectRoutine("show-tender");
     draw();
   });
 
-  it("shows each stack's name, action count and hotkey", () => {
-    expect(texts(panes.stacks, ".stackname")).toEqual(["Show Tender"]);
-    expect(texts(panes.stacks, ".card .rowsub")[0]).toBe("3 actions · on");
-    expect(texts(panes.stacks, ".keys kbd").at(-1)).toBe("7");
+  it("shows each routine's name, action count and hotkey", () => {
+    expect(texts(panes.routines, ".routinename")).toEqual(["Show Tender"]);
+    expect(texts(panes.routines, ".card .rowsub")[0]).toBe("3 actions · on");
+    expect(texts(panes.routines, ".keys kbd").at(-1)).toBe("7");
   });
 
-  it("turns a stack off from the switch, without opening it", () => {
-    (panes.stacks.querySelector(".switch") as HTMLElement).click();
+  it("turns a routine off from the switch, without opening it", () => {
+    (panes.routines.querySelector(".switch") as HTMLElement).click();
     draw();
 
-    expect(store.getConfig().stacks[0].enabled).toBe(false);
-    expect(texts(panes.stacks, ".card .rowsub")[0]).toBe("3 actions · off");
+    expect(store.getConfig().routines[0].enabled).toBe(false);
+    expect(texts(panes.routines, ".card .rowsub")[0]).toBe("3 actions · off");
     // And the Actions column says the hotkey is doing nothing.
-    expect(panes.steps.textContent).toContain("This stack is off");
+    expect(panes.steps.textContent).toContain("This routine is off");
   });
 
   it("edits the name in the card that is open, and the card keeps up", () => {
-    const name = panes.stacks.querySelector("#stack-name") as HTMLInputElement;
+    const name = panes.routines.querySelector("#routine-name") as HTMLInputElement;
     name.value = "jsonShow";
     name.dispatchEvent(new Event("input"));
     draw();
 
-    expect(texts(panes.stacks, ".stackname")).toEqual(["jsonShow"]);
+    expect(texts(panes.routines, ".routinename")).toEqual(["jsonShow"]);
     expect(store.isDirty()).toBe(true);
   });
 
-  it("moves a stack to a site through the Site dropdown, and follows it there", () => {
-    const select = panes.stacks.querySelector("#stack-site") as HTMLSelectElement;
+  it("moves a routine to a site through the Site dropdown, and follows it there", () => {
+    const select = panes.routines.querySelector("#routine-site") as HTMLSelectElement;
     select.value = "local";
     select.dispatchEvent(new Event("change"));
     draw();
 
-    expect(store.getConfig().stacks[0].siteId).toBe("local");
+    expect(store.getConfig().routines[0].siteId).toBe("local");
     expect(store.getScope()).toEqual({ kind: "site", siteId: "local" });
-    expect(texts(panes.stacks, ".stackname")).toEqual(["Show Tender", "Sync Tender"]);
+    expect(texts(panes.routines, ".routinename")).toEqual(["Show Tender", "Sync Tender"]);
   });
 
-  it("adds a stack, which arrives selected and with a free chord", () => {
-    clickWithText(panes.stacks, "button", "New stack");
+  it("adds a routine, which arrives selected and with a free chord", () => {
+    clickWithText(panes.routines, "button", "New routine");
     draw();
 
-    expect(store.currentStack()?.name).toBe("New stack");
-    expect(store.currentStack()?.binding.code).toBe("Digit1"); // ⌃⌥7 was the only one taken
-    expect(texts(panes.stacks, ".stackname")).toEqual(["Show Tender", "New stack"]);
+    expect(store.currentRoutine()?.name).toBe("New routine");
+    expect(store.currentRoutine()?.binding.code).toBe("Digit1"); // ⌃⌥7 was the only one taken
+    expect(texts(panes.routines, ".routinename")).toEqual(["Show Tender", "New routine"]);
   });
 
-  // One chord, two meanings, one level apart: the site stack wins on its pages
+  // One chord, two meanings, one level apart: the site routine wins on its pages
   // and the common one everywhere else. Said out loud on both cards, and not as
   // a warning — this is what sites are for.
-  it("says which of two stacks one level apart wins, without calling it a clash", () => {
+  it("says which of two routines one level apart wins, without calling it a clash", () => {
     store.selectScope({ kind: "site", siteId: "local" });
-    store.addStack("Local thing");
-    store.patchStack(store.currentStack()!.id, { binding: SEED.stacks[0].binding });
+    store.addRoutine("Local thing");
+    store.patchRoutine(store.currentRoutine()!.id, { binding: SEED.routines[0].binding });
     draw();
 
-    expect(panes.stacks.querySelector(".conflict")).toBeNull();
-    expect(panes.stacks.querySelector(".keys.is-conflict")).toBeNull();
-    // On the site card: the narrower stack is the one that runs here.
-    expect(panes.stacks.querySelector(".precedence")?.textContent).toContain(
+    expect(panes.routines.querySelector(".conflict")).toBeNull();
+    expect(panes.routines.querySelector(".keys.is-conflict")).toBeNull();
+    // On the site card: the narrower routine is the one that runs here.
+    expect(panes.routines.querySelector(".precedence")?.textContent).toContain(
       "Runs here instead of Show Tender (Common)"
     );
 
     // And from Common, the same pair read the other way round.
     store.selectScope({ kind: "common" });
     draw();
-    expect(panes.stacks.querySelector(".precedence")?.textContent).toContain(
+    expect(panes.routines.querySelector(".precedence")?.textContent).toContain(
       "Local thing (dzo.lh) runs instead on the pages it covers"
     );
   });
 
-  it("still warns when the two stacks are on the same site", () => {
+  it("still warns when the two routines are on the same site", () => {
     store.selectScope({ kind: "site", siteId: "local" });
-    store.addStack("One");
-    store.addStack("Two");
-    store.patchStack(store.currentStack()!.id, {
+    store.addRoutine("One");
+    store.addRoutine("Two");
+    store.patchRoutine(store.currentRoutine()!.id, {
       binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false }
     });
-    store.patchStack("one", {
+    store.patchRoutine("one", {
       binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false }
     });
     draw();
 
-    expect(panes.stacks.querySelector(".conflict")?.textContent).toContain("Same hotkey as Two");
-    expect(panes.stacks.querySelector(".keys.is-conflict")).not.toBeNull();
-    store.selectStack("one");
+    expect(panes.routines.querySelector(".conflict")?.textContent).toContain("Same hotkey as Two");
+    expect(panes.routines.querySelector(".keys.is-conflict")).not.toBeNull();
+    store.selectRoutine("one");
     draw();
-    expect(panes.stacks.textContent).toContain("Record a different hotkey");
+    expect(panes.routines.textContent).toContain("Record a different hotkey");
   });
 
-  it("points at Common from a site, since those stacks work here too", () => {
+  it("points at Common from a site, since those routines work here too", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     draw();
 
-    expect(panes.stacks.textContent).toContain("+1 more from Common");
-    clickWithText(panes.stacks, ".row", "more from Common");
+    expect(panes.routines.textContent).toContain("+1 more from Common");
+    clickWithText(panes.routines, ".row", "more from Common");
     expect(store.getScope()).toEqual({ kind: "common" });
   });
 });
 
-// Ten stacks with ten editors open is not a list of hotkeys, it is a wall. The
+// Ten routines with ten editors open is not a list of hotkeys, it is a wall. The
 // column stays a list until a card is asked for.
-describe("the Stacks column on arrival", () => {
+describe("the Routines column on arrival", () => {
   beforeEach(() => {
     store.selectScope({ kind: "common" });
     draw();
   });
 
   it("opens no card, and no editor with it", () => {
-    expect(texts(panes.stacks, ".stackname")).toEqual(["Show Tender"]);
-    expect(panes.stacks.querySelector(".cardbody")).toBeNull();
-    expect(panes.stacks.querySelector(".stackpick")?.getAttribute("aria-expanded")).toBe("false");
+    expect(texts(panes.routines, ".routinename")).toEqual(["Show Tender"]);
+    expect(panes.routines.querySelector(".cardbody")).toBeNull();
+    expect(panes.routines.querySelector(".routinepick")?.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("opens the one that is clicked, and closes it when clicked again", () => {
-    (panes.stacks.querySelector(".stackpick") as HTMLElement).click();
+    (panes.routines.querySelector(".routinepick") as HTMLElement).click();
     draw();
-    expect(panes.stacks.querySelector("#stack-name")).not.toBeNull();
+    expect(panes.routines.querySelector("#routine-name")).not.toBeNull();
 
-    (panes.stacks.querySelector(".stackpick") as HTMLElement).click();
+    (panes.routines.querySelector(".routinepick") as HTMLElement).click();
     draw();
-    expect(panes.stacks.querySelector("#stack-name")).toBeNull();
+    expect(panes.routines.querySelector("#routine-name")).toBeNull();
   });
 });
 
 describe("the Actions column", () => {
   beforeEach(() => {
     store.selectScope({ kind: "site", siteId: "local" });
-    store.selectStack("sync-tender");
+    store.selectRoutine("sync-tender");
     draw();
   });
 
-  it("opens with the hotkey that starts the stack", () => {
+  it("opens with the hotkey that starts the routine", () => {
     expect(panes.steps.querySelector(".triggerline")?.textContent).toContain("When you press");
     expect(panes.steps.querySelector(".triggerline")?.textContent).toContain("dzo.lh");
   });
@@ -434,7 +434,7 @@ describe("the Actions column", () => {
   });
 
   it("opens one card at a time, and closes the open one", () => {
-    // An open stack is a pipeline with every card shut, so the first click
+    // An open routine is a pipeline with every card shut, so the first click
     // here is what opens one at all.
     expect(panes.steps.querySelectorAll(".step.is-open")).toHaveLength(0);
 
@@ -459,14 +459,14 @@ describe("the Actions column", () => {
 
   // A fetchUrl step calls a host of its own, which the worker refuses until
   // that host is granted — and granting it here must not turn api.test into
-  // a site Keystack runs on.
+  // a site KeyRoutine runs on.
   it("offers the fetch step its own call-only grant", async () => {
     const fake = stubChromePermissions(); // nothing granted
     openStep("s2");
 
     await vi.waitFor(() => {
       const row = panes.steps.querySelector(".cardbody .grantrow")!;
-      expect(row.textContent).toContain("Keystack cannot call api.test");
+      expect(row.textContent).toContain("KeyRoutine cannot call api.test");
       expect(row.textContent).toContain("not run on its pages");
     });
 
@@ -511,7 +511,7 @@ describe("the Actions column", () => {
     selector.value = "#other_id";
     selector.dispatchEvent(new Event("input"));
 
-    expect(store.currentStack()!.steps[0]).toMatchObject({ selector: "#other_id" });
+    expect(store.currentRoutine()!.steps[0]).toMatchObject({ selector: "#other_id" });
   });
 
   it("offers only the variables that exist by the time the action runs", () => {
@@ -545,7 +545,7 @@ describe("the Actions column", () => {
     clickWithText(panes.steps, ".varchip", "$s1");
 
     expect(url.value).toBe("https://api.test/t/$s1");
-    expect(store.currentStack()!.steps[1]).toMatchObject({ url: "https://api.test/t/$s1" });
+    expect(store.currentRoutine()!.steps[1]).toMatchObject({ url: "https://api.test/t/$s1" });
   });
 
   it("names the result of a producing action, and nothing for the rest", () => {
@@ -568,7 +568,7 @@ describe("the Actions column", () => {
     name.dispatchEvent(new Event("blur"));
     draw();
 
-    expect(store.currentStack()!.steps[1].id).toBe("tenderJson");
+    expect(store.currentRoutine()!.steps[1].id).toBe("tenderJson");
     expect(texts(panes.steps, ".stephead .outchip")).toEqual(["→ $s1", "→ $tenderJson"]);
   });
 
@@ -580,7 +580,7 @@ describe("the Actions column", () => {
     name.value = "tenderId";
     name.dispatchEvent(new Event("blur"));
 
-    expect(store.currentStack()!.steps[0].id).toBe("s1");
+    expect(store.currentRoutine()!.steps[0].id).toBe("s1");
   });
 
   it("refuses a variable name that could never be referenced", () => {
@@ -590,7 +590,7 @@ describe("the Actions column", () => {
     name.value = "tender-id";
     name.dispatchEvent(new Event("blur"));
 
-    expect(store.currentStack()!.steps[0].id).toBe("s1");
+    expect(store.currentRoutine()!.steps[0].id).toBe("s1");
     expect(panes.steps.textContent).toContain("letters, digits and _ only");
   });
 
@@ -602,7 +602,7 @@ describe("the Actions column", () => {
 
     expect(tool(0, "Move up").disabled).toBe(true);
     expect(tool(2, "Move down").disabled).toBe(true);
-    // The popup is where the stack ends, so neither arrow may leave an action
+    // The popup is where the routine ends, so neither arrow may leave an action
     // standing behind it: it cannot climb, and the action above cannot pass it.
     expect(tool(2, "Move up").disabled).toBe(true);
     expect(tool(1, "Move down").disabled).toBe(true);
@@ -621,10 +621,10 @@ describe("the Actions column", () => {
   });
 
   it("ends the pipeline at a popup instead of asking what comes next", () => {
-    // The seeded stack finishes with Show popup (JSON) — the answer the hotkey
+    // The seeded routine finishes with Show popup (JSON) — the answer the hotkey
     // was pressed for, so there is nothing sensible to add after it.
     expect(hasAddAction()).toBe(false);
-    expect(panes.steps.textContent).toContain("Show popup (JSON) ends the stack");
+    expect(panes.steps.textContent).toContain("Show popup (JSON) ends the routine");
 
     // And the way back is the one the note names.
     store.deleteStep("s3");
@@ -633,7 +633,7 @@ describe("the Actions column", () => {
   });
 
   it("adds an action from the grouped type menu", () => {
-    // Adding happens at the end, and this stack ends in a popup.
+    // Adding happens at the end, and this routine ends in a popup.
     store.deleteStep("s3");
     draw();
 
@@ -646,10 +646,10 @@ describe("the Actions column", () => {
   });
 });
 
-describe("checking a stack against a real page", () => {
+describe("checking a routine against a real page", () => {
   beforeEach(() => {
     store.selectScope({ kind: "site", siteId: "local" });
-    store.selectStack("sync-tender");
+    store.selectRoutine("sync-tender");
     draw();
   });
 
@@ -690,7 +690,7 @@ describe("checking a stack against a real page", () => {
     await vi.waitFor(() => expect(probe.isBusy()).toBe(false));
 
     expect(tabs.sent.map((m) => m.type)).toEqual([PICK_MESSAGE_TYPE]);
-    expect(store.currentStack()!.steps[0]).toMatchObject({ selector: ".js-pricedecor" });
+    expect(store.currentRoutine()!.steps[0]).toMatchObject({ selector: ".js-pricedecor" });
     // The user was handed to the page and brought back.
     expect(tabs.activated).toEqual([7, 1]);
   });
@@ -709,12 +709,12 @@ describe("checking a stack against a real page", () => {
   });
 });
 
-describe("a Common stack and the actions it may not hold", () => {
-  // A fresh Common stack, so the menu is reachable: Show Tender ends with a
+describe("a Common routine and the actions it may not hold", () => {
+  // A fresh Common routine, so the menu is reachable: Show Tender ends with a
   // popup, and nothing may follow one.
   beforeEach(() => {
     store.selectScope({ kind: "common" });
-    store.addStack("Plain");
+    store.addRoutine("Plain");
     draw();
   });
 
@@ -730,7 +730,7 @@ describe("a Common stack and the actions it may not hold", () => {
 
     // And clicking it adds nothing.
     entry.click();
-    expect(store.currentStack()!.steps).toEqual([]);
+    expect(store.currentRoutine()!.steps).toEqual([]);
   });
 
   it("leaves every other action alone", () => {
@@ -745,8 +745,8 @@ describe("a Common stack and the actions it may not hold", () => {
   it("flags a fetch that is already there, from an older config", () => {
     // Pushed into the draft directly: the menu would not allow it, which is
     // exactly the config an older version could have written.
-    const stack = store.currentStack()!;
-    store.getConfig().stacks.find((s) => s.id === stack.id)!.steps.push({
+    const routine = store.currentRoutine()!;
+    store.getConfig().routines.find((s) => s.id === routine.id)!.steps.push({
       id: "leak",
       type: "fetchUrl",
       url: "https://api.test/x"
@@ -760,24 +760,24 @@ describe("a Common stack and the actions it may not hold", () => {
   });
 });
 
-describe("the Site dropdown and a stack that cannot be Common", () => {
+describe("the Site dropdown and a routine that cannot be Common", () => {
   it("disables the Common option and says why", () => {
     store.selectScope({ kind: "site", siteId: "local" });
-    store.selectStack("sync-tender");
+    store.selectRoutine("sync-tender");
     draw();
 
-    const select = panes.stacks.querySelector("#stack-site") as HTMLSelectElement;
+    const select = panes.routines.querySelector("#routine-site") as HTMLSelectElement;
     const common = [...select.options].find((o) => o.value === "")!;
     expect(common.disabled).toBe(true);
-    expect(panes.stacks.textContent).toContain("cannot move to Common");
+    expect(panes.routines.textContent).toContain("cannot move to Common");
   });
 
-  it("leaves it selectable for a stack with nothing site-only in it", () => {
+  it("leaves it selectable for a routine with nothing site-only in it", () => {
     store.selectScope({ kind: "site", siteId: "local" });
-    store.addStack("Plain");
+    store.addRoutine("Plain");
     draw();
 
-    const select = panes.stacks.querySelector("#stack-site") as HTMLSelectElement;
+    const select = panes.routines.querySelector("#routine-site") as HTMLSelectElement;
     expect([...select.options].find((o) => o.value === "")!.disabled).toBe(false);
   });
 });
@@ -788,10 +788,10 @@ describe("building the user's example from scratch", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     draw();
 
-    // A new stack, named.
-    clickWithText(panes.stacks, "button", "New stack");
+    // A new routine, named.
+    clickWithText(panes.routines, "button", "New routine");
     draw();
-    const name = panes.stacks.querySelector("#stack-name") as HTMLInputElement;
+    const name = panes.routines.querySelector("#routine-name") as HTMLInputElement;
     name.value = "jsonShow";
     name.dispatchEvent(new Event("input"));
     draw();
@@ -827,8 +827,8 @@ describe("building the user's example from scratch", () => {
 
     // The names come from what each action holds, not from a counter — and the
     // stored shape is the same one a hand-written config has always used.
-    const stack = store.getConfig().stacks.find((s) => s.name === "jsonShow")!;
-    expect(stack.steps).toEqual([
+    const routine = store.getConfig().routines.find((s) => s.name === "jsonShow")!;
+    expect(routine.steps).toEqual([
       { id: "text", type: "readBySelector", selector: "#tender_id" },
       { id: "response", type: "fetchUrl", url: "https://api.test/tenders/$text" },
       { id: "s1", type: "popupJson", body: "$response" }

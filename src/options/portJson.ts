@@ -33,7 +33,7 @@ export function openExport(): void {
   const area = h("textarea", { class: "mono", value: text, readOnly: true, autofocus: true });
   const { el, body, actions } = dialog(
     "Export",
-    "The whole config — sites, stacks and their actions. Copy it somewhere safe, or edit it and paste it back through Import."
+    "The whole config — sites, routines and their actions. Copy it somewhere safe, or edit it and paste it back through Import."
   );
   body.append(area);
   actions.prepend(
@@ -60,7 +60,7 @@ export function openImport(onDone: () => void): void {
   const area = h("textarea", {
     class: "mono",
     autofocus: true,
-    placeholder: '{ "schemaVersion": 2, "stacks": [], "sites": [] }'
+    placeholder: '{ "schemaVersion": 2, "routines": [], "sites": [] }'
   });
   const problems = h("div", { class: "problems", hidden: true });
   const { el, body, actions } = dialog(

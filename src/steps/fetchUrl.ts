@@ -7,7 +7,7 @@ import { showSpinner } from "../ui/spinner";
 // Module-level, not per-call: a hotkey mashed twice before the first request
 // lands would otherwise fire the endpoint (e.g. a sync trigger) a second
 // time before the first result is even known. One fetchUrl at a time across
-// the whole page, regardless of which stack or chord it came from.
+// the whole page, regardless of which routine or chord it came from.
 let inFlight = false;
 
 export const fetchUrl: Handler = async (step, ctx) => {

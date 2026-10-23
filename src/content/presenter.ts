@@ -1,4 +1,4 @@
-import type { Settings, Stack } from "../core/schema";
+import type { Settings, Routine } from "../core/schema";
 import { showResultToast, type RunOutcome } from "../ui/toast";
 
 // A popup step is already the visible confirmation of success — a toast
@@ -8,11 +8,11 @@ import { showResultToast, type RunOutcome } from "../ui/toast";
 
 export function present(
   chord: string,
-  stack: Stack,
+  routine: Routine,
   outcome: RunOutcome,
   settings: Settings
 ): void {
-  const sawPopup = stack.steps.some((step) => step.type === "popup");
+  const sawPopup = routine.steps.some((step) => step.type === "popup");
   if (outcome.ok && sawPopup) return;
-  showResultToast(chord, stack.name, outcome, settings.toast);
+  showResultToast(chord, routine.name, outcome, settings.toast);
 }

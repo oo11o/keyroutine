@@ -1,6 +1,6 @@
 import type { ToastVerbosity } from "../core/schema";
 
-// The result of one runStack() call, in a shape the UI can render without
+// The result of one runRoutine() call, in a shape the UI can render without
 // needing to know about StepError or the run context.
 export type RunOutcome =
   | { ok: true; notes: string[] }
@@ -22,7 +22,7 @@ let toastContainer: HTMLElement | null = null;
 function getToastContainer(): HTMLElement {
   if (toastContainer) return toastContainer;
   const host = document.createElement("div");
-  host.id = "keystack-toast-host";
+  host.id = "keyroutine-toast-host";
   document.documentElement.appendChild(host);
 
   const shadowRoot = host.attachShadow({ mode: "open" });
@@ -80,7 +80,7 @@ function numberList(items: string[]): string[] {
   return items.map((item, i) => `${i + 1}. ${item}`);
 }
 
-// detail lines: [0] is the title (stack name + status), then a blank line,
+// detail lines: [0] is the title (routine name + status), then a blank line,
 // then one line per step. white-space: pre-line on .detail renders the \n's.
 function showToast(chord: string, detailLines: string[], ok: boolean) {
   const container = getToastContainer();
@@ -114,22 +114,22 @@ function showToast(chord: string, detailLines: string[], ok: boolean) {
   });
 }
 
-// A config that will not parse is a special kind of failure: no stack ran,
-// so there is no chord, no stack name and no step list to report. It also
+// A config that will not parse is a special kind of failure: no routine ran,
+// so there is no chord, no routine name and no step list to report. It also
 // deliberately ignores the toast verbosity setting — verbosity tunes how
 // much detail a *run* reports, and here nothing can run at all. Silence is
 // the exact failure mode this exists to remove: before it, one stray comma
-// in stacks.json made every hotkey dead with no feedback anywhere.
+// in routines.json made every hotkey dead with no feedback anywhere.
 export function showConfigErrorToast(message: string): void {
-  showToast("Keystack", ["\u2717 config/stacks.json could not be read", "", message], false);
+  showToast("KeyRoutine", ["\u2717 config/routines.json could not be read", "", message], false);
 }
 
-// "none": show nothing. "min": chord + stack name, plus the failure reason
+// "none": show nothing. "min": chord + routine name, plus the failure reason
 // if it failed — no per-step detail. "max": full numbered step list, with a
 // separator before the failing step on failure.
 export function showResultToast(
   chord: string,
-  stackName: string,
+  routineName: string,
   outcome: RunOutcome,
   verbosity: ToastVerbosity
 ): void {
@@ -137,19 +137,19 @@ export function showResultToast(
 
   if (verbosity === "min") {
     if (outcome.ok) {
-      showToast(chord, [`✓ ${stackName}`], true);
+      showToast(chord, [`✓ ${routineName}`], true);
     } else {
-      showToast(chord, [`✗ ${stackName}: ${outcome.message}`], false);
+      showToast(chord, [`✗ ${routineName}: ${outcome.message}`], false);
     }
     return;
   }
 
   // max
   if (outcome.ok) {
-    showToast(chord, [`✓ ${stackName}`, "", ...numberList(outcome.notes)], true);
+    showToast(chord, [`✓ ${routineName}`, "", ...numberList(outcome.notes)], true);
   } else {
     const lines = numberList(outcome.notes);
     lines.push("", SEPARATOR, `${outcome.stepIndex + 1}. ✗ ${outcome.stepType}: ${outcome.message}`);
-    showToast(chord, [`✗ ${stackName}`, "", ...lines], false);
+    showToast(chord, [`✗ ${routineName}`, "", ...lines], false);
   }
 }

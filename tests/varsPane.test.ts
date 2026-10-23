@@ -4,7 +4,7 @@ import { renderVars } from "../src/options/varsPane";
 
 // The Variables tab: how values arrive, how a deliberate reveal works, and
 // which names it refuses. The eye toggle is the only hiding left — values are
-// no longer masked once a stack runs.
+// no longer masked once a routine runs.
 
 let storage: FakeStorage;
 let pane: HTMLElement;
@@ -85,7 +85,7 @@ describe("the Variables tab", () => {
     (pane.querySelector(".actions .btn-primary") as HTMLElement).click();
     await vi.waitFor(() => expect(pane.querySelector(".status.error")?.textContent).toContain("run-token"));
     // Nothing was written: $run-token stops at the hyphen, so saving it would
-    // store a variable no stack could ever reach.
+    // store a variable no routine could ever reach.
     expect(storage.data.vars).toBeUndefined();
   });
 

@@ -76,7 +76,7 @@ export function iconButton(
 // makes "where / when / what" readable as one sentence across the page.
 export function columnHead(opts: {
   id: string;
-  tone: "site" | "stack" | "act";
+  tone: "site" | "routine" | "act";
   glyph: IconName;
   eyebrow: string;
   title: string;

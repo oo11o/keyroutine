@@ -26,12 +26,12 @@ Nothing else can be released from where the work currently sits.
 - [ ] **Write release notes that lead with the breaking parts**, because
       every one of them will otherwise arrive as "my hotkeys stopped
       working":
-      1. site access is now granted per site — existing stacks need a grant
+      1. site access is now granted per site — existing routines need a grant
          before they fire again (`docs/chrome-store-submission.md`, "What
          changed for an existing install");
       2. "Copy element to clipboard" is gone; those steps become "Read
          element" on load;
-      3. Fetch URL now only runs in a stack scoped to a site.
+      3. Fetch URL now only runs in a routine scoped to a site.
 
 ## Phase 1 — the things Google will not accept the listing without
 
@@ -41,14 +41,16 @@ Nothing else can be released from where the work currently sits.
       option (open decision #1 in the submission checklist).
       *Done when:* the URL loads in a private window and is pasted into both
       the dashboard and `docs/store-listing.md`.
-- [ ] **Finish the screenshots.** Two are ready and uploadable:
-      `listing-1-builder-1280x800.png` (the clean primary frame) and
-      `listing-2-site-only-fetch-1280x800.png` (the site-only fetch rule).
-      Still needed: the action menu in a full window (the one taken is
-      589×668 and the Store takes only 1280×800 or 640×400), and one frame
-      of a popup firing on a real page — the only frame that shows Keystack
-      working rather than being configured.
-      *Done when:* every uploaded file is 1280×800, 24-bit, no alpha.
+- [ ] **Retake every screenshot.** All of them show the old name: the
+      header reads "Keystack" and the middle column "Stacks". The framing
+      and the demo config are still right, so it is a re-shoot, not a
+      redesign — `listing-1-builder-1280x800.png` and
+      `listing-2-site-only-fetch-1280x800.png` are the two to reproduce.
+      Still missing besides those: the action menu in a full window (the one
+      taken is 589×668 and the Store takes only 1280×800 or 640×400), and
+      one frame of a popup firing on a real page.
+      *Done when:* every uploaded file says KeyRoutine and is 1280×800,
+      24-bit, no alpha.
 - [ ] **Fill the dashboard forms** from `docs/store-listing.md`: short
       description (91 chars, ready), detailed description, the three
       permission justifications, the single-purpose statement, and the data
@@ -61,10 +63,10 @@ Nothing else can be released from where the work currently sits.
 - [ ] **A site with a port cannot be granted.** `permissionOrigin()` and
       `fetchOrigin()` both emit `*://localhost:8000/*`, and Chrome match
       patterns do not allow a port — `chrome.permissions.request()` rejects
-      it outright. So a stack scoped to `localhost:8000` or a staging host
+      it outright. So a routine scoped to `localhost:8000` or a staging host
       on a non-default port can never be granted, and neither can a fetch to
       one. The fix is to drop the port when deriving the permission origin
-      (`*://localhost/*` covers every port on that host) while Keystack's own
+      (`*://localhost/*` covers every port on that host) while KeyRoutine's own
       matcher keeps matching the port as written.
       *Done when:* a site pattern with a port can be granted, and a test
       covers both derivations.
@@ -75,13 +77,13 @@ Nothing else can be released from where the work currently sits.
       which is not ours to fix.
 - [ ] **Guard the bundled seed with the same scope rule.** `seedIfEmpty()`
       goes through `parseConfig`, not through the Save/Import check, so a
-      future seed holding a fetch in a Common stack would be written to
+      future seed holding a fetch in a Common routine would be written to
       storage and then refused at run time. One check, one test.
 - [ ] **Run the upgrade path on a real profile.** Load a profile that has
-      the pre-change config, update the extension, and confirm: old stacks
+      the pre-change config, update the extension, and confirm: old routines
       show "Not granted", granting one makes its hotkey work without a
       reload, a `copyBySelector` step became "Read element", and a Common
-      stack with a fetch reports the scope error instead of calling.
+      routine with a fetch reports the scope error instead of calling.
 
 ## Phase 3 — worth having before the listing goes public
 

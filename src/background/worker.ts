@@ -3,9 +3,9 @@
 //
 //   1. fetch a cross-origin URL without the page's own CORS restrictions
 //      applying, given host_permissions for that origin;
-//   2. hold the resume records for stacks suspended by a navigation step —
+//   2. hold the resume records for routines suspended by a navigation step —
 //      a content script cannot outlive the page it runs in, so the state of
-//      a half-finished stack has to be parked somewhere that does;
+//      a half-finished routine has to be parked somewhere that does;
 //   3. seed the stored config on install, and open the builder when the
 //      toolbar icon is clicked.
 import { CONFIG_KEY, clearCache, loadConfig, seedIfEmpty } from "../core/configStore";
@@ -30,14 +30,14 @@ type AnyRequest = FetchRequest | SaveResumeRequest | { type: string };
 // for the life of the browser session.
 const key = (tabId: number) => `resume:${tabId}`;
 
-// Keyed by tab, so a stack suspended in one tab cannot be picked up by a
+// Keyed by tab, so a routine suspended in one tab cannot be picked up by a
 // page loading in another.
 async function saveResume(tabId: number, record: ResumeRecord): Promise<void> {
   await chrome.storage.session.set({ [key(tabId)]: record });
 }
 
 // Destructive read. The record is removed before the caller runs a single
-// step of it: a stack that then fails must not leave its record behind to
+// step of it: a routine that then fails must not leave its record behind to
 // fire again on the next page that happens to load in this tab.
 async function takeResume(tabId: number): Promise<ResumeRecord | null> {
   const k = key(tabId);
@@ -48,7 +48,7 @@ async function takeResume(tabId: number): Promise<ResumeRecord | null> {
   // A navigation that never completed (network error, a download, a page
   // the user navigated away from) leaves a record nobody claims. Without
   // the expiry it would fire on whatever page loads in this tab next —
-  // possibly hours later, on a site the stack knows nothing about.
+  // possibly hours later, on a site the routine knows nothing about.
   if (Date.now() > record.expiresAt) return null;
   return record;
 }
@@ -63,7 +63,7 @@ chrome.runtime.onMessage.addListener((message: AnyRequest, sender, sendResponse)
         // with an actionable message rather than a CORS error with none.
         const origin = `${new URL(url).origin}/*`;
         if (!(await chrome.permissions.contains({ origins: [origin] }))) {
-          return { error: `Keystack needs access to ${new URL(url).origin} — add it as a site and grant access` };
+          return { error: `KeyRoutine needs access to ${new URL(url).origin} — add it as a site and grant access` };
         }
         const res = await fetch(url);
         const body = await res.text();
@@ -96,9 +96,9 @@ chrome.runtime.onMessage.addListener((message: AnyRequest, sender, sendResponse)
 });
 
 // The config lives in chrome.storage.local, so a fresh install starts with
-// nothing to run. Copy the bundled config/stacks.json across once — onInstalled
+// nothing to run. Copy the bundled config/routines.json across once — onInstalled
 // fires for an update too, and seedIfEmpty() is a no-op when storage already
-// holds a config, so a user's own stacks are never overwritten by the seed.
+// holds a config, so a user's own routines are never overwritten by the seed.
 chrome.runtime.onInstalled.addListener(() => {
   void seedIfEmpty();
   void syncContentScripts();

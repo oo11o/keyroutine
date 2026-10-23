@@ -125,23 +125,23 @@ describe("blankStep", () => {
   });
 
   it("produces something the parser rejects for the right reason — a blank required field", () => {
-    const stack = {
+    const routine = {
       id: "new",
       name: "New",
       binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       steps: [blankStep("fetchUrl", "s1")]
     };
-    const result = parseConfig({ stacks: [stack] });
+    const result = parseConfig({ routines: [routine] });
 
     expect(isParsed(result)).toBe(false);
-    expect(isParsed(result) ? [] : result.errors).toContain('stack "new" step #1: fetchUrl needs "URL"');
+    expect(isParsed(result) ? [] : result.errors).toContain('routine "new" step #1: fetchUrl needs "URL"');
   });
 });
 
 describe("the bundled seed", () => {
   it("parses, so a fresh install is never seeded with something broken", () => {
-    const raw = JSON.parse(readFileSync("public/config/stacks.json", "utf8"));
+    const raw = JSON.parse(readFileSync("public/config/routines.json", "utf8"));
 
     const result = parseConfig(raw);
 

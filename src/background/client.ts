@@ -1,5 +1,5 @@
 // The content-script side of everything that needs the service worker:
-// the fetchUrl step's request, and the resume records that let a stack
+// the fetchUrl step's request, and the resume records that let a routine
 // survive a navigation. Nothing here touches the network or storage
 // directly — that's the whole point of going through the worker.
 import {
@@ -25,14 +25,14 @@ export async function fetchInBackground(url: string): Promise<FetchResult> {
   return response;
 }
 
-// Parks a suspended stack in the worker, keyed by this tab. Awaited before
+// Parks a suspended routine in the worker, keyed by this tab. Awaited before
 // the navigation actually starts — see runner.ts.
 export async function saveResume(record: ResumeRecord): Promise<void> {
   const request: SaveResumeRequest = { type: SAVE_RESUME_MESSAGE_TYPE, record };
   await chrome.runtime.sendMessage(request);
 }
 
-// Claims this tab's pending stack, if any. Destructive on the worker side,
+// Claims this tab's pending routine, if any. Destructive on the worker side,
 // so two content scripts racing cannot both resume the same record.
 // Failures are swallowed: this runs on every page load, and a missing
 // worker must not turn into a console error on every site you visit.

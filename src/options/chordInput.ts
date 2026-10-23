@@ -26,11 +26,11 @@ const RESERVED = new Set([
 
 export function reservedChord(b: Binding): boolean {
   // Only the plain browser combinations — ⌘T, Ctrl+T, ⌘⇧N. Adding Alt is what
-  // keeps Keystack's own ⌃⌥letter chords out of this.
+  // keeps KeyRoutine's own ⌃⌥letter chords out of this.
   return !b.alt && (b.meta || b.ctrl) && RESERVED.has(b.code);
 }
 
-// The keycaps themselves, which the stack cards and the trigger row show too.
+// The keycaps themselves, which the routine cards and the trigger row show too.
 export function keyCaps(binding: Binding, extra = ""): HTMLElement {
   return h(
     "span",

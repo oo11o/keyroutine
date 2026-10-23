@@ -1,5 +1,5 @@
-import { resolveStack, isConfigError } from "./stackResolver";
-import { executeStack } from "./stackExecutor";
+import { resolveRoutine, isConfigError } from "./routineResolver";
+import { executeRoutine } from "./routineExecutor";
 import { resumePending } from "./resumePending";
 import { showConfigErrorToast } from "../ui/toast";
 import { watchConfigChanges } from "../core/configStore";
@@ -7,7 +7,7 @@ import { listenForBuilder } from "./builderBridge";
 
 declare global {
   interface Window {
-    __keystackInjected?: boolean;
+    __keyroutineInjected?: boolean;
   }
 }
 
@@ -15,9 +15,9 @@ declare global {
 // chrome.scripting.executeScript (background/contentScripts.ts), on top of
 // the dynamic registration that covers every load after it. Both can fire on
 // the same page in that one case — this keeps the second a no-op instead of
-// a second keydown listener double-running every stack.
-if (!window.__keystackInjected) {
-  window.__keystackInjected = true;
+// a second keydown listener double-running every routine.
+if (!window.__keyroutineInjected) {
+  window.__keyroutineInjected = true;
 
   // The config is memoized after the first keydown; this is what makes a Save
   // in the builder take effect on the next keystroke instead of on the next
@@ -30,7 +30,7 @@ if (!window.__keystackInjected) {
   document.addEventListener(
     "keydown",
     async (e) => {
-      const result = await resolveStack(e);
+      const result = await resolveRoutine(e);
       if (!result) return;
 
       if (isConfigError(result)) {
@@ -43,12 +43,12 @@ if (!window.__keystackInjected) {
       e.preventDefault();
       e.stopPropagation();
 
-      await executeStack(result.stack, result.sections);
+      await executeRoutine(result.routine, result.sections);
     },
     true
   );
 
-  // Not awaited: a stack this page is continuing must not delay the keydown
+  // Not awaited: a routine this page is continuing must not delay the keydown
   // listener above being registered.
   void resumePending();
 }

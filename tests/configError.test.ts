@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { resolveStack, isConfigError, type ConfigError } from "../src/content/stackResolver";
+import { resolveRoutine, isConfigError, type ConfigError } from "../src/content/routineResolver";
 import { CONFIG_KEY, clearCache } from "../src/core/configStore";
 import { stubChromeStorage } from "./fakeChrome";
 
@@ -20,7 +20,7 @@ function keydown(over: Partial<KeyboardEventInit> = {}): KeyboardEvent {
 const VALID = {
   schemaVersion: 2,
   sites: [],
-  stacks: [
+  routines: [
     {
       id: "copy-id",
       name: "Copy Tender",
@@ -43,11 +43,11 @@ beforeEach(() => {
 
 describe("an unreadable config", () => {
   it("reports the validation errors instead of silently doing nothing", async () => {
-    // The shape that breaks it now: a stack half-written by hand, with no
+    // The shape that breaks it now: a routine half-written by hand, with no
     // binding for the chord to match against.
-    stubConfig({ stacks: [{ id: "a" }] });
+    stubConfig({ routines: [{ id: "a" }] });
 
-    const result = await resolveStack(keydown());
+    const result = await resolveRoutine(keydown());
 
     expect(isConfigError(result)).toBe(true);
     expect((result as ConfigError).configError).toMatch(/binding/);
@@ -56,41 +56,41 @@ describe("an unreadable config", () => {
   it("reports a config that is not shaped like one at all", async () => {
     stubConfig({ schemaVersion: 2 });
 
-    expect((await resolveStack(keydown()) as ConfigError).configError).toBe(
-      'no "stacks" array in the config'
+    expect((await resolveRoutine(keydown()) as ConfigError).configError).toBe(
+      'no "routines" array in the config'
     );
   });
 
-  it("does not throw when stacks is the wrong type — it reports", async () => {
-    stubConfig({ stacks: "not an array" });
+  it("does not throw when routines is the wrong type — it reports", async () => {
+    stubConfig({ routines: "not an array" });
 
     // Unguarded this rejects inside a keydown listener, where nothing catches it.
-    await expect(resolveStack(keydown())).resolves.toBeTruthy();
+    await expect(resolveRoutine(keydown())).resolves.toBeTruthy();
   });
 
   it("stays silent for ordinary typing, so a broken config cannot spam toasts", async () => {
-    stubConfig({ stacks: [{ id: "a" }] });
+    stubConfig({ routines: [{ id: "a" }] });
 
-    expect(await resolveStack(keydown({ ctrlKey: false, altKey: false }))).toBeNull();
-    expect(await resolveStack(keydown({ ctrlKey: false, altKey: false, shiftKey: true }))).toBeNull();
+    expect(await resolveRoutine(keydown({ ctrlKey: false, altKey: false }))).toBeNull();
+    expect(await resolveRoutine(keydown({ ctrlKey: false, altKey: false, shiftKey: true }))).toBeNull();
   });
 
   it("still reports for a Cmd or Ctrl chord, not just Ctrl+Alt", async () => {
-    stubConfig({ stacks: [{ id: "a" }] });
+    stubConfig({ routines: [{ id: "a" }] });
 
-    expect(isConfigError(await resolveStack(keydown({ ctrlKey: false, altKey: false, metaKey: true })))).toBe(true);
-    expect(isConfigError(await resolveStack(keydown({ altKey: false })))).toBe(true);
+    expect(isConfigError(await resolveRoutine(keydown({ ctrlKey: false, altKey: false, metaKey: true })))).toBe(true);
+    expect(isConfigError(await resolveRoutine(keydown({ altKey: false })))).toBe(true);
   });
 
   it("stays silent while focus is in a text field, config broken or not", async () => {
-    stubConfig({ stacks: [{ id: "a" }] });
+    stubConfig({ routines: [{ id: "a" }] });
     document.body.innerHTML = `<input id="typing" />`;
     const input = document.querySelector("#typing")!;
 
     const e = new KeyboardEvent("keydown", { code: "Digit1", ctrlKey: true, altKey: true });
     Object.defineProperty(e, "target", { value: input });
 
-    expect(await resolveStack(e)).toBeNull();
+    expect(await resolveRoutine(e)).toBeNull();
   });
 
   it("is silent, not an error, when nothing has been configured yet", async () => {
@@ -98,29 +98,29 @@ describe("an unreadable config", () => {
     // chord there must not accuse the user of breaking something.
     stubChromeStorage();
 
-    expect(await resolveStack(keydown())).toBeNull();
+    expect(await resolveRoutine(keydown())).toBeNull();
   });
 });
 
 describe("a readable config", () => {
-  it("still resolves a matching chord to its stack", async () => {
+  it("still resolves a matching chord to its routine", async () => {
     stubConfig(VALID);
 
-    const result = await resolveStack(keydown());
+    const result = await resolveRoutine(keydown());
 
     expect(isConfigError(result)).toBe(false);
-    expect(result).toMatchObject({ stack: { id: "copy-id" } });
+    expect(result).toMatchObject({ routine: { id: "copy-id" } });
   });
 
   it("still returns null for a chord nothing is bound to", async () => {
     stubConfig(VALID);
 
-    expect(await resolveStack(keydown({ code: "Digit9" }))).toBeNull();
+    expect(await resolveRoutine(keydown({ code: "Digit9" }))).toBeNull();
   });
 
   it("reads a schemaVersion 1 config, so an existing profile keeps working", async () => {
-    stubConfig({ schemaVersion: 1, stacks: VALID.stacks });
+    stubConfig({ schemaVersion: 1, routines: VALID.routines });
 
-    expect(await resolveStack(keydown())).toMatchObject({ stack: { id: "copy-id" } });
+    expect(await resolveRoutine(keydown())).toMatchObject({ routine: { id: "copy-id" } });
   });
 });

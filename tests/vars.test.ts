@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { availableVars, referencedVars, unknownVars } from "../src/core/vars";
-import type { Stack, Step } from "../src/core/schema";
+import type { Routine, Step } from "../src/core/schema";
 
 // The user's own example: copy an id, fetch with it, show the JSON.
-function jsonShow(): Stack {
+function jsonShow(): Routine {
   return {
     id: "jsonShow",
     name: "jsonShow",
@@ -17,12 +17,12 @@ function jsonShow(): Stack {
   };
 }
 
-const names = (stack: Stack, at: number, vars: string[] = []) =>
-  availableVars(stack, at, vars).map((v) => v.name);
+const names = (routine: Routine, at: number, vars: string[] = []) =>
+  availableVars(routine, at, vars).map((v) => v.name);
 
 describe("availableVars", () => {
-  it("offers nothing from the stack itself to the first step", () => {
-    expect(names(jsonShow(), 0)).toEqual(["url", "title", "selection", "stacks", "stackName"]);
+  it("offers nothing from the routine itself to the first step", () => {
+    expect(names(jsonShow(), 0)).toEqual(["url", "title", "selection", "routines", "routineName"]);
   });
 
   it("offers an earlier producer by its step id", () => {
@@ -52,12 +52,12 @@ describe("availableVars", () => {
   });
 
   it("skips steps that produce nothing", () => {
-    const stack = jsonShow();
-    stack.steps = [
+    const routine = jsonShow();
+    routine.steps = [
       { id: "s1", type: "clickBySelector", selector: "#go" },
       { id: "s2", type: "wait", ms: 100 }
     ];
-    expect(names(stack, 2)).not.toContain("s1");
+    expect(names(routine, 2)).not.toContain("s1");
   });
 
   it("offers the Variables tab's names as they are written", () => {
@@ -65,12 +65,12 @@ describe("availableVars", () => {
   });
 
   it("offers a shadowed name once", () => {
-    const stack = jsonShow();
-    stack.steps = [
+    const routine = jsonShow();
+    routine.steps = [
       { id: "s1", type: "readBySelector", selector: "#a", saveAs: "id" },
       { id: "s2", type: "readBySelector", selector: "#b", saveAs: "id" }
     ];
-    expect(names(stack, 2).filter((n) => n === "id")).toEqual(["id"]);
+    expect(names(routine, 2).filter((n) => n === "id")).toEqual(["id"]);
   });
 });
 
@@ -89,39 +89,39 @@ describe("referencedVars", () => {
 });
 
 describe("unknownVars", () => {
-  it("passes the stack it was built for", () => {
+  it("passes the routine it was built for", () => {
     expect(unknownVars(jsonShow())).toEqual([]);
   });
 
   it("catches a typo, naming the step and the field it is in", () => {
-    const stack = jsonShow();
-    (stack.steps[2] as Extract<Step, { type: "popupJson" }>).body = "$jsno";
+    const routine = jsonShow();
+    (routine.steps[2] as Extract<Step, { type: "popupJson" }>).body = "$jsno";
 
-    expect(unknownVars(stack)).toEqual([
+    expect(unknownVars(routine)).toEqual([
       { stepIndex: 2, stepId: "s3", field: "body", name: "jsno" }
     ]);
   });
 
   it("catches a forward reference — a value the step runs too early to have", () => {
-    const stack = jsonShow();
-    (stack.steps[0] as Extract<Step, { type: "readBySelector" }>).saveAs = "id";
-    (stack.steps[1] as Extract<Step, { type: "fetchUrl" }>).url = "https://api.test/t/$json";
+    const routine = jsonShow();
+    (routine.steps[0] as Extract<Step, { type: "readBySelector" }>).saveAs = "id";
+    (routine.steps[1] as Extract<Step, { type: "fetchUrl" }>).url = "https://api.test/t/$json";
 
-    expect(unknownVars(stack)).toMatchObject([{ stepId: "s2", name: "json" }]);
+    expect(unknownVars(routine)).toMatchObject([{ stepId: "s2", name: "json" }]);
   });
 
   it("accepts a variable only when the Variables tab has one", () => {
-    const stack = jsonShow();
-    (stack.steps[1] as Extract<Step, { type: "fetchUrl" }>).url = "https://api.test/?run=$runToken";
+    const routine = jsonShow();
+    (routine.steps[1] as Extract<Step, { type: "fetchUrl" }>).url = "https://api.test/?run=$runToken";
 
-    expect(unknownVars(stack)).toMatchObject([{ name: "runToken" }]);
-    expect(unknownVars(stack, ["runToken"])).toEqual([]);
+    expect(unknownVars(routine)).toMatchObject([{ name: "runToken" }]);
+    expect(unknownVars(routine, ["runToken"])).toEqual([]);
   });
 
   it("does not look for variables in a selector, which is never interpolated", () => {
-    const stack = jsonShow();
-    (stack.steps[0] as Extract<Step, { type: "readBySelector" }>).selector = "[data-id=$nope]";
+    const routine = jsonShow();
+    (routine.steps[0] as Extract<Step, { type: "readBySelector" }>).selector = "[data-id=$nope]";
 
-    expect(unknownVars(stack)).toEqual([]);
+    expect(unknownVars(routine)).toEqual([]);
   });
 });

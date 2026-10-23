@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { runStack, StepError } from "../src/content/runner";
-import type { Stack, Step } from "../src/core/schema";
+import { runRoutine, StepError } from "../src/content/runner";
+import type { Routine, Step } from "../src/core/schema";
 
-function stackOf(...steps: Step[]): Stack {
+function routineOf(...steps: Step[]): Routine {
   return {
     id: "login",
     name: "Log in",
@@ -27,7 +27,7 @@ describe("clickBySelector", () => {
     const onClick = vi.fn();
     document.querySelector("#submit")!.addEventListener("click", onClick);
 
-    const notes = await runStack(stackOf(click("#submit")));
+    const notes = await runRoutine(routineOf(click("#submit")));
 
     expect(onClick).toHaveBeenCalledOnce();
     expect(notes).toEqual(['clicked "#submit"']);
@@ -39,7 +39,7 @@ describe("clickBySelector", () => {
     const onDocument = vi.fn();
     document.addEventListener("click", onDocument);
 
-    await runStack(stackOf(click("#submit")));
+    await runRoutine(routineOf(click("#submit")));
 
     expect(onDocument).toHaveBeenCalledOnce();
     expect(onDocument.mock.calls[0][0].target).toBe(document.querySelector("#submit"));
@@ -50,7 +50,7 @@ describe("clickBySelector", () => {
     const onDocument = vi.fn();
     document.addEventListener("click", onDocument);
 
-    const err = await runStack(stackOf(click("#nope"))).catch((e) => e);
+    const err = await runRoutine(routineOf(click("#nope"))).catch((e) => e);
 
     expect(err).toBeInstanceOf(StepError);
     expect(err.message).toBe('No element for "#nope"');
@@ -58,15 +58,15 @@ describe("clickBySelector", () => {
     document.removeEventListener("click", onDocument);
   });
 
-  it("keeps running the stack when the click does not navigate", async () => {
-    const stack = stackOf(click("#submit"), {
+  it("keeps running the routine when the click does not navigate", async () => {
+    const routine = routineOf(click("#submit"), {
       id: "s2",
       type: "inputToSelector",
       selector: "#after",
       value: "ran"
     });
 
-    const notes = await runStack(stack);
+    const notes = await runRoutine(routine);
 
     expect(document.querySelector<HTMLInputElement>("#after")!.value).toBe("ran");
     expect(notes).toHaveLength(2);

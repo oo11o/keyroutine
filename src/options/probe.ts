@@ -62,7 +62,7 @@ async function ask<T>(message: object): Promise<T> {
     return response;
   } catch {
     throw new Error(
-      `Keystack is not running in that tab (${hostOf(tab.url)}). Reload the page and try again.`
+      `KeyRoutine is not running in that tab (${hostOf(tab.url)}). Reload the page and try again.`
     );
   }
 }
@@ -79,8 +79,8 @@ function hostOf(url: string | undefined): string {
 
 // One key per field, so two selector fields in one action keep their own
 // results: the action's id plus the field's name.
-export function testKey(stackId: string, stepId: string, field: string): string {
-  return `${stackId}:${stepId}:${field}`;
+export function testKey(routineId: string, stepId: string, field: string): string {
+  return `${routineId}:${stepId}:${field}`;
 }
 
 export function testResult(key: string): TestResult | undefined {

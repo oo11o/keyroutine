@@ -77,7 +77,7 @@ async function save(onSaved: (names: string[]) => void): Promise<void> {
     }
     // Without the old prefix a variable can collide with a builtin, and it
     // would win — $url would stop describing the page. Refused here rather
-    // than left to be discovered in a stack that quietly does the wrong thing.
+    // than left to be discovered in a routine that quietly does the wrong thing.
     if ((BUILTINS as readonly string[]).includes(name)) {
       setStatus(`"${name}" is a built-in variable — pick another name`, true);
       return;
@@ -104,13 +104,13 @@ export async function renderVars(pane: HTMLElement, onSaved: (names: string[]) =
     h(
       "p",
       { class: "lede" },
-      "Values a stack can reference as ",
+      "Values a routine can reference as ",
       h("code", { text: "$<name>" }),
       " — a name of ",
       h("code", { text: "runToken" }),
       " is used as ",
       h("code", { text: "$runToken" }),
-      ". They never touch the config, so a stack stays shareable."
+      ". They never touch the config, so a routine stays shareable."
     ),
     h("p", {
       class: "notice",
