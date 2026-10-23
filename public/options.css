@@ -125,7 +125,16 @@ svg.i {
   top: 0;
   z-index: 4;
 }
-.topbar h1 { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; margin: 0 8px 0 0; }
+.topbar h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 8px 0 0;
+}
+.brandmark { flex: none; }
 .tabs { display: flex; gap: 4px; }
 .tabs button {
   height: 34px;
