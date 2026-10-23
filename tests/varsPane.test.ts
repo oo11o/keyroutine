@@ -33,10 +33,11 @@ beforeEach(async () => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the Variables tab", () => {
-  it("calls them variables, and says they are read as $<name>", () => {
+  it("calls them variables, and says they are read as $name", () => {
+    const ledes = [...pane.querySelectorAll(".lede")].map((el) => el.textContent).join(" ");
     expect(pane.querySelector("h2")?.textContent).toBe("Variables");
-    expect(pane.querySelector(".lede")?.textContent).toContain("$<name>");
-    expect(pane.querySelector(".lede")?.textContent).not.toContain("secret");
+    expect(ledes).toContain("$name");
+    expect(ledes).not.toContain("secret");
   });
 
   // The values were stored under "secrets" until 0.7. They are read from

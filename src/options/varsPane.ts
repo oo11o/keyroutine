@@ -104,20 +104,27 @@ export async function renderVars(pane: HTMLElement, onSaved: (names: string[]) =
     h(
       "p",
       { class: "lede" },
-      "Values a routine can reference as ",
-      h("code", { text: "$<name>" }),
-      " — a name of ",
-      h("code", { text: "example" }),
-      " is used as ",
-      h("code", { text: "$example" }),
-      ". They never touch the config, so a routine stays shareable."
+      "Reusable values that routines can reference using ",
+      h("code", { text: "$name" }),
+      ", such as ",
+      h("code", { text: "$username" }),
+      " or ",
+      h("code", { text: "$companyCode" }),
+      "."
+    ),
+    h(
+      "p",
+      { class: "lede" },
+      "Define a value once and reuse it across routines without changing their configuration. " +
+        "When you share a routine, its variable references are preserved, but your personal " +
+        "values are not included."
     ),
     h("p", {
       class: "notice",
       text:
-        "This is not encryption, and the values are no longer masked in toasts. An extension has " +
-        "no server, so these sit in plaintext on this machine and anyone with devtools can read " +
-        "them. What it does buy: they stay out of git, and no web page can fetch them."
+        "Variables are stored locally in your browser and are not encrypted. Anyone with " +
+        "sufficient access to your browser profile or developer tools may be able to read them. " +
+        "Do not store highly sensitive secrets."
     }),
     rows,
     h(
