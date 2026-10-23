@@ -125,7 +125,7 @@ const selectorField: FieldSpec = {
   label: "Element",
   kind: "selector",
   required: true,
-  placeholder: "#tender_id",
+  placeholder: "#example-id",
   help: "Press Pick and click the element on the page, or paste a CSS selector from DevTools (right-click › Copy › Copy selector)."
 };
 
@@ -135,7 +135,7 @@ const titleField: FieldSpec = {
   kind: "template",
   required: false,
   advanced: true,
-  placeholder: "Sync result"
+  placeholder: "Result"
 };
 
 // Record<Step["type"], …> on purpose: adding an arm to the union without
@@ -306,7 +306,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         label: "URL",
         kind: "url",
         required: true,
-        placeholder: "https://example.com/t/$text"
+        placeholder: "https://example.com/items/$text"
       }
     ]
   },

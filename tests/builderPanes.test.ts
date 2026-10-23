@@ -260,7 +260,7 @@ describe("the Sites column", () => {
 
     expect(texts(panes.sites, ".patternlegend li")).toEqual([
       "example.com — every page on this domain.",
-      "example.com/tenders — this page, and everything under it.",
+      "example.com/reports — this page, and everything under it.",
       "* — every website."
     ]);
   });

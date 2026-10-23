@@ -259,7 +259,7 @@ function siteSettings(siteId: string): HTMLElement {
     id: "site-add-pattern",
     class: "input mono",
     type: "text",
-    placeholder: host ? `Add a pattern, e.g. ${host}/contracts` : "Add a pattern, e.g. *.example.com",
+    placeholder: host ? `Add a pattern, e.g. ${host}/reports` : "Add a pattern, e.g. *.example.com",
     "aria-label": "Add URL pattern"
   });
   const group = groupSites(config.sites).find(
@@ -310,13 +310,13 @@ function siteSettings(siteId: string): HTMLElement {
         "ul",
         { class: "patternlegend hint" },
         h("li", {}, h("code", { text: "example.com" }), " — every page on this domain."),
-        h("li", {}, h("code", { text: "example.com/tenders" }), " — this page, and everything under it."),
+        h("li", {}, h("code", { text: "example.com/reports" }), " — this page, and everything under it."),
         h("li", {}, h("code", { text: "*" }), " — every website.")
       ),
       siteScope(site) === "domain" && host !== ""
         ? h("span", {
             class: "hint",
-            text: `A pattern with a path (${host}/contracts) becomes its own area here, with its own routines.`
+            text: `A pattern with a path (${host}/reports) becomes its own area here, with its own routines.`
           })
         : null,
       // A site with no patterns matches nothing, so every routine on it is dead.
