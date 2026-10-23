@@ -57,9 +57,27 @@ function urlForPattern(url: string, pattern: string): string {
   return expandPattern(pattern).includes("?") ? withoutHash : withoutHash.split("?")[0];
 }
 
+// For a bare host pattern typed without "://" or "*" (the builder's site-box
+// shorthand), "www." is the one subdomain variance nobody means to exclude:
+// typing "ukr.net" when the site actually lives at "www.ukr.net" (or vice
+// versa) is a naming accident, not an intent to scope the pattern tighter.
+// Anything fancier than that — real subdomains, explicit schemes, wildcards
+// the user wrote themselves — stays exact, so this only ever toggles one
+// specific "www." prefix on or off the host.
+function wwwToggled(pattern: string): string | null {
+  if (pattern.includes("://") || pattern.includes("*")) return null;
+  const slash = pattern.indexOf("/");
+  const host = slash === -1 ? pattern : pattern.slice(0, slash);
+  const rest = slash === -1 ? "" : pattern.slice(slash);
+  if (!host) return null;
+  return host.toLowerCase().startsWith("www.") ? host.slice(4) + rest : `www.${host}${rest}`;
+}
+
 export function matchesPattern(url: string, pattern: string): boolean {
   if (expandPattern(pattern) === "") return false;
-  return patternToRegExp(pattern).test(urlForPattern(url, pattern));
+  if (patternToRegExp(pattern).test(urlForPattern(url, pattern))) return true;
+  const toggled = wwwToggled(pattern.trim());
+  return toggled !== null && patternToRegExp(toggled).test(urlForPattern(url, toggled));
 }
 
 export function matchesUrl(url: string, patterns: string[]): boolean {

@@ -408,6 +408,18 @@ describe("queries and fragments", () => {
   it("does not let a fragment smuggle a match past an anchored pattern", () => {
     expect(matchesPattern("https://evil.test/#https://dzo.lh/", "dzo.lh")).toBe(false);
   });
+
+  it("treats a bare host pattern as matching with or without www.", () => {
+    expect(matchesPattern("https://www.ukr.net/", "ukr.net")).toBe(true);
+    expect(matchesPattern("https://ukr.net/", "www.ukr.net")).toBe(true);
+    expect(matchesPattern("https://www.ukr.net/account", "ukr.net/account")).toBe(true);
+  });
+
+  it("does not toggle www. once the pattern has a scheme or a wildcard", () => {
+    expect(matchesPattern("https://www.ukr.net/", "https://ukr.net/*")).toBe(false);
+    expect(matchesPattern("https://www.ukr.net/", "*.ukr.net")).toBe(true); // via the wildcard itself
+    expect(matchesPattern("https://ukr.net/", "*.ukr.net")).toBe(false); // no subdomain at all
+  });
 });
 
 // What the user writes by hand, and what they mean by it.
