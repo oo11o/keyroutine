@@ -254,15 +254,30 @@ describe("the Sites column", () => {
     );
   });
 
-  it("spells out the three pattern shapes a user can type", () => {
+  it("spells out the pattern shapes a user can type, and the one they cannot", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     draw();
 
     expect(texts(panes.sites, ".patternlegend li")).toEqual([
       "example.com — every page on this domain.",
       "example.com/reports — this page, and everything under it.",
-      "* — every website."
+      "*.example.com — every subdomain of it.",
+      "A pattern cannot claim every website — that is what Common is for."
     ]);
+  });
+
+  it("refuses a pattern that claims every website, and says where those routines go", () => {
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    const add = panes.sites.querySelector("#site-add-pattern") as HTMLInputElement;
+    add.value = "*";
+    add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    expect(store.getConfig().sites[0].patterns).toEqual(["dzo.lh"]); // unchanged
+    expect(panes.sites.textContent).toContain("claims every website");
+    expect(panes.sites.textContent).toContain("use Common");
+    expect(add.value).toBe("*"); // left in the box to be edited, not swallowed
   });
 });
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   applicableSections,
+  overBroadPattern,
   fetchOrigin,
   groupSites,
   injectableOrigins,
@@ -506,5 +507,26 @@ describe("injectableOrigins", () => {
 
   it("drops a site's origin that was never granted", () => {
     expect(injectableOrigins([], [site("dzo.lh")])).toEqual([]);
+  });
+});
+
+describe("overBroadPattern", () => {
+  it("catches the shapes that claim every website", () => {
+    expect(overBroadPattern("*")).toBe(true);
+    expect(overBroadPattern("*://*/*")).toBe(true);
+    expect(overBroadPattern("example.*")).toBe(true); // every TLD is still every site enough
+  });
+
+  it("leaves a pattern that names where it reaches alone", () => {
+    expect(overBroadPattern("example.com")).toBe(false);
+    expect(overBroadPattern("*.example.com")).toBe(false); // a wildcard subdomain is still one domain
+    expect(overBroadPattern("example.com/reports")).toBe(false);
+    expect(overBroadPattern("localhost")).toBe(false);
+    expect(overBroadPattern("  ")).toBe(false); // an unfilled row is a different problem
+  });
+
+  it("matches nothing, so a hand-written config cannot fire a routine through one", () => {
+    expect(matchesPattern("https://anything.test/x", "*")).toBe(false);
+    expect(matchesUrl("https://anything.test/x", ["*", "example.com"])).toBe(false);
   });
 });

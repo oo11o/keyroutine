@@ -1,6 +1,6 @@
 import { columnHead, h, iconButton, row } from "./el";
 import { icon } from "./icons";
-import { groupSites, siteHost, siteScope, sitesFor } from "../core/match";
+import { groupSites, overBroadPattern, siteHost, siteScope, sitesFor } from "../core/match";
 import type { Site } from "../core/schema";
 import * as store from "./store";
 import { COMMON } from "./store";
@@ -275,10 +275,23 @@ function siteSettings(siteId: string): HTMLElement {
     () => ensureAllOrigins(site)
   );
 
+  const patternProblem = h("div", { class: "errtext", hidden: true });
+
   add.addEventListener("keydown", (e) => {
     if ((e as KeyboardEvent).key !== "Enter") return;
     const pattern = add.value.trim();
     if (pattern === "") return;
+    // A site that claims every host is Common with extra steps — and Common
+    // is the one place a fetch may not live, so this is a door rather than a
+    // preference. Said here, where it was typed.
+    if (overBroadPattern(pattern)) {
+      patternProblem.textContent =
+        `"${pattern}" claims every website. A site has to name where it reaches — ` +
+        `for routines that work everywhere, use Common.`;
+      patternProblem.hidden = false;
+      return;
+    }
+    patternProblem.hidden = true;
     add.value = "";
     store.patchSite(site.id, { patterns: [...site.patterns, pattern] });
     void ensureOrigin(pattern).then(grant.refresh);
@@ -304,6 +317,7 @@ function siteSettings(siteId: string): HTMLElement {
       h("span", { class: "label", text: "Matches these URLs" }),
       site.patterns.length > 0 ? chips : null,
       add,
+      patternProblem,
       // The three shapes a pattern can take, said as plainly as the add
       // field's own placeholder: what you'd type, and what it means.
       h(
@@ -311,7 +325,8 @@ function siteSettings(siteId: string): HTMLElement {
         { class: "patternlegend hint" },
         h("li", {}, h("code", { text: "example.com" }), " — every page on this domain."),
         h("li", {}, h("code", { text: "example.com/reports" }), " — this page, and everything under it."),
-        h("li", {}, h("code", { text: "*" }), " — every website.")
+        h("li", {}, h("code", { text: "*.example.com" }), " — every subdomain of it."),
+        h("li", { class: "hint" }, "A pattern cannot claim every website — that is what Common is for.")
       ),
       siteScope(site) === "domain" && host !== ""
         ? h("span", {

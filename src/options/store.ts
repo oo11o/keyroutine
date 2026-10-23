@@ -1,7 +1,7 @@
 import type { Binding, Config, Site, Routine, Step } from "../core/schema";
 import { SCHEMA_VERSION } from "../core/schema";
 import { isParsed, parseConfig, saveConfig, seedIfEmpty } from "../core/configStore";
-import { isCommon, siteFor, siteScope, sitesOverlap } from "../core/match";
+import { isCommon, overBroadPattern, siteFor, siteScope, sitesOverlap } from "../core/match";
 import {
   STEP_META,
   blankStep,
@@ -542,6 +542,17 @@ export type SaveResult = { ok: true } | { ok: false; problems: Problem[] };
 // has to load, or the builder could not be opened to fix it (the runner
 // refuses the action meanwhile). Shared by Save and Import so the two cannot
 // disagree about what is admissible.
+// A site pattern that claims every website — refused for the same reason the
+// builder will not accept one typed: it would make a site indistinguishable
+// from Common, and the two differ in what they may run.
+function patternProblems(sites: Site[]): Problem[] {
+  return sites.flatMap((site) =>
+    site.patterns.filter(overBroadPattern).map((pattern) => ({
+      message: `site "${site.name}": the pattern "${pattern}" claims every website — name the sites it reaches, or put those routines in Common`
+    }))
+  );
+}
+
 function scopeProblems(routines: Routine[]): Problem[] {
   return routines.flatMap((routine) =>
     siteOnlySteps(routine).map((step) => ({
@@ -585,6 +596,7 @@ export async function save(): Promise<SaveResult> {
     }
   }
   problems.push(...scopeProblems(config.routines));
+  problems.push(...patternProblems(config.sites));
   if (problems.length > 0) return { ok: false, problems };
 
   const parsed = (result as { config: Config }).config;
@@ -603,8 +615,8 @@ export function replaceDraft(raw: unknown): SaveResult {
   // Refused here rather than accepted and failed on Save: an import is one
   // deliberate act with its own dialog to report into, so the message belongs
   // where the paste happened. Nothing is touched, so the draft survives.
-  const scoped = scopeProblems(result.config.routines);
-  if (scoped.length > 0) return { ok: false, problems: scoped };
+  const refused = [...scopeProblems(result.config.routines), ...patternProblems(result.config.sites)];
+  if (refused.length > 0) return { ok: false, problems: refused };
   config = result.config;
   scope = COMMON;
   clearSelection();

@@ -77,6 +77,9 @@ has not granted. Grouped as the builder groups them.
 | Open URL in a new tab | Opens a user-entered URL in a new tab; this page keeps running the routine | — |
 | Go to URL (this tab) | Leaves this page; the remaining actions resume on the next page in this tab, within 15 seconds | — |
 
+A site rule also may not claim every website — `*` is refused — so "scoped
+to a site" always names somewhere.
+
 **Fetch URL cannot exist in a Common ("everywhere") routine.** A Common routine
 fires on every page, so there is no site rule to say what it was for; an
 action that reaches off the page therefore has to live in a routine the user

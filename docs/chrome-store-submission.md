@@ -57,6 +57,14 @@ layers, deliberately not just in the UI:
 `siteOnlySteps` / `siteOnlyReason` in `src/core/stepMeta.ts` are the single
 definition all four read, so the UI and the executor cannot drift apart.
 
+The rule leans on a site actually naming where it reaches, so the obvious way
+round it is closed too: **a site pattern may not claim every website.** `*`,
+`*://*/*` and `example.*` are refused when typed, refused on Save and Import,
+and match nothing at run time if a hand-edited config carries one
+(`overBroadPattern` in `src/core/match.ts`). Without that, a "site" whose
+pattern is `*` would be Common wearing a site's clothes, and a fetch scoped
+to it would reach every page after all.
+
 ## Data handling — what has to be disclosed
 
 KeyRoutine stores Variables-tab values (`chrome.storage.local`) in plaintext,

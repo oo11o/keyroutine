@@ -73,7 +73,25 @@ function wwwToggled(pattern: string): string | null {
   return host.toLowerCase().startsWith("www.") ? host.slice(4) + rest : `www.${host}${rest}`;
 }
 
+// A site pattern that claims every host — "*", "*://*/*", or anything whose
+// last host label is a wildcard ("example.*", which is every TLD). Refused,
+// not supported: a "site" that is every site would be Common wearing a site's
+// clothes, and that distinction carries weight now — Fetch URL is allowed in
+// a site-scoped routine precisely because a site names where it may reach
+// (see siteOnlySteps in core/stepMeta.ts). Everywhere is still available; it
+// is called Common, and it cannot hold a fetch.
+export function overBroadPattern(pattern: string): boolean {
+  const host = patternHost(pattern);
+  if (host === "") return false; // a blank pattern is an unfilled row, not this
+  const last = host.split(":")[0].split(".").pop() ?? "";
+  return host === "*" || last === "" || last.includes("*");
+}
+
 export function matchesPattern(url: string, pattern: string): boolean {
+  // Belt and braces for a config that was written by hand: such a pattern is
+  // refused by the builder and by Save, and matches nothing if it arrives
+  // anyway, so no routine can fire through one.
+  if (overBroadPattern(pattern)) return false;
   if (expandPattern(pattern) === "") return false;
   if (patternToRegExp(pattern).test(urlForPattern(url, pattern))) return true;
   const toggled = wwwToggled(pattern.trim());

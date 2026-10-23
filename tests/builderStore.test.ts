@@ -483,6 +483,21 @@ describe("saving", () => {
     await expect(store.save()).resolves.toMatchObject({ ok: false });
   });
 
+  it("refuses an imported site that claims every website", async () => {
+    await open();
+
+    const result = store.replaceDraft({
+      schemaVersion: 2,
+      sites: [{ id: "all", name: "Everything", patterns: ["*"] }],
+      routines: []
+    });
+
+    expect(result.ok).toBe(false);
+    expect((result as { problems: { message: string }[] }).problems[0].message).toContain(
+      "claims every website"
+    );
+  });
+
   it("refuses an imported fetch in a Common routine at the door, draft untouched", async () => {
     await open();
     const before = store.exportJson();
