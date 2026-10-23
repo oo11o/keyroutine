@@ -847,6 +847,6 @@ describe("building the user's example from scratch", () => {
       { type: "popupJson", body: "$response" }
     ]);
     expect(routine.steps[2]).not.toHaveProperty("saveAs"); // a popup holds nothing
-    for (const step of routine.steps) expect(step.id).toMatch(/^[a-z0-9]{8}$/);
+    for (const step of routine.steps) expect(step.id).toMatch(/^[a-z0-9]{16}$/);
   });
 });

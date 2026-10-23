@@ -134,7 +134,7 @@ describe("adding things", () => {
     // Two routines called the same thing: ids are generated, so there is no
     // collision to resolve and no slug to read anything into.
     expect(first.id).not.toBe(second.id);
-    expect(first.id).toMatch(/^[a-z0-9]{8}$/);
+    expect(first.id).toMatch(/^[a-z0-9]{16}$/);
     expect(first.id).not.toContain("log");
   });
 
@@ -162,7 +162,7 @@ describe("adding things", () => {
     expect(store.currentStep()).toMatchObject({ saveAs: "response2" });
     store.addStep("readBySelector");
     expect(store.currentStep()).toMatchObject({ saveAs: "text" });
-    expect(store.currentStep()?.id).toMatch(/^[a-z0-9]{8}$/);
+    expect(store.currentStep()?.id).toMatch(/^[a-z0-9]{16}$/);
   });
 
   it("gives an action that holds nothing no name at all", async () => {
@@ -172,7 +172,7 @@ describe("adding things", () => {
     store.addStep("popup");
 
     expect(store.currentStep()).not.toHaveProperty("saveAs");
-    expect(store.currentStep()?.id).toMatch(/^[a-z0-9]{8}$/);
+    expect(store.currentStep()?.id).toMatch(/^[a-z0-9]{16}$/);
   });
 
   it("fills a new step with its required fields blank and nothing else", async () => {
@@ -182,7 +182,7 @@ describe("adding things", () => {
     store.addStep("readBySelector");
 
     expect(store.currentStep()).toMatchObject({ type: "readBySelector", selector: "", saveAs: "text" });
-    expect(store.currentStep()!.id).toMatch(/^[a-z0-9]{8}$/);
+    expect(store.currentStep()!.id).toMatch(/^[a-z0-9]{16}$/);
   });
 
   it("selects a new site so its routines can be added straight away", async () => {

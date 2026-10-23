@@ -5,8 +5,8 @@ import { freshId, newId } from "../src/core/ids";
 // leans on: an id says nothing about what it points at, and never repeats.
 
 describe("newId", () => {
-  it("is eight lowercase base-36 characters", () => {
-    expect(newId()).toMatch(/^[a-z0-9]{8}$/);
+  it("is sixteen lowercase base-36 characters", () => {
+    expect(newId()).toMatch(/^[a-z0-9]{16}$/);
   });
 
   it("does not repeat across a config's worth of ids", () => {

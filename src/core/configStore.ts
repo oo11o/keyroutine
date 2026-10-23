@@ -2,6 +2,7 @@ import type { Binding, Config, Site, Routine, Step } from "./schema";
 import { SCHEMA_VERSION } from "./schema";
 import { MAX_WAIT_MS } from "./limits";
 import { STEP_META, isStepType } from "./stepMeta";
+import { newId } from "./ids";
 
 // Where the config lives, and the only place it is validated.
 //
@@ -109,11 +110,12 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
     errors.push(`${where}: unknown step type "${String(raw.type)}"`);
     return null;
   }
-  if (typeof raw.id !== "string" || raw.id === "") {
-    errors.push(`${where}: a step needs an id`);
-    return null;
-  }
-  const step: Record<string, unknown> = { id: raw.id, type: raw.type };
+  // Generated rather than required: a hand-written or exported-elsewhere
+  // config commonly has no id at all, and that is not a reason to refuse the
+  // whole step — ids are opaque now (see core/ids.ts) and nothing a person
+  // writing one by hand could usefully have chosen anyway.
+  const id = typeof raw.id === "string" && raw.id !== "" ? raw.id : newId();
+  const step: Record<string, unknown> = { id, type: raw.type };
   // The name a producer's result is read back by. Not one of the step's form
   // fields — the builder edits it in its own Save as box — so it is carried
   // across by hand, under the same \w+ rule core/context.ts's resolve() needs
@@ -124,7 +126,7 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
   // every later template resolving, and is written back in the new shape the
   // next time the builder saves.
   if (STEP_META[raw.type].produces) {
-    const name = typeof raw.saveAs === "string" && raw.saveAs !== "" ? raw.saveAs : raw.id;
+    const name = typeof raw.saveAs === "string" && raw.saveAs !== "" ? raw.saveAs : id;
     if (!/^\w+$/.test(name)) {
       errors.push(`${where}: "${name}" may only use letters, digits and _ — it is read back as $${name}`);
     } else {
@@ -184,11 +186,8 @@ function parseRoutine(raw: unknown, index: number, siteIds: Set<string>, errors:
     errors.push(`${where}: not a routine`);
     return null;
   }
-  if (typeof raw.id !== "string" || raw.id === "") {
-    errors.push(`${where}: needs an id`);
-    return null;
-  }
-  const label = `routine "${raw.id}"`;
+  const id = typeof raw.id === "string" && raw.id !== "" ? raw.id : newId();
+  const label = `routine "${id}"`;
   const binding = parseBinding(raw.binding, label, errors);
   if (!binding) return null;
   if (!Array.isArray(raw.steps)) {
@@ -220,8 +219,8 @@ function parseRoutine(raw: unknown, index: number, siteIds: Set<string>, errors:
   }
 
   return {
-    id: raw.id,
-    name: typeof raw.name === "string" && raw.name !== "" ? raw.name : raw.id,
+    id,
+    name: typeof raw.name === "string" && raw.name !== "" ? raw.name : id,
     binding,
     enabled: raw.enabled !== false, // absent means enabled; only an explicit false disables
     steps,
@@ -235,21 +234,18 @@ function parseSite(raw: unknown, index: number, errors: string[]): Site | null {
     errors.push(`${where}: not a site`);
     return null;
   }
-  if (typeof raw.id !== "string" || raw.id === "") {
-    errors.push(`${where}: needs an id`);
-    return null;
-  }
+  const id = typeof raw.id === "string" && raw.id !== "" ? raw.id : newId();
   const patterns = Array.isArray(raw.patterns)
     ? raw.patterns.filter((p): p is string => typeof p === "string" && p.trim() !== "")
     : [];
   if (patterns.length === 0) {
     // A site with no patterns matches nothing, so every routine scoped to it is
     // dead. Worth saying out loud rather than leaving the user to wonder.
-    errors.push(`site "${raw.id}": needs at least one URL pattern`);
+    errors.push(`site "${id}": needs at least one URL pattern`);
   }
   return {
-    id: raw.id,
-    name: typeof raw.name === "string" && raw.name !== "" ? raw.name : raw.id,
+    id,
+    name: typeof raw.name === "string" && raw.name !== "" ? raw.name : id,
     patterns
   };
 }

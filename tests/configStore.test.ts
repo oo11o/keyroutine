@@ -244,6 +244,65 @@ describe("parseConfig — migration", () => {
   });
 });
 
+describe("parseConfig — ids a config does not supply", () => {
+  // Ids are opaque now (see core/ids.ts), and a config written by hand or
+  // exported from somewhere else commonly has none at all — that is not a
+  // reason to refuse it. A missing id is generated instead of flagged, the
+  // same way a missing name falls back to something usable.
+  it("generates a 16-character id for a routine, a step and a site that have none", () => {
+    const config = parsed({
+      schemaVersion: 2,
+      sites: [{ name: "dzo.lh", patterns: ["dzo.lh"] }],
+      routines: [
+        {
+          name: "No ids here",
+          binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false },
+          enabled: true,
+          steps: [{ type: "popup", body: "hi" }]
+        }
+      ]
+    });
+
+    expect(config.routines[0].id).toMatch(/^[a-z0-9]{16}$/);
+    expect(config.routines[0].steps[0].id).toMatch(/^[a-z0-9]{16}$/);
+    expect(config.sites[0].id).toMatch(/^[a-z0-9]{16}$/);
+  });
+
+  it("keeps an id the config does supply, rather than generating over it", () => {
+    const config = parsed(
+      routineWith([{ id: "kept", type: "popup", body: "hi" }])
+    );
+
+    expect(config.routines[0].steps[0].id).toBe("kept");
+  });
+
+  it("a generated step id still gets a saveAs for a producer — the id is unreadable but not unused", () => {
+    const config = parsed(
+      routineWith([{ type: "readBySelector", selector: "#x" }])
+    );
+
+    const step = config.routines[0].steps[0] as { id: string; saveAs?: string };
+    expect(step.saveAs).toBe(step.id); // no saveAs supplied, so it falls back to the (generated) id
+  });
+
+  it("names a routine and a site after the generated id too, when neither is given", () => {
+    const config = parsed({
+      schemaVersion: 2,
+      sites: [{ patterns: ["dzo.lh"] }],
+      routines: [
+        {
+          binding: { code: "Digit2", ctrl: true, alt: true, shift: false, meta: false },
+          enabled: true,
+          steps: []
+        }
+      ]
+    });
+
+    expect(config.routines[0].name).toBe(config.routines[0].id);
+    expect(config.sites[0].name).toBe(config.sites[0].id);
+  });
+});
+
 describe("parseConfig — errors as data", () => {
   it("never throws on rubbish", () => {
     expect(errorsOf(null)).toEqual(["the config is not an object"]);

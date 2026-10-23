@@ -11,12 +11,13 @@
 
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-// Eight base-36 characters — 36^8, about 2.8e12, against the handful of ids a
-// config holds. Random rather than a counter: ids from two configs merged by
-// hand (an import pasted next to what is already there) must not collide, and
-// a counter restarts at 1 in every file.
+// Sixteen base-36 characters — 36^16, about 7.9e24, against the handful of
+// ids a config holds. Random rather than a counter: ids from two configs
+// merged by hand (an import pasted next to what is already there, or a config
+// that never had ids at all — see parseConfig's fallback) must not collide,
+// and a counter restarts at 1 in every file.
 export function newId(): string {
-  const bytes = new Uint8Array(8);
+  const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   let out = "";
   for (const byte of bytes) out += ALPHABET[byte % ALPHABET.length];
