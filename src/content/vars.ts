@@ -1,6 +1,8 @@
 // The variables you define in the Variables tab, deliberately not in
-// config/*.json: the manifest declares config/*.json as web_accessible_resources
-// for <all_urls>, so any page could fetch a value out of it. storage.local is
+// config/*.json. Nothing under config/ is web_accessible_resources any more
+// (settings.json moved behind the worker — see background/protocol.ts — and
+// routines.json never was), but a variable has no reason to go anywhere a
+// future static resource might one day be exposed from. storage.local is
 // reachable only by the extension, and content scripts can read it directly
 // — no background worker, no message passing.
 //

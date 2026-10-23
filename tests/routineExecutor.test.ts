@@ -7,10 +7,10 @@ import type { ResumeRecord } from "../src/background/protocol";
 
 // executeRoutine wires three things together: the instant "this is what
 // fired" toast, running the routine, and — only on failure — the detailed
-// report. loadSettings() falls back to DEFAULT_SETTINGS here: fetching
-// chrome-extension://x/config/settings.json isn't stubbed, so it rejects and
-// the catch does the same thing a missing file does for real — which needs a
-// real macrotask turn to settle, not just a microtask.
+// report. loadSettings() falls back to DEFAULT_SETTINGS in most tests here:
+// chrome.runtime.sendMessage is not stubbed, so calling it throws, and the
+// catch does the same thing an unreachable worker does for real — which
+// needs a real macrotask turn to settle, not just a microtask.
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
 function toastDetail(): string | undefined {
@@ -33,6 +33,28 @@ afterEach(() => {
 });
 
 describe("executeRoutine", () => {
+  // Proves the message actually round-trips, not just that a missing one
+  // falls back quietly — a stubbed sendMessage answering with toast: "none"
+  // can only produce silence if loadSettings() really read it.
+  it("applies settings read from the worker, not just the fallback", async () => {
+    // stubChromeStorage() already set chrome.runtime.getURL; this just adds
+    // the one call this test needs, rather than re-stubbing from scratch.
+    (chrome.runtime as unknown as { sendMessage: unknown }).sendMessage = async () => ({
+      settings: { debug: false, toast: "none" }
+    });
+    const routine: Routine = {
+      id: "quiet",
+      name: "Quiet",
+      binding: { code: "Digit2", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      steps: [{ id: "s1", type: "wait", ms: 0 }]
+    };
+
+    await executeRoutine(routine, []);
+
+    expect(toastDetail()).toBeUndefined();
+  });
+
   it("toasts the routine's name the instant it starts, before any step finishes", async () => {
     const routine: Routine = {
       id: "slow",

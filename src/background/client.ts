@@ -4,10 +4,13 @@
 // directly — that's the whole point of going through the worker.
 import {
   FETCH_MESSAGE_TYPE,
+  LOAD_SETTINGS_MESSAGE_TYPE,
   SAVE_RESUME_MESSAGE_TYPE,
   TAKE_RESUME_MESSAGE_TYPE,
   type FetchRequest,
   type FetchResponse,
+  type LoadSettingsRequest,
+  type LoadSettingsResponse,
   type ResumeRecord,
   type ResumeResponse,
   type SaveResumeRequest,
@@ -44,4 +47,14 @@ export async function takeResume(): Promise<ResumeRecord | null> {
   } catch {
     return null;
   }
+}
+
+// config/settings.json, read by the worker (see protocol.ts) rather than
+// fetched here directly. Failures are swallowed the same way takeResume's
+// are: this runs on every routine, and a missing worker must not surface as
+// anything louder than the caller's own defaults.
+export async function loadSettingsFromBackground(): Promise<Record<string, unknown>> {
+  const request: LoadSettingsRequest = { type: LOAD_SETTINGS_MESSAGE_TYPE };
+  const response = (await chrome.runtime.sendMessage(request)) as LoadSettingsResponse | undefined;
+  return response?.settings ?? {};
 }

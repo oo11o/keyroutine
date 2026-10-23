@@ -21,8 +21,5 @@
       "128": "icons/icon128.png"
     }
   },
-  "options_page": "options.html",
-  "web_accessible_resources": [
-    { "resources": ["config/settings.json"], "matches": ["<all_urls>"] }
-  ]
+  "options_page": "options.html"
 }

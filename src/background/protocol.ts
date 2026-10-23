@@ -5,6 +5,7 @@
 export const FETCH_MESSAGE_TYPE = "keyroutine-fetch";
 export const SAVE_RESUME_MESSAGE_TYPE = "keyroutine-save-resume";
 export const TAKE_RESUME_MESSAGE_TYPE = "keyroutine-take-resume";
+export const LOAD_SETTINGS_MESSAGE_TYPE = "keyroutine-load-settings";
 
 export type FetchRequest = { type: typeof FETCH_MESSAGE_TYPE; url: string };
 
@@ -38,3 +39,13 @@ export type SaveResumeRequest = {
 export type TakeResumeRequest = { type: typeof TAKE_RESUME_MESSAGE_TYPE };
 
 export type ResumeResponse = { record: ResumeRecord | null };
+
+// config/settings.json is read here, not fetched by the content script
+// directly: a content script's fetch of its own extension's bundled files is
+// subject to the page's resource-loading boundary and needs the file listed
+// in web_accessible_resources — which exposes it to every page's own script,
+// not just the content script. The worker is a privileged extension context
+// and can read its own bundled file without that exposure at all, so the
+// content script asks it to, the same way it already does for fetchUrl.
+export type LoadSettingsRequest = { type: typeof LOAD_SETTINGS_MESSAGE_TYPE };
+export type LoadSettingsResponse = { settings: Record<string, unknown> };

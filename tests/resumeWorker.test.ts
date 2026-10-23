@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
+  LOAD_SETTINGS_MESSAGE_TYPE,
   SAVE_RESUME_MESSAGE_TYPE,
   TAKE_RESUME_MESSAGE_TYPE,
   type ResumeRecord
@@ -38,7 +39,8 @@ beforeEach(async () => {
       onMessage: { addListener: (fn: Listener) => (listener = fn) },
       onInstalled: { addListener: () => {} },
       onStartup: { addListener: () => {} },
-      openOptionsPage: async () => {}
+      openOptionsPage: async () => {},
+      getURL: (p: string) => `chrome-extension://x/${p}`
     },
     action: { onClicked: { addListener: () => {} } },
     permissions: {
@@ -105,5 +107,30 @@ describe("resume records in the worker", () => {
 
   it("leaves messages it does not own to other listeners", async () => {
     expect(await send({ type: "something-else" }, 1)).toBeUndefined();
+  });
+});
+
+// config/settings.json is read here rather than fetched by the content
+// script directly — see protocol.ts for why: a privileged context can load
+// its own bundled file with no manifest exposure at all, where the content
+// script's own fetch of it would need web_accessible_resources, handing it
+// to every page's own script too.
+describe("loading settings in the worker", () => {
+  const loadSettings = () => send({ type: LOAD_SETTINGS_MESSAGE_TYPE }, 1) as Promise<{ settings: unknown }>;
+
+  it("reads config/settings.json through its own extension URL, not web_accessible_resources", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ debug: true, toast: "show" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { settings } = await loadSettings();
+
+    expect(fetchMock).toHaveBeenCalledWith("chrome-extension://x/config/settings.json", { cache: "no-store" });
+    expect(settings).toEqual({ debug: true, toast: "show" });
+  });
+
+  it("returns an empty object rather than throwing when the file is missing", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("404")));
+
+    expect(await loadSettings()).toEqual({ settings: {} });
   });
 });

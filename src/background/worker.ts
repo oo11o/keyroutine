@@ -1,28 +1,48 @@
-// The service worker. Two jobs, both of which exist because a content
-// script cannot do them:
+// The service worker. Several jobs, each of which exists because a content
+// script cannot do it:
 //
 //   1. fetch a cross-origin URL without the page's own CORS restrictions
 //      applying, given host_permissions for that origin;
 //   2. hold the resume records for routines suspended by a navigation step —
 //      a content script cannot outlive the page it runs in, so the state of
 //      a half-finished routine has to be parked somewhere that does;
-//   3. seed the stored config on install, and open the builder when the
+//   3. read config/settings.json without listing it in
+//      web_accessible_resources — a privileged context can load its own
+//      bundled file with no manifest exposure at all, where a content
+//      script's own fetch of it would need that resource declared, which
+//      would also hand it to every page's own script;
+//   4. seed the stored config on install, and open the builder when the
 //      toolbar icon is clicked.
 import { CONFIG_KEY, clearCache, loadConfig, seedIfEmpty } from "../core/configStore";
 import { injectableOrigins } from "../core/match";
 import { syncContentScripts, injectIntoOpenTabs } from "./contentScripts";
 import {
   FETCH_MESSAGE_TYPE,
+  LOAD_SETTINGS_MESSAGE_TYPE,
   SAVE_RESUME_MESSAGE_TYPE,
   TAKE_RESUME_MESSAGE_TYPE,
   type FetchRequest,
   type FetchResponse,
+  type LoadSettingsResponse,
   type ResumeRecord,
   type ResumeResponse,
   type SaveResumeRequest
 } from "./protocol";
 
 type AnyRequest = FetchRequest | SaveResumeRequest | { type: string };
+
+// Read here rather than fetched by the content script: see protocol.ts. A
+// privileged extension context can load its own bundled file with no manifest
+// exposure at all, so this is a plain fetch against the worker's own origin —
+// not a message to anywhere else, and nothing a web page can intercept.
+async function loadSettings(): Promise<Record<string, unknown>> {
+  try {
+    const res = await fetch(chrome.runtime.getURL("config/settings.json"), { cache: "no-store" });
+    return (await res.json()) as Record<string, unknown>;
+  } catch {
+    return {}; // missing/unreadable — the content script's own defaults apply
+  }
+}
 
 // chrome.storage.session, not a module-level Map: an idle MV3 worker is
 // evicted after ~30s, which would take a pending resume with it. Session
@@ -73,6 +93,11 @@ chrome.runtime.onMessage.addListener((message: AnyRequest, sender, sendResponse)
       }
     })().then(sendResponse);
     return true; // keep the message channel open for the async sendResponse
+  }
+
+  if (message?.type === LOAD_SETTINGS_MESSAGE_TYPE) {
+    loadSettings().then((settings) => sendResponse({ settings } satisfies LoadSettingsResponse));
+    return true;
   }
 
   // The content script does not know its own tab id; the worker does, from

@@ -6,15 +6,18 @@ import { runRoutine, StepError, type Resume } from "./runner";
 import { logDebug } from "./debugLog";
 import { present } from "./presenter";
 import { loadVars } from "./vars";
+import { loadSettingsFromBackground } from "../background/client";
 import { showStartedToast, type RunOutcome } from "../ui/toast";
 
+// Asked of the worker rather than fetched here directly — see
+// background/protocol.ts for why: a content script fetching its own
+// extension's bundled file needs it listed in web_accessible_resources,
+// which exposes it to every page's own script, not just this one.
 async function loadSettings(): Promise<Settings> {
   try {
-    const url = chrome.runtime.getURL("config/settings.json");
-    const res = await fetch(url, { cache: "no-store" });
-    return { ...DEFAULT_SETTINGS, ...(await res.json()) };
+    return { ...DEFAULT_SETTINGS, ...(await loadSettingsFromBackground()) };
   } catch {
-    return DEFAULT_SETTINGS; // settings.json missing/unreachable — fall back quietly
+    return DEFAULT_SETTINGS; // worker missing/unreachable — fall back quietly
   }
 }
 
