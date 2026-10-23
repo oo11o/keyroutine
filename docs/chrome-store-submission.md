@@ -95,7 +95,7 @@ surface as "my hotkeys stopped working."
 
 - Short description, ≤132 characters.
 - Detailed description — lead with the single-purpose statement (see below), Google's reviewers check the listing against it.
-- At least one screenshot, 1280×800 or 640×400.
+- At least one screenshot, 1280×800 or 640×400. `docs/screenshot-config.json` is a demo config to import into the builder first — reserved example.com/example.org hosts only, one stack per feature worth a frame (the call-only fetch grant among them).
 - Category: Productivity (or Developer Tools).
 - Privacy policy URL (see above).
 
