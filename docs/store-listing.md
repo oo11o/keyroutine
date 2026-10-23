@@ -81,9 +81,9 @@ has not granted. Grouped as the builder groups them.
 fires on every page, so there is no site rule to say what it was for; an
 action that reaches off the page therefore has to live in a stack the user
 scoped to a specific site. The builder does not offer the type there, a
-stack holding one cannot be moved to Common, saving such a config is
-refused, and the runner refuses the action outright — so neither an import
-nor a hand-edited storage entry can get a fetch to run unscoped.
+stack holding one cannot be moved to Common, importing or saving such a
+config is refused, and the runner refuses the action outright — so neither
+an import nor a hand-edited storage entry can get a fetch to run unscoped.
 
 Worth noting for a reviewer: every URL, selector and value above is typed by
 the user. Two actions produce a variable (`Read element`, `Fetch URL`); the

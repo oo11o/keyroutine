@@ -520,6 +520,21 @@ export function renamesBreak(stack: Stack, oldId: string): Problem[] {
 
 export type SaveResult = { ok: true } | { ok: false; problems: Problem[] };
 
+// Actions a stack's own scope may not run — a Fetch URL left in a Common
+// stack. Not in parseConfig on purpose: a stored config that trips this still
+// has to load, or the builder could not be opened to fix it (the runner
+// refuses the action meanwhile). Shared by Save and Import so the two cannot
+// disagree about what is admissible.
+function scopeProblems(stacks: Stack[]): Problem[] {
+  return stacks.flatMap((stack) =>
+    siteOnlySteps(stack).map((step) => ({
+      stackId: stack.id,
+      stepId: step.id,
+      message: `"${stack.name}", action ${step.id}: ${siteOnlyReason(step.type)}`
+    }))
+  );
+}
+
 export async function save(): Promise<SaveResult> {
   const problems: Problem[] = [];
 
@@ -552,19 +567,7 @@ export async function save(): Promise<SaveResult> {
       });
     }
   }
-  // Same shape of rule as the one above, and the same reason for living here
-  // rather than in parseConfig: a config that trips it still has to load, or
-  // the user could not open the builder to fix it. The runner refuses the
-  // action meanwhile.
-  for (const stack of config.stacks) {
-    for (const step of siteOnlySteps(stack)) {
-      problems.push({
-        stackId: stack.id,
-        stepId: step.id,
-        message: `"${stack.name}", action ${step.id}: ${siteOnlyReason(step.type)}`
-      });
-    }
-  }
+  problems.push(...scopeProblems(config.stacks));
   if (problems.length > 0) return { ok: false, problems };
 
   const parsed = (result as { config: Config }).config;
@@ -580,6 +583,11 @@ export async function save(): Promise<SaveResult> {
 export function replaceDraft(raw: unknown): SaveResult {
   const result = parseConfig(raw);
   if (!isParsed(result)) return { ok: false, problems: result.errors.map((message) => ({ message })) };
+  // Refused here rather than accepted and failed on Save: an import is one
+  // deliberate act with its own dialog to report into, so the message belongs
+  // where the paste happened. Nothing is touched, so the draft survives.
+  const scoped = scopeProblems(result.config.stacks);
+  if (scoped.length > 0) return { ok: false, problems: scoped };
   config = result.config;
   scope = COMMON;
   clearSelection();

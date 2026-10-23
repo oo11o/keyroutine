@@ -465,10 +465,10 @@ describe("saving", () => {
     await expect(store.save()).resolves.toMatchObject({ ok: false });
   });
 
-  it("refuses to save a fetch left in a Common stack, however it got there", async () => {
+  it("refuses an imported fetch in a Common stack at the door, draft untouched", async () => {
     await open();
-    // Straight into the draft, as an import or a hand-edited config would:
-    // the builder itself does not offer the type in Common.
+    const before = store.exportJson();
+
     const result = store.replaceDraft({
       schemaVersion: 2,
       sites: [],
@@ -482,7 +482,24 @@ describe("saving", () => {
         }
       ]
     });
-    expect(result).toEqual({ ok: true }); // it parses — it just may not be saved
+    expect(result.ok).toBe(false);
+    expect((result as { problems: { message: string }[] }).problems[0].message).toContain(
+      "only available in a stack scoped to a site"
+    );
+    expect(store.exportJson()).toBe(before); // nothing was replaced
+  });
+
+  // Save still checks it: storage written by an older version, or a draft
+  // edited another way, must not slip past.
+  it("refuses to save a fetch that is already sitting in a Common stack", async () => {
+    await open();
+    store.selectScope({ kind: "common" });
+    store.selectStack("copy-id");
+    store.getConfig().stacks.find((s) => s.id === "copy-id")!.steps.push({
+      id: "leak",
+      type: "fetchUrl",
+      url: "https://api.test/x"
+    });
 
     const saved = await store.save();
     expect(saved.ok).toBe(false);

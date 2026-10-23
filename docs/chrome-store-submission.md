@@ -51,7 +51,7 @@ layers, deliberately not just in the UI:
 
 1. the builder does not offer the type in a Common stack (`src/options/stepsPane.ts`), and flags one already there;
 2. a stack holding it cannot be moved to Common (`blocksCommon` in `src/options/store.ts`, the Site dropdown in `src/options/stacksPane.ts`);
-3. saving a config that holds one is refused, which covers Import and a pasted config (`store.save()`);
+3. Import refuses such a config outright, in the import dialog, leaving the draft untouched — and `store.save()` checks the same rule again, for a draft that was edited some other way;
 4. the runner refuses the action before dispatching it (`src/content/runner.ts`), so editing `chrome.storage.local` by hand does not get a fetch to run unscoped.
 
 `siteOnlySteps` / `siteOnlyReason` in `src/core/stepMeta.ts` are the single
