@@ -46,12 +46,15 @@ is missing is screenshots, Dashboard forms, and one real functionality gap
       `docs/privacy-policy/index.html`. Pasted into `docs/store-listing.md`.
       **Still needs a human:** paste it into the Developer Dashboard's own
       Privacy policy field — that part has no API this session can reach.
-- [ ] **Retake every screenshot.** All of them show the old name: the
-      header reads "Keystack" and the middle column "Stacks". The framing
-      and the demo config are still right, so it is a re-shoot, not a
-      redesign — `listing-1-builder-1280x800.png` and
-      `listing-2-site-only-fetch-1280x800.png` are the two to reproduce.
-      Still missing besides those: the action menu in a full window (the one
+- [x] ~~Retake `listing-1-builder-1280x800.png`.~~ Done — re-shot with the
+      fixed `docs/screenshot-config.json`, scaled and padded to 1280×800,
+      24-bit, no alpha. Shows all three columns, "Fill test login" now
+      correctly site-scoped, and the click → wait → navigate pipeline open.
+- [ ] **Retake `listing-2-site-only-fetch-1280x800.png`.** Still shows the
+      old name ("Keystack"/"Stacks"). Same framing as before — a fetch
+      routine open, showing the Site field rule that it cannot move to
+      Common — just re-shot under the new name and the fixed demo config.
+      Still missing besides that: the action menu in a full window (the one
       taken is 589×668 and the Store takes only 1280×800 or 640×400), and
       one frame of a popup firing on a real page.
       *Done when:* every uploaded file says KeyRoutine and is 1280×800,

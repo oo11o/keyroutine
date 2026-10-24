@@ -107,9 +107,9 @@ any of them. The Store wants 1280×800 or 640×400, 24-bit PNG with no alpha.
 
 | File | Shows | Status |
 |---|---|---|
-| `screenshots/listing-1-builder-1280x800.png` | **Stale — taken before the rename, says Keystack/Stacks.** The primary frame: all three columns, sites with `/orders` nested under its host, the open routine with its hotkey, and a click → wait → navigate pipeline on the right. Saved draft, nothing in an error state | re-shoot |
-| `screenshots/listing-2-site-only-fetch-1280x800.png` | **Stale — same reason.** The same builder with a fetch routine open, showing the rule in the Site field: a routine holding Fetch URL cannot move to Common | re-shoot |
-| `screenshots/*-original.png` | The unpadded sources (1327×722, 1340×713, 589×668) — kept to re-cut from, never for upload | source |
+| `screenshots/listing-1-builder-1280x800.png` | Re-shot. The primary frame: all three columns, "Fill test login" now correctly site-scoped, "Order as JSON" and the open "Save, then back to the list" with its click → wait → navigate pipeline on the right. Saved draft, nothing in an error state | ready |
+| `screenshots/listing-2-site-only-fetch-1280x800.png` | **Stale — taken before the rename, says Keystack/Stacks.** The same builder with a fetch routine open, showing the rule in the Site field: a routine holding Fetch URL cannot move to Common | re-shoot |
+| `screenshots/*-original.png` | The unpadded sources, kept to re-cut from, never for upload | source |
 
 Still worth shooting:
 
