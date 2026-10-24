@@ -7,8 +7,8 @@ whose items cannot be checked is a wish list.
 Status as of 2026-10-24: the extension itself is submission-shaped (narrow
 permissions, no clipboard, fetch and every selector-based action scoped to a
 site, the rename to KeyRoutine done, a site pattern can no longer claim every
-website, version reset to 0.1.0). The branch chain is merged to master and
-pushed. What is missing is hosting, assets, and one real functionality gap
+website, version reset to 0.1.0 and committed). Phase 0 is fully done. What
+is missing is screenshots, Dashboard forms, and one real functionality gap
 (Phase 5).
 
 ---
@@ -35,8 +35,8 @@ pushed. What is missing is hosting, assets, and one real functionality gap
 - [x] ~~Commit the toast/UX redesign~~ — done.
 - [x] ~~Commit the site-only expansion + grant-row removal~~ — done
       (`44e417a`), now merged to master.
-- [ ] **Commit the version bump.** `package.json` and `manifest.json` are
-      uncommitted right now.
+- [x] ~~Commit the version bump.~~ `package.json` and `manifest.json` both
+      read 0.1.0 and are committed (`35764cf`) — this line was stale.
 
 ## Phase 1 — the things Google will not accept the listing without
 
