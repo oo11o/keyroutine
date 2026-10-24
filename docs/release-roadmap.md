@@ -84,9 +84,14 @@ pushed. What is missing is hosting, assets, and one real functionality gap
       storage and then refused at run time. One check, one test.
 - [x] ~~Run the upgrade path on a real profile.~~ Not applicable — this is
       the first submission, there is no existing install to upgrade from.
-      The migration code (`migrateStep`, the per-site grant check) stays in
-      place for when a *future* version needs it, but there's nothing to
-      verify against today.
+      The per-site grant check stays in place for when a *future* version
+      needs it, but there's nothing to verify against today.
+- [x] ~~Remove the legacy step/variable migrations.~~ `migrateStep`
+      (`copyBySelector`/`typeToSelector`/`waitForSelector` rewrites) and
+      `migrateTemplate` (`$secret_*`/`$stacks` variable rewrites) in
+      `src/core/configStore.ts` were dead code — no published config could
+      ever contain a pre-rename step type or variable spelling. Removed
+      along with their tests and doc mentions.
 
 ## Phase 3 — worth having before the listing goes public
 

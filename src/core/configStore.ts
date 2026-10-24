@@ -1,6 +1,5 @@
 import type { Binding, Config, Site, Routine, Step } from "./schema";
 import { SCHEMA_VERSION } from "./schema";
-import { MAX_WAIT_MS } from "./limits";
 import { STEP_META, isStepType } from "./stepMeta";
 import { newId } from "./ids";
 
@@ -51,61 +50,12 @@ function parseBinding(raw: unknown, where: string, errors: string[]): Binding | 
   };
 }
 
-// Retiring a step type must not brick a profile. A stored config is parsed as
-// one unit, so a single step of a type that no longer exists used to fail the
-// whole config — and with it every routine, including the ones that never used
-// it. These are rewritten on the way in instead, and written back in their new
-// shape the next time the builder saves.
-//
-// The rewrite is lossy where the capability is gone, which is the honest
-// outcome of dropping it: a config cannot keep doing something the extension
-// no longer does.
-function migrateStep(raw: Record<string, unknown>): Record<string, unknown> {
-  // Typed a value key by key; inputToSelector sets the same field from the
-  // same two fields, in one go.
-  if (raw.type === "typeToSelector") return { ...raw, type: "inputToSelector" };
-
-  // Put an element's text on the clipboard. KeyRoutine no longer writes to the
-  // clipboard from a routine, so the nearest surviving action is the plain read
-  // — the element is still read, and later steps can reference it as $<id>,
-  // but nothing lands on the clipboard any more.
-  if (raw.type === "copyBySelector") return { ...raw, type: "readBySelector" };
-
-  // Waited for an element to appear. Nothing waits on a condition any more, so
-  // the nearest thing is a flat pause of the budget it was given — slower than
-  // it used to be when the element arrives early, and a guess where it used to
-  // be a certainty.
-  if (raw.type === "waitForSelector") {
-    const budget = Number(raw.timeoutMs ?? 5000);
-    const ms = Number.isFinite(budget) ? Math.min(Math.max(budget, 0), MAX_WAIT_MS) : 5000;
-    return { id: raw.id, type: "wait", ms };
-  }
-
-  return raw;
-}
-
-// Variables lost their "secret_" prefix in 0.7, so a config written before
-// then references $secret_example for what is now $example. The cheatsheet
-// builtin was $stacks before the rename, for what is now $routines. Both are
-// rewritten on the way in, next to migrateStep, and written back in the new
-// spelling the next time the builder saves. "$$" is an escaped literal dollar
-// and is left alone.
-const LEGACY_VAR_RE = /\$\$|\$secret_(\w+)|\$stacks\b/g;
-
-export function migrateTemplate(value: string): string {
-  return value.replace(LEGACY_VAR_RE, (whole, name: string | undefined) => {
-    if (whole === "$$") return whole;
-    if (whole === "$stacks") return "$routines";
-    return `$${name}`;
-  });
-}
-
 function parseStep(rawStep: unknown, where: string, errors: string[]): Step | null {
   if (!isRecord(rawStep)) {
     errors.push(`${where}: not a step`);
     return null;
   }
-  const raw = migrateStep(rawStep);
+  const raw = rawStep;
   if (!isStepType(raw.type)) {
     errors.push(`${where}: unknown step type "${String(raw.type)}"`);
     return null;
@@ -163,7 +113,7 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
     // Every field a $var may appear in — the same three kinds templateFields
     // reports, so the rewrite reaches exactly what resolve() will read.
     if (spec.kind === "template" || spec.kind === "url" || spec.kind === "multiline") {
-      step[spec.name] = migrateTemplate(value);
+      step[spec.name] = value;
       continue;
     }
     // A name read back as $<name> has to survive core/context.ts's \w+ regex,

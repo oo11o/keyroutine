@@ -19,7 +19,7 @@ const V1 = {
       name: "Copy Tender",
       binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
-      steps: [{ id: "s1", type: "copyBySelector", selector: "#tender_id" }]
+      steps: [{ id: "s1", type: "readBySelector", selector: "#tender_id" }]
     }
   ]
 };
@@ -41,49 +41,6 @@ function routineWith(steps: unknown[]): unknown {
 }
 
 describe("a config saved before a step type was retired", () => {
-  it("rewrites typeToSelector as inputToSelector rather than failing the lot", () => {
-    const config = parsed(
-      routineWith([
-        { id: "s1", type: "clickBySelector", selector: "#go" },
-        { id: "s6", type: "typeToSelector", selector: '[name="email"]', value: "b" }
-      ])
-    );
-
-    expect(config.routines[0].steps).toEqual([
-      { id: "s1", type: "clickBySelector", selector: "#go" },
-      { id: "s6", type: "inputToSelector", selector: '[name="email"]', value: "b" }
-    ]);
-  });
-
-  it("turns waitForSelector into a pause of the budget it was given", () => {
-    const config = parsed(
-      routineWith([{ id: "s3", type: "waitForSelector", selector: "#late", timeoutMs: 800 }])
-    );
-
-    expect(config.routines[0].steps).toEqual([{ id: "s3", type: "wait", ms: 800 }]);
-  });
-
-  it("uses the old default when that step carried no timeout, and stays within the cap", () => {
-    expect(parsed(routineWith([{ id: "s3", type: "waitForSelector", selector: "#late" }])).routines[0].steps)
-      .toEqual([{ id: "s3", type: "wait", ms: 5000 }]);
-    expect(
-      parsed(routineWith([{ id: "s3", type: "waitForSelector", selector: "#late", timeoutMs: 600_000 }]))
-        .routines[0].steps
-    ).toEqual([{ id: "s3", type: "wait", ms: 30_000 }]);
-  });
-
-  it("rewrites copyBySelector as a plain read, since nothing writes the clipboard now", () => {
-    const config = parsed(
-      routineWith([{ id: "s1", type: "copyBySelector", selector: "#tender_id" }])
-    );
-
-    // Lossy on purpose: the element is still read (and referenceable as
-    // $s1), but the clipboard write is a capability KeyRoutine no longer has.
-    expect(config.routines[0].steps).toEqual([
-      { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" }
-    ]);
-  });
-
   it("reads a config that still calls routines stacks, and writes the new key", () => {
     const config = parsed({
       schemaVersion: 2,
@@ -94,14 +51,12 @@ describe("a config saved before a step type was retired", () => {
           name: "Old",
           binding: { code: "Digit4", ctrl: true, alt: true, shift: false, meta: false },
           enabled: true,
-          steps: [{ id: "s1", type: "popup", body: "$stacks" }]
+          steps: [{ id: "s1", type: "popup", body: "hi" }]
         }
       ]
     });
 
     expect(config.routines.map((r) => r.id)).toEqual(["old"]);
-    // The cheatsheet builtin was renamed with everything else.
-    expect(config.routines[0].steps[0]).toMatchObject({ body: "$routines" });
   });
 
   it("prefers the new key when a config somehow carries both", () => {
@@ -180,7 +135,6 @@ describe("parseConfig — migration", () => {
     expect(config.schemaVersion).toBe(SCHEMA_VERSION);
     expect(config.sites).toEqual([]);
     expect(config.routines[0].siteId).toBeNull();
-    // copyBySelector is gone; migrateStep rewrites it to the plain read.
     expect(config.routines[0].steps).toEqual([
       { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" }
     ]);
@@ -207,41 +161,6 @@ describe("parseConfig — migration", () => {
     expect(parsed({ routines: [{ ...V1.routines[0], name: "" }] }).routines[0].name).toBe("copy-id");
   });
 
-  // Variables lost their "secret_" prefix in 0.7. A config written before then
-  // is rewritten on the way in, so the hotkey it describes keeps working.
-  it("drops the old secret_ prefix from every field a $var may appear in", () => {
-    const config = parsed({
-      routines: [
-        {
-          ...V1.routines[0],
-          steps: [
-            { id: "s1", type: "fetchUrl", url: "https://api.test/?run=$secret_runToken", saveAs: "s1" },
-            { id: "s2", type: "inputToSelector", selector: "#f", value: "$secret_pass" },
-            { id: "s3", type: "popup", title: "t", body: "$secret_runToken and $s1" }
-          ]
-        }
-      ]
-    });
-
-    expect(config.routines[0].steps).toMatchObject([
-      { url: "https://api.test/?run=$runToken" },
-      { value: "$pass" },
-      { body: "$runToken and $s1" }
-    ]);
-  });
-
-  it("leaves an escaped dollar and an ordinary variable alone", () => {
-    const config = parsed({
-      routines: [
-        {
-          ...V1.routines[0],
-          steps: [{ id: "s1", type: "popup", body: "$$secret_runToken costs $s1" }]
-        }
-      ]
-    });
-
-    expect(config.routines[0].steps[0]).toMatchObject({ body: "$$secret_runToken costs $s1" });
-  });
 });
 
 describe("parseConfig — ids a config does not supply", () => {

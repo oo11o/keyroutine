@@ -100,10 +100,6 @@ action's "Save as" box; the
 other nine return nothing. No action writes to the clipboard, reads browsing
 history, or reaches a site outside the user's own granted rules.
 
-Retired types still accepted from an older config and rewritten on load
-(`migrateStep` in `src/core/configStore.ts`): `copyBySelector` → Read
-element, `typeToSelector` → Set field value, `waitForSelector` → Wait.
-
 ## Screenshots
 
 Taken with `docs/screenshot-config.json` loaded, so nothing real appears in

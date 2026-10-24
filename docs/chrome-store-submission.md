@@ -159,7 +159,6 @@ preparing all this — is in `docs/release-roadmap.md`.
 2. ~~Whether `clipboardWrite` is still needed~~ — closed by removing the
    clipboard action ("Copy element to clipboard") outright, so nothing a
    routine does touches the clipboard and the permission has no call site
-   left. A config written before this has its copy steps rewritten to the
-   plain "Read element" on load (`migrateStep` in `src/core/configStore.ts`)
-   — lossy by design: the read survives, the clipboard write does not. Worth
-   a line in the release notes.
+   left. The migration that rewrote an old copy step to "Read element" on
+   load was removed with the rest of `migrateStep` — nothing has published,
+   so no config could ever contain one (see release-roadmap.md Phase 0).
