@@ -44,12 +44,12 @@ pushed. What is missing is hosting, assets, and one real functionality gap
 
 ## Phase 1 — the things Google will not accept the listing without
 
-- [ ] **Host the privacy policy and get a URL.** `docs/privacy-policy.md`
-      exists but is not published anywhere; the Developer Dashboard requires
-      a reachable URL. GitHub Pages off this repo is the zero-infrastructure
-      option (open decision #1 in the submission checklist).
-      *Done when:* the URL loads in a private window and is pasted into both
-      the dashboard and `docs/store-listing.md`.
+- [x] ~~Host the privacy policy and get a URL.~~ Live:
+      https://oo11o.github.io/keystack/privacy-policy/ — GitHub Pages
+      enabled on `master` / `/docs`, serving
+      `docs/privacy-policy/index.html`. Pasted into `docs/store-listing.md`.
+      **Still needs a human:** paste it into the Developer Dashboard's own
+      Privacy policy field — that part has no API this session can reach.
 - [ ] **Retake every screenshot.** All of them show the old name: the
       header reads "Keystack" and the middle column "Stacks". The framing
       and the demo config are still right, so it is a re-shoot, not a
