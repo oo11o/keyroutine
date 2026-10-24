@@ -131,7 +131,7 @@ Productivity (secondary: Developer Tools, if the Store allows one)
 
 ## Privacy policy URL
 
-https://oo11o.github.io/keystack/privacy-policy/
+https://oo11o.github.io/keyroutine/privacy-policy/
 
 Served from `docs/privacy-policy/index.html` via GitHub Pages (source:
 `master` branch, `/docs` path). Paste this into the Developer Dashboard's

@@ -45,7 +45,7 @@ pushed. What is missing is hosting, assets, and one real functionality gap
 ## Phase 1 — the things Google will not accept the listing without
 
 - [x] ~~Host the privacy policy and get a URL.~~ Live:
-      https://oo11o.github.io/keystack/privacy-policy/ — GitHub Pages
+      https://oo11o.github.io/keyroutine/privacy-policy/ — GitHub Pages
       enabled on `master` / `/docs`, serving
       `docs/privacy-policy/index.html`. Pasted into `docs/store-listing.md`.
       **Still needs a human:** paste it into the Developer Dashboard's own

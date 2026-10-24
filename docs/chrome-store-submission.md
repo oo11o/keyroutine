@@ -82,7 +82,7 @@ for any category that's *stored*, not just transmitted. That means declaring:
 This also requires certifying compliance with the **Limited Use** policy
 (no selling data, no use outside the extension's function, no use for
 credit/lending decisions) and providing a **hosted privacy policy URL** —
-live at https://oo11o.github.io/keystack/privacy-policy/.
+live at https://oo11o.github.io/keyroutine/privacy-policy/.
 
 ## What changed for an existing install
 
@@ -110,7 +110,7 @@ permanently inert for anyone who was not already granted.
 - Detailed description — lead with the single-purpose statement (see below), Google's reviewers check the listing against it.
 - At least one screenshot, 1280×800 or 640×400. One is ready: `docs/screenshots/listing-1280x800.png` (the builder with the demo config loaded). `docs/screenshot-config.json` is that config — reserved example.com/example.org hosts only, one routine per feature worth a frame (the call-only fetch grant among them). See "Screenshots" in the listing doc for what is shot and what is still missing.
 - Category: Productivity (or Developer Tools).
-- Privacy policy URL: https://oo11o.github.io/keystack/privacy-policy/ (done).
+- Privacy policy URL: https://oo11o.github.io/keyroutine/privacy-policy/ (done).
 
 ## Architecture note for reviewers (paste into the Data Usage justification field)
 
@@ -153,7 +153,7 @@ preparing all this — is in `docs/release-roadmap.md`.
 ## Open decisions (not mine to make)
 
 1. ~~Where to host the privacy policy~~ — closed. Live at
-   https://oo11o.github.io/keystack/privacy-policy/ via GitHub Pages
+   https://oo11o.github.io/keyroutine/privacy-policy/ via GitHub Pages
    (`master` branch, `/docs` path), serving `docs/privacy-policy/index.html`.
 2. ~~Whether `clipboardWrite` is still needed~~ — closed by removing the
    clipboard action ("Copy element to clipboard") outright, so nothing a
