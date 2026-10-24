@@ -22,10 +22,12 @@ pushed. What is missing is hosting, assets, and one real functionality gap
       ancestor, so nothing was lost or overwritten either direction.
 - [x] ~~Decide the version~~ — reset to **0.1.0** in `manifest.json` and
       `package.json`, a deliberate restart rather than continuing 0.6.0 —
-      nothing has ever actually shipped to the Store. Note: existing git
-      tags (`v0.2.0`–`v0.2.2`) predate this and sort ahead of a future
-      `v0.1.0` tag; harmless for the Store submission itself, just worth
-      knowing if you tag this release.
+      nothing has ever actually shipped to the Store.
+- [x] ~~Remove the stale version tags~~ — `v0.2.0`–`v0.2.2` deleted (local
+      and `origin`), since nothing has published and they predated the
+      0.1.0 reset. `archive/popup-stack-list` kept — it marks a branch, not
+      a version. **Tag `v0.1.0` right before submitting to Google**, not
+      before.
 - [x] ~~Write release notes for the breaking changes~~ — not needed. This is
       the first-ever submission; there is no existing install base to break.
       The "what changed for an existing install" section in
