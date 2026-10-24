@@ -137,6 +137,14 @@ Served from `docs/privacy-policy/index.html` via GitHub Pages (source:
 `master` branch, `/docs` path). Paste this into the Developer Dashboard's
 Privacy policy field.
 
+## Support URL
+
+https://tally.so/r/o9bqEx
+
+A Tally.so form for feedback or bug reports. Paste this into the Developer
+Dashboard's Support URL field; it's also linked from the privacy policy's
+Contact section.
+
 ## Permission justifications (for the Developer Dashboard form)
 
 **Optional host permission — `<all_urls>`:**

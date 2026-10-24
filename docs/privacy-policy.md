@@ -96,4 +96,5 @@ Store listing.
 
 ## Contact
 
-Questions about this policy: ymyr.vlad@gmail.com
+Questions about this policy: ymyr.vlad@gmail.com, or send feedback or a bug
+report through [this form](https://tally.so/r/o9bqEx).

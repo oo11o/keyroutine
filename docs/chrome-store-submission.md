@@ -111,6 +111,7 @@ permanently inert for anyone who was not already granted.
 - At least one screenshot, 1280×800 or 640×400. One is ready: `docs/screenshots/listing-1280x800.png` (the builder with the demo config loaded). `docs/screenshot-config.json` is that config — reserved example.com/example.org hosts only, one routine per feature worth a frame (the call-only fetch grant among them). See "Screenshots" in the listing doc for what is shot and what is still missing.
 - Category: Productivity (or Developer Tools).
 - Privacy policy URL: https://oo11o.github.io/keyroutine/privacy-policy/ (done).
+- Support URL: https://tally.so/r/o9bqEx (done — a Tally.so feedback form).
 
 ## Architecture note for reviewers (paste into the Data Usage justification field)
 
