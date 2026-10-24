@@ -423,6 +423,15 @@ kbd {
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field .label, .label { font-size: 13px; font-weight: 500; color: var(--muted); }
 .field .req { color: var(--danger); }
+.field-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.field-check input { margin: 0; accent-color: var(--accent); cursor: pointer; }
 .input, input[type="text"], input[type="number"], select, textarea {
   height: 40px;
   border-radius: 8px;
@@ -720,10 +729,6 @@ textarea.wrapbox {
 .var-row .value { flex: 1; }
 .vars .actions { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
 
-/* ── site access grants ───────────────────────────────────────────────── */
-
-.grantrow { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
-.grantrow .hint { margin: 0; }
 .patternlegend { margin: 0; line-height: 1.6; }
 .patternlegend code { font-size: 12px; }
 

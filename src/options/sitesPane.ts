@@ -4,8 +4,7 @@ import { groupSites, overBroadPattern, siteHost, siteScope, sitesFor } from "../
 import type { Site } from "../core/schema";
 import * as store from "./store";
 import { COMMON } from "./store";
-import { ensureEverywhere, ensureOrigin, hasEverywhere, hasOrigin } from "./grant";
-import { grantStatusRow } from "./grantRow";
+import { ensureOrigin, hasEverywhere, hasOrigin } from "./grant";
 
 // Column 1 — where. Which pages a routine is allowed to fire on: everywhere
 // ("Common"), or one of the sites below. The row for the page the builder was
@@ -66,11 +65,6 @@ function grantBadge(check: () => Promise<boolean>): HTMLElement {
 async function hasAllOrigins(site: Site): Promise<boolean> {
   if (site.patterns.length === 0) return false;
   const granted = await Promise.all(site.patterns.map(hasOrigin));
-  return granted.every(Boolean);
-}
-
-async function ensureAllOrigins(site: Site): Promise<boolean> {
-  const granted = await Promise.all(site.patterns.map(ensureOrigin));
   return granted.every(Boolean);
 }
 
@@ -224,23 +218,6 @@ function addButton(pageUrl: string | null, claimed: { domain: boolean; url: bool
   );
 }
 
-// One sentence per place this row appears, not one phrase with a noun
-// swapped in — a site grant is about routines running there, the Common
-// grant is about reaching every site at all, and (see stepsPane.ts) a fetch
-// grant is about a network request, never about running on a page. Blurring
-// those into one template reads as accurate everywhere and precise nowhere.
-function siteWording(label: "this site" | "this area"): { granted: string; missing: string } {
-  return {
-    granted: `Access granted — routines can run on ${label}.`,
-    missing: `Not granted yet — routines cannot run on ${label}.`
-  };
-}
-
-const commonWording: { granted: string; missing: string } = {
-  granted: "Access granted — routines can run on supported sites.",
-  missing: "Not granted yet — routines cannot run anywhere until this is granted."
-};
-
 function commonCard(): HTMLElement {
   return h(
     "div",
@@ -249,8 +226,7 @@ function commonCard(): HTMLElement {
       text:
         "Routines in Common work on every site. Put things you need everywhere here — " +
         "for example, pasting a test password."
-    }),
-    grantStatusRow(commonWording, hasEverywhere, ensureEverywhere).element
+    })
   );
 }
 
@@ -294,13 +270,20 @@ function siteSettings(siteId: string): HTMLElement {
   const areas = group && group.site.id === site.id ? group.areas : [];
   const count = store.routineCount({ kind: "site", siteId: site.id });
 
-  const grant = grantStatusRow(
-    siteWording(parent ? "this area" : "this site"),
-    () => hasAllOrigins(site),
-    () => ensureAllOrigins(site)
-  );
-
   const patternProblem = h("div", { class: "errtext", hidden: true });
+
+  // The only place left that can trigger chrome.permissions.request() at
+  // all — the standalone grant row/button was removed. Off means a typed
+  // pattern is added without asking Chrome for anything; there is currently
+  // no other way to ask afterward short of retyping the pattern.
+  const autoGrant = h("input", {
+    id: "site-auto-grant",
+    type: "checkbox",
+    checked: site.autoGrant !== false
+  });
+  autoGrant.addEventListener("change", () =>
+    store.patchSite(site.id, { autoGrant: autoGrant.checked ? undefined : false })
+  );
 
   add.addEventListener("keydown", (e) => {
     if ((e as KeyboardEvent).key !== "Enter") return;
@@ -319,7 +302,7 @@ function siteSettings(siteId: string): HTMLElement {
     patternProblem.hidden = true;
     add.value = "";
     store.patchSite(site.id, { patterns: [...site.patterns, pattern] });
-    void ensureOrigin(pattern).then(grant.refresh);
+    if (site.autoGrant !== false) void ensureOrigin(pattern);
   });
 
   return h(
@@ -352,6 +335,12 @@ function siteSettings(siteId: string): HTMLElement {
         " to add it."
       ),
       patternProblem,
+      h(
+        "label",
+        { class: "field-check" },
+        autoGrant,
+        "Automatically request access when I add a domain here"
+      ),
       // The three shapes a pattern can take, said as plainly as the add
       // field's own placeholder: what you'd type, and what it means. Run
       // together as one line rather than a list — four short facts, not
@@ -379,7 +368,6 @@ function siteSettings(siteId: string): HTMLElement {
         ? h("span", { class: "errtext", text: "Without a pattern this site matches nothing." })
         : null
     ),
-    site.patterns.length > 0 ? grant.element : null,
     h(
       "div",
       {},

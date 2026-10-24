@@ -49,16 +49,16 @@ has not granted. Grouped as the builder groups them.
 **Read**
 | Action | What it does | Result |
 |---|---|---|
-| Read element | Reads the value or text of an element the user picked | `$text` |
+| Read element | Reads the value or text of an element the user picked. **Only available in a routine scoped to a site** | `$text` |
 | Fetch URL | Requests a user-entered URL through the service worker, so the page's CORS rules do not apply. One request at a time. **Only available in a routine scoped to a site** | `$response` |
 
 **Act on the page**
 | Action | What it does | Result |
 |---|---|---|
-| Set field value | Sets an input's value through the native setter and fires `input`/`change` | — |
-| Focus element | Moves keyboard focus to an element | — |
-| Click element | Clicks an element | — |
-| Press key | Sends one `KeyboardEvent.key` to whatever has focus | — |
+| Set field value | Sets an input's value through the native setter and fires `input`/`change`. **Only available in a routine scoped to a site** | — |
+| Focus element | Moves keyboard focus to an element. **Only available in a routine scoped to a site** | — |
+| Click element | Clicks an element. **Only available in a routine scoped to a site** | — |
+| Press key | Sends one `KeyboardEvent.key` to whatever has focus. **Only available in a routine scoped to a site** | — |
 
 **Wait**
 | Action | What it does | Result |
@@ -80,13 +80,18 @@ has not granted. Grouped as the builder groups them.
 A site rule also may not claim every website — `*` is refused — so "scoped
 to a site" always names somewhere.
 
-**Fetch URL cannot exist in a Common ("everywhere") routine.** A Common routine
-fires on every page, so there is no site rule to say what it was for; an
-action that reaches off the page therefore has to live in a routine the user
-scoped to a specific site. The builder does not offer the type there, a
-routine holding one cannot be moved to Common, importing or saving such a
-config is refused, and the runner refuses the action outright — so neither
-an import nor a hand-edited storage entry can get a fetch to run unscoped.
+**Six of the eleven cannot exist in a Common ("everywhere") routine:** Fetch
+URL, and every action that names a CSS selector (Read element, Set field
+value, Focus element, Click element, Press key). A Common routine fires on
+every page, so there is no site rule to say what a selector written for one
+page's markup was for, or what an outbound request was for — either way,
+nothing says it was meant to run *here*. The builder does not offer these six
+types in a Common routine, a routine holding one cannot be moved to Common,
+importing or saving such a config is refused, and the runner refuses the
+action outright — so neither an import nor a hand-edited storage entry can
+get one of these six to run unscoped. What Common may still hold: Wait, both
+popups, and both navigate actions — nothing that depends on a specific
+page's structure.
 
 Worth noting for a reviewer: every URL, selector and value above is typed by
 the user. Two actions produce a variable (`Read element`, `Fetch URL`), each

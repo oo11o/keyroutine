@@ -99,6 +99,7 @@ describe("executeRoutine", () => {
       name: "Broken Thing",
       binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site", // clickBySelector is site-only — see core/stepMeta.ts
       steps: [{ id: "s1", type: "clickBySelector", selector: "#missing" }]
     };
 

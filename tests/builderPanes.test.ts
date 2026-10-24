@@ -18,14 +18,18 @@ const SEED = {
   sites: [{ id: "local", name: "dzo.lh", patterns: ["dzo.lh"] }],
   routines: [
     {
+      // Common, deliberately: its own steps only ever need to be "three
+      // actions, ending in a popup" for the tests that use it — read/click/
+      // input selectors are site-only now (see core/stepMeta.ts), so this
+      // stays with types Common may actually hold.
       id: "show-tender",
       name: "Show Tender",
       binding: { code: "Digit7", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       steps: [
-        { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
-        { id: "s2", type: "inputToSelector", selector: "#note", value: "$s1" },
-        { id: "s3", type: "popupJson", title: "Tender", body: "$s1" }
+        { id: "s1", type: "wait", ms: 10 },
+        { id: "s2", type: "wait", ms: 10 },
+        { id: "s3", type: "popupJson", title: "Tender", body: "$routines" }
       ]
     },
     {
@@ -159,6 +163,60 @@ describe("the Sites column", () => {
     expect(store.getConfig().sites[0].patterns).toEqual(["*.dzo.com.ua"]);
   });
 
+  it("checks the auto-request box by default, and requests access on Enter", async () => {
+    const fake = stubChromePermissions();
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    const box = panes.sites.querySelector("#site-auto-grant") as HTMLInputElement;
+    expect(box.checked).toBe(true);
+
+    const add = panes.sites.querySelector("#site-add-pattern") as HTMLInputElement;
+    add.value = "dzo.lh/new";
+    add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    await vi.waitFor(() => expect(fake.requested).toEqual([["*://dzo.lh/*"]]));
+  });
+
+  it("unchecking auto-request adds the pattern without asking Chrome for it", async () => {
+    const fake = stubChromePermissions();
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    const box = panes.sites.querySelector("#site-auto-grant") as HTMLInputElement;
+    box.checked = false;
+    box.dispatchEvent(new Event("change"));
+    draw();
+
+    // Unchecked is a preference, not a grant state — it must not get written
+    // as a flag the builder could later mistake for "access is in place".
+    expect(store.getConfig().sites[0].autoGrant).toBe(false);
+
+    const add = panes.sites.querySelector("#site-add-pattern") as HTMLInputElement;
+    add.value = "dzo.lh/new";
+    add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    expect(store.getConfig().sites[0].patterns).toContain("dzo.lh/new");
+    // Nothing else in the builder can ask Chrome for this host now — the
+    // standalone grant row was removed — so unchecking this is currently a
+    // one-way door until the pattern is retyped.
+    expect(fake.requested).toEqual([]);
+  });
+
+  it("re-checking auto-request clears the stored preference rather than writing true", () => {
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.patchSite("local", { autoGrant: false });
+    draw();
+
+    const box = panes.sites.querySelector("#site-auto-grant") as HTMLInputElement;
+    expect(box.checked).toBe(false);
+
+    box.checked = true;
+    box.dispatchEvent(new Event("change"));
+
+    expect(store.getConfig().sites[0].autoGrant).toBeUndefined();
+  });
+
   it("offers the current host as a new site only when no site claims it", async () => {
     await store.init("https://example.com/", []);
     draw();
@@ -229,33 +287,6 @@ describe("the Sites column", () => {
 
     expect(texts(panes.sites, ".settings-head")).toEqual(["Area settings"]);
     expect(panes.sites.textContent).toContain("An area of dzo.lh");
-  });
-
-  it("says when a selected site's access is not yet granted, and grants it on click", async () => {
-    const fake = stubChromePermissions(); // nothing granted
-    store.selectScope({ kind: "site", siteId: "local" });
-    draw();
-
-    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Not granted yet"));
-
-    const grantBtn = [...panes.sites.querySelectorAll(".grantrow button")][0] as HTMLElement;
-    grantBtn.click();
-
-    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Access granted"));
-    expect(fake.requested).toEqual([["*://dzo.lh/*"]]);
-  });
-
-  it("offers a grant for Common, scoped to every site rather than one host", async () => {
-    const fake = stubChromePermissions();
-    store.selectScope(store.COMMON);
-    draw();
-
-    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Not granted yet"));
-
-    const grantBtn = [...panes.sites.querySelectorAll(".grantrow button")][0] as HTMLElement;
-    grantBtn.click();
-
-    await vi.waitFor(() => expect(fake.requested).toEqual([["<all_urls>"]]));
   });
 
   it("badges only the rows that cannot fire yet, not the granted ones", async () => {
@@ -492,29 +523,6 @@ describe("the Actions column", () => {
   // A fetchUrl step calls a host of its own, which the worker refuses until
   // that host is granted — and granting it here must not turn api.test into
   // a site KeyRoutine runs on.
-  it("offers the fetch step its own call-only grant", async () => {
-    const fake = stubChromePermissions(); // nothing granted
-    openStep("s2");
-
-    await vi.waitFor(() => {
-      const row = panes.steps.querySelector(".cardbody .grantrow")!;
-      expect(row.textContent).toContain("requests to api.test are blocked");
-      expect(row.textContent).toContain("not a routine running on the host's pages");
-    });
-
-    (panes.steps.querySelector(".cardbody .grantrow button") as HTMLElement).click();
-
-    await vi.waitFor(() => expect(fake.requested).toEqual([["*://api.test/*"]]));
-  });
-
-  it("says nothing about granting when the fetch URL names no concrete host", async () => {
-    stubChromePermissions();
-    store.patchStep("s2", { url: "https://$base/items" });
-    openStep("s2");
-
-    await vi.waitFor(() => expect(panes.steps.querySelector(".cardbody .grantrow")).toBeNull());
-  });
-
   it("gives a long value a field that wraps instead of scrolling sideways", () => {
     openStep("s2");
     const url = panes.steps.querySelector("#f-url") as HTMLTextAreaElement;
@@ -775,7 +783,11 @@ describe("a Common routine and the actions it may not hold", () => {
     const enabled = [...panes.steps.querySelectorAll(".type-menu button")].filter(
       (b) => !(b as HTMLButtonElement).disabled
     );
-    expect(enabled).toHaveLength(10); // eleven types, minus Fetch URL
+    // Eleven types; six are site-only now (Fetch URL plus the five
+    // selector-based actions — see siteOnly in core/stepMeta.ts), leaving
+    // five Common can actually offer: wait, the two popups, and the two
+    // navigate actions.
+    expect(enabled).toHaveLength(5);
   });
 
   it("flags a fetch that is already there, from an older config", () => {
@@ -788,8 +800,6 @@ describe("a Common routine and the actions it may not hold", () => {
 
     expect(texts(panes.steps, ".stephead .errchip")).toContain("Needs a site");
     expect(texts(panes.steps, ".cardbody .errtext").join(" ")).toContain("scoped to a site");
-    // No grant row either: nothing to grant for an action that cannot run.
-    expect(panes.steps.querySelector(".cardbody .grantrow")).toBeNull();
   });
 });
 

@@ -372,6 +372,20 @@ describe("parseConfig — errors as data", () => {
     expect(errorsOf(raw)).toContain('site "s": needs at least one URL pattern');
   });
 
+  it("carries autoGrant: false through, and omits it when the site never set it", () => {
+    const config = parsed({
+      routines: [],
+      sites: [
+        { id: "a", name: "a", patterns: ["a.test"], autoGrant: false },
+        { id: "b", name: "b", patterns: ["b.test"] }
+      ]
+    });
+
+    expect(config.sites[0].autoGrant).toBe(false);
+    expect(config.sites[1].autoGrant).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(config.sites[1], "autoGrant")).toBe(false);
+  });
+
   it("rejects a binding with no key code", () => {
     expect(errorsOf({ routines: [{ ...V1.routines[0], binding: {} }] })).toContain(
       'routine "copy-id": binding needs a key code'

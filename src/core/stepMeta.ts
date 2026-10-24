@@ -96,10 +96,14 @@ export type StepMeta = {
   // declining to offer "and then?" where there is nothing sensible to add.
   endsRoutine?: boolean;
   // True when the step may only appear in a routine scoped to a site, never in
-  // a Common ("everywhere") one. Least privilege: an action that reaches off
-  // the page the user is on has no business in a routine that fires on every
-  // page, where there is no site rule saying what it was for. Enforced in the
-  // builder (the type is not offered), on save, and again in the runner — see
+  // a Common ("everywhere") one. Least privilege, for two different reasons
+  // that land on the same flag: fetchUrl reaches off the page entirely, and a
+  // selector-based action (read/click/focus/fill an element, press a key
+  // aimed by one) names a piece of DOM specific to one site's markup — a
+  // selector written for one page means nothing, or means the wrong thing, on
+  // every other page a Common routine would also fire on. Either way there is
+  // no site rule saying what the action was for. Enforced in the builder (the
+  // type is not offered), on save, and again in the runner — see
   // siteOnlySteps below.
   siteOnly?: boolean;
   // One line for the step list. Must tolerate a half-filled step — the
@@ -146,6 +150,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Read element",
     group: "read",
     icon: "eye",
+    siteOnly: true,
     help: "Reads an element's value or text, so later actions can use it.",
     produces: true,
     outNote: "The element's value, or its text when it is not a field.",
@@ -178,6 +183,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Set field value",
     group: "write",
     icon: "pencil",
+    siteOnly: true,
     help: "Sets an input's value through the native setter and fires input/change, so React-style forms notice.",
     produces: false,
     outNote: "No result — it fills the field and nothing else.",
@@ -197,6 +203,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Focus element",
     group: "write",
     icon: "crosshair",
+    siteOnly: true,
     help: "Puts the keyboard focus on an element — pair it with Press key, which goes to whatever has focus.",
     produces: false,
     outNote: "No result — it moves the keyboard focus.",
@@ -207,6 +214,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Click element",
     group: "write",
     icon: "pointer",
+    siteOnly: true,
     help: "Clicks an element on the page. If the click navigates away, the rest of the routine is lost — put a Wait on the next page instead of assuming.",
     produces: false,
     outNote: "No result — it clicks and nothing else.",
@@ -217,6 +225,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Press key",
     group: "write",
     icon: "key",
+    siteOnly: true,
     help: "Sends one key to whatever currently has focus. Aim it with Focus element first.",
     produces: false,
     outNote: "No result — it sends the key and nothing else.",

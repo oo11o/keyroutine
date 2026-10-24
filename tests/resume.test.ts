@@ -8,13 +8,15 @@ vi.mock("../src/page/navigate", async (importOriginal) => {
 });
 
 // The routine a suspended run comes back to: the navigation already happened
-// on the previous page, so only s3 is left.
+// on the previous page, so only s3 is left. Scoped to a site: read/input are
+// site-only (see core/stepMeta.ts).
 function routine(): Routine {
   return {
     id: "sync",
     name: "Sync Tender",
     binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
+    siteId: "site",
     steps: [
       { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
       { id: "s2", type: "openUrlInCurrentTab", url: "http://dzo.lh/tenders/new" },

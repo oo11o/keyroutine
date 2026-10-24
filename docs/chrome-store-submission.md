@@ -90,14 +90,20 @@ easy option since there's no backend) before the listing can be submitted.
 A profile that already had routines configured before this change has none of
 the new per-site grants — the old `host_permissions: ["<all_urls>"]` covered
 everything, so nothing needed asking. After updating, every site a routine
-was scoped to is marked "Not granted" in the Sites list and shows "Not
-granted yet" on its settings card until the user clicks "Grant access"
-there (or on Common, for an "everywhere" routine). The list marks only the
-sites that still need a grant — once one is granted, its row carries no
-badge at all — so after updating, the remaining work is exactly what is
-still flagged. This is a one-time cost of the narrower permission model and
-is worth calling out in the update's release notes rather than letting it
-surface as "my hotkeys stopped working."
+was scoped to is marked "Not granted" in the Sites list — the list marks only
+the sites that still need a grant, so after updating the remaining work is
+exactly what is still flagged. This is a one-time cost of the narrower
+permission model and is worth calling out in the update's release notes
+rather than letting it surface as "my hotkeys stopped working."
+
+**Open problem, not yet solved:** the standalone "Grant access" row/button
+(site settings, Common, a Fetch URL step) was removed from the builder. A new
+pattern typed with the auto-request checkbox on still asks Chrome
+immediately, same as before — but that is now the *only* path left. A site
+granted before this change keeps working, but a profile updating into this
+state, Common, and any Fetch URL step have no button anywhere to ask Chrome
+for access. Needs a replacement before this ships, or Common/fetchUrl are
+permanently inert for anyone who was not already granted.
 
 ## Listing assets still needed
 

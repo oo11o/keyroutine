@@ -17,6 +17,7 @@ describe("runRoutine — $<step.id> auto-binding", () => {
       name: "Sync",
       binding: { code: "Digit2", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site",
       steps: [
         { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "inputToSelector", selector: "#search", value: "$s1" }
@@ -39,6 +40,7 @@ describe("runRoutine — $<step.id> auto-binding", () => {
       name: "Sync2",
       binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site",
       steps: [
         { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "inputToSelector", selector: "#search", value: "$value" }
@@ -58,6 +60,7 @@ describe("runRoutine — $<step.id> auto-binding", () => {
       name: "Producer",
       binding: { code: "Digit4", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site",
       steps: [{ id: "s1", type: "readBySelector", selector: "#a", saveAs: "s1" }]
     };
     const consumer: Routine = {
@@ -65,6 +68,7 @@ describe("runRoutine — $<step.id> auto-binding", () => {
       name: "Consumer",
       binding: { code: "Digit5", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site",
       steps: [{ id: "s2", type: "inputToSelector", selector: "#a", value: "$s1" }]
     };
 
@@ -79,6 +83,7 @@ describe("runRoutine — $<step.id> auto-binding", () => {
       name: "Sync",
       binding: { code: "Digit2", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site",
       steps: [
         { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "inputToSelector", selector: "#search", value: "$s1" }
@@ -116,6 +121,7 @@ describe("runRoutine — the popup step", () => {
       name: "Show",
       binding: { code: "Digit6", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site",
       steps: [
         { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
         { id: "s2", type: "popup", body: "ID: $s1" }
@@ -143,6 +149,7 @@ describe("runRoutine — the popup step", () => {
       name: "Hotkeys",
       binding: { code: "Digit0", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site",
       steps: [{ id: "s1", type: "popup", title: "KeyRoutine hotkeys", body: "$routines" }]
     };
     const other: Routine = {
@@ -150,6 +157,7 @@ describe("runRoutine — the popup step", () => {
       name: "Copy Tender",
       binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site",
       steps: []
     };
 
@@ -173,6 +181,7 @@ describe("runRoutine — the popup step", () => {
       name: "Bad",
       binding: { code: "Digit7", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
+      siteId: "site",
       steps: [{ id: "s1", type: "popup", body: "$typo" }]
     };
 

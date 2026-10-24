@@ -3,12 +3,17 @@ import { runRoutine, StepError } from "../src/content/runner";
 import { MAX_WAIT_MS } from "../src/page/wait";
 import type { Routine, Step } from "../src/core/schema";
 
+// Scoped to a site: several step types here are site-only now (anything
+// that names a selector, since a selector written for one page's markup
+// means nothing, or the wrong thing, on every other page a Common routine
+// would also fire on) — see siteOnly in core/stepMeta.ts.
 function routineOf(...steps: Step[]): Routine {
   return {
     id: "login",
     name: "Log in",
     binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
+    siteId: "site",
     steps
   };
 }

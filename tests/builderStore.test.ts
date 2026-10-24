@@ -15,11 +15,16 @@ const SEED = {
   ],
   routines: [
     {
+      // Common, deliberately — several precedence/conflict tests depend on
+      // that. Its own step stays a type Common may actually hold: both
+      // producer types (read/fetch) are site-only now (core/stepMeta.ts),
+      // so there is no Common-safe way to keep this step naming $s1 — tests
+      // that need a producer to rename scope their own routine to a site.
       id: "copy-id",
       name: "Copy Tender",
       binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
-      steps: [{ id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" }]
+      steps: [{ id: "s1", type: "wait", ms: 10 }]
     },
     {
       id: "local-sync",
@@ -258,16 +263,21 @@ describe("editing steps", () => {
 
   it("names the later steps a variable rename would break", async () => {
     await open();
-    store.selectRoutine("copy-id");
+    // A site, not Common: both producer types (read/fetch) are site-only —
+    // see core/stepMeta.ts.
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.selectRoutine("local-sync");
+    store.addStep("readBySelector");
+    const reader = store.currentStep()!.id;
+    store.patchStep(reader, { selector: "#tender_id", saveAs: "tender" });
     store.addStep("fetchUrl");
     const fetcher = store.currentStep()!.id;
-    store.patchStep(fetcher, { url: "https://api.test/t/$s1" });
+    store.patchStep(fetcher, { url: "https://api.test/t/$tender" });
 
-    // "s1" is the seed read action's name, which the fetch above reads.
-    const breaks = store.renamesBreak(store.currentRoutine()!, "s1");
+    const breaks = store.renamesBreak(store.currentRoutine()!, "tender");
 
     expect(breaks).toMatchObject([{ stepId: fetcher }]);
-    expect(breaks[0].message).toContain("$s1");
+    expect(breaks[0].message).toContain("$tender");
   });
 
   it("finds nothing to break when no template mentions the step", async () => {
@@ -572,7 +582,9 @@ describe("import and export", () => {
           name: "Old",
           binding: { code: "Digit4", ctrl: true, alt: true, shift: false, meta: false },
           enabled: true,
-          steps: [{ id: "s1", type: "readBySelector", selector: "#x", saveAs: "s1" }]
+          // Common-safe: a v1 config always migrates to siteId: null, and
+          // read/fetch are both site-only now.
+          steps: [{ id: "s1", type: "popup", body: "hi" }]
         }
       ]
     });

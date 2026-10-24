@@ -4,10 +4,11 @@ What is left between the code as it stands and a submitted listing, in the
 order it has to happen. Each item says how to know it is done — a roadmap
 whose items cannot be checked is a wish list.
 
-Status as of 2026-10-23: the extension itself is submission-shaped (narrow
-permissions, no clipboard, fetch scoped to a site, the rename to KeyRoutine
-done, a site pattern can no longer claim every website). What is missing is
-almost entirely around it — hosting, assets, a merge, and one real bug.
+Status as of 2026-10-24: the extension itself is submission-shaped (narrow
+permissions, no clipboard, fetch and every selector-based action scoped to a
+site, the rename to KeyRoutine done, a site pattern can no longer claim every
+website). What is missing is mostly around it — hosting, assets, a merge —
+plus one new, real functionality gap from today's work (Phase 5).
 
 ---
 
@@ -15,13 +16,13 @@ almost entirely around it — hosting, assets, a merge, and one real bug.
 
 Nothing else can be released from where the work currently sits.
 
-- [ ] **Merge the branch chain, in order.** Five topic branches are stacked:
+- [ ] **Merge the branch chain, in order.** Six topic branches are stacked:
       `chore/chrome-store-submission` → `feat/site-only-fetch` →
       `fix/import-dialog-focus` → `refactor/rename-to-keyroutine` →
-      `feat/ids-names-and-site-patterns`. Master is 37 commits behind the
-      tip. Merging out of order drags another branch's commits into the
-      wrong PR.
-      *Done when:* `git log master..feat/ids-names-and-site-patterns` is empty.
+      `feat/ids-names-and-site-patterns` → `feat/vars-reusability-copy`.
+      Master is 48 commits behind the tip. Merging out of order drags
+      another branch's commits into the wrong PR.
+      *Done when:* `git log master..feat/vars-reusability-copy` is empty.
 - [ ] **Decide the version.** Manifest and `package.json` say 0.6.0, and the
       last tag is v0.2.2. This release removes a step type, narrows every
       permission and changes where fetch may live — a minor bump at least.
@@ -35,13 +36,13 @@ Nothing else can be released from where the work currently sits.
       2. "Copy element to clipboard" is gone; those steps become "Read
          element" on load;
       3. Fetch URL now only runs in a routine scoped to a site.
-- [ ] **Commit the toast/UX redesign sitting in the working tree.** Not yet
-      on any branch: the hotkey toast now fires the instant a routine
-      matches (not after it finishes), a fetch step's spinner shows in its
-      own slot beside it instead of on top of it, an action's id is separate
-      from the name its result is saved under, a site pattern can no longer
-      claim every website, and several UI copy/color changes. 469 tests
-      currently pass against it.
+- [x] ~~Commit the toast/UX redesign~~ — done (`23a0f17` and later on
+      `feat/vars-reusability-copy`).
+- [ ] **Commit today's work: the expanded site-only rule and the grant-row
+      removal.** 23 files sitting uncommitted — every selector-based action
+      is site-only now, not just Fetch URL, and the standalone "Grant
+      access" row is gone from the builder entirely (see Phase 5 below for
+      what that costs). 478 tests pass against it.
       *Done when:* `git status` is clean and it has a commit message.
 
 ## Phase 1 — the things Google will not accept the listing without
@@ -106,7 +107,7 @@ Nothing else can be released from where the work currently sits.
       script for it, so it is a manual zip today and therefore a thing to
       get wrong at the worst moment.
 - [ ] **CI.** `.github/` has a PR template and no workflows, while the repo
-      has 469 tests and a typecheck worth running on every PR.
+      has 478 tests and a typecheck worth running on every PR.
 - [ ] **A LICENSE file.** `package.json` claims ISC and no license text
       ships.
 - [ ] **Promotional tile** (440×280). Optional, but listings without one
@@ -116,6 +117,24 @@ Nothing else can be released from where the work currently sits.
 
 - [ ] Expect a review round on the permission justifications; the answers
       are already written, so it should be a paste rather than a rewrite.
-- [ ] Decide whether `siteOnly` should also cover the two navigate actions.
-      They open a URL rather than read a response, which is why they were
-      left out — worth revisiting with a reviewer's eye rather than ours.
+- [x] `siteOnly` now also covers every selector-based action (Read element,
+      Set field value, Focus element, Click element, Press key), not just
+      Fetch URL — a selector written for one page's markup means nothing, or
+      means the wrong thing, on any other page a Common routine would also
+      fire on. The two navigate actions (open URL in a new/current tab)
+      stayed out: they don't depend on the current page's structure.
+
+## Phase 5 — the grant row was removed, and nothing replaced it
+
+- [ ] **Decide how Common and a Fetch URL step ever get access again.** The
+      standalone "Grant access" row (site settings, Common, a Fetch URL
+      step) is gone. A site pattern typed with the auto-request checkbox on
+      still asks Chrome immediately — that part still works — but it is now
+      the *only* path in the whole builder that can call
+      `chrome.permissions.request()`. Common and every Fetch URL step have
+      no UI left to ever grant them, and a site whose pattern was added with
+      the checkbox off, or that existed before this session, has no way to
+      ask again short of retyping the pattern.
+      *Done when:* there is some way, anywhere in the builder, to grant
+      Common and a Fetch URL step's host — even if it is not the row that
+      was removed.

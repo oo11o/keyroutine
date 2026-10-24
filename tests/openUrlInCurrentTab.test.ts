@@ -28,12 +28,14 @@ function visitedUrl(): string {
   return went.mock.calls[0][0];
 }
 
+// Scoped to a site: readBySelector below is site-only (see core/stepMeta.ts).
 function routineWith(url: string): Routine {
   return {
     id: "sync",
     name: "Sync Tender",
     binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
+    siteId: "site",
     steps: [
       { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
       { id: "s2", type: "openUrlInCurrentTab", url }
