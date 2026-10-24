@@ -28,11 +28,10 @@ pushed. What is missing is hosting, assets, and one real functionality gap
       0.1.0 reset. `archive/popup-stack-list` kept — it marks a branch, not
       a version. **Tag `v0.1.0` right before submitting to Google**, not
       before.
-- [x] ~~Write release notes for the breaking changes~~ — not needed. This is
-      the first-ever submission; there is no existing install base to break.
-      The "what changed for an existing install" section in
-      `docs/chrome-store-submission.md` stays as internal documentation of
-      the permission model, not as user-facing release notes.
+- [x] ~~Write release notes for the breaking changes~~ — not needed, no
+      existing install base to break, but wrote plain 0.1.0 release notes
+      anyway: `docs/release-notes.md`. Paste into the Dashboard's "What's
+      new" field at submission time.
 - [x] ~~Commit the toast/UX redesign~~ — done.
 - [x] ~~Commit the site-only expansion + grant-row removal~~ — done
       (`44e417a`), now merged to master.
