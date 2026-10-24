@@ -7,26 +7,25 @@ whose items cannot be checked is a wish list.
 Status as of 2026-10-24: the extension itself is submission-shaped (narrow
 permissions, no clipboard, fetch and every selector-based action scoped to a
 site, the rename to KeyRoutine done, a site pattern can no longer claim every
-website). What is missing is mostly around it — hosting, assets, a merge —
-plus one new, real functionality gap from today's work (Phase 5).
+website, version reset to 0.1.0). The branch chain is merged to master and
+pushed. What is missing is hosting, assets, and one real functionality gap
+(Phase 5).
 
 ---
 
 ## Phase 0 — get the work onto master
 
-Nothing else can be released from where the work currently sits.
-
-- [ ] **Merge the branch chain, in order.** Six topic branches are stacked:
-      `chore/chrome-store-submission` → `feat/site-only-fetch` →
-      `fix/import-dialog-focus` → `refactor/rename-to-keyroutine` →
-      `feat/ids-names-and-site-patterns` → `feat/vars-reusability-copy`.
-      Master is 48 commits behind the tip. Merging out of order drags
-      another branch's commits into the wrong PR.
-      *Done when:* `git log master..feat/vars-reusability-copy` is empty.
-- [ ] **Decide the version.** Manifest and `package.json` say 0.6.0, and the
-      last tag is v0.2.2. This release removes a step type, narrows every
-      permission and changes where fetch may live — a minor bump at least.
-      *Done when:* manifest, `package.json` and the tag agree.
+- [x] ~~Merge the branch chain~~ — done. All six branches merged into
+      `master` (`dc5cba0`) and pushed to `origin/master`. Verified the merge
+      was clean before pushing: `origin/master`'s own two "ahead" commits
+      were pure PR-merge wrappers with zero file diff against the shared
+      ancestor, so nothing was lost or overwritten either direction.
+- [x] ~~Decide the version~~ — reset to **0.1.0** in `manifest.json` and
+      `package.json`, a deliberate restart rather than continuing 0.6.0 —
+      nothing has ever actually shipped to the Store. Note: existing git
+      tags (`v0.2.0`–`v0.2.2`) predate this and sort ahead of a future
+      `v0.1.0` tag; harmless for the Store submission itself, just worth
+      knowing if you tag this release.
 - [ ] **Write release notes that lead with the breaking parts**, because
       every one of them will otherwise arrive as "my hotkeys stopped
       working":
@@ -35,15 +34,13 @@ Nothing else can be released from where the work currently sits.
          changed for an existing install");
       2. "Copy element to clipboard" is gone; those steps become "Read
          element" on load;
-      3. Fetch URL now only runs in a routine scoped to a site.
-- [x] ~~Commit the toast/UX redesign~~ — done (`23a0f17` and later on
-      `feat/vars-reusability-copy`).
-- [ ] **Commit today's work: the expanded site-only rule and the grant-row
-      removal.** 23 files sitting uncommitted — every selector-based action
-      is site-only now, not just Fetch URL, and the standalone "Grant
-      access" row is gone from the builder entirely (see Phase 5 below for
-      what that costs). 478 tests pass against it.
-      *Done when:* `git status` is clean and it has a commit message.
+      3. Fetch URL and every selector-based action now only run in a routine
+         scoped to a site.
+- [x] ~~Commit the toast/UX redesign~~ — done.
+- [x] ~~Commit the site-only expansion + grant-row removal~~ — done
+      (`44e417a`), now merged to master.
+- [ ] **Commit the version bump.** `package.json` and `manifest.json` are
+      uncommitted right now.
 
 ## Phase 1 — the things Google will not accept the listing without
 
@@ -72,16 +69,14 @@ Nothing else can be released from where the work currently sits.
 
 ## Phase 2 — bugs and risks found while preparing this
 
-- [ ] **A site with a port cannot be granted.** `permissionOrigin()` and
-      `fetchOrigin()` both emit `*://localhost:8000/*`, and Chrome match
-      patterns do not allow a port — `chrome.permissions.request()` rejects
-      it outright. So a routine scoped to `localhost:8000` or a staging host
-      on a non-default port can never be granted, and neither can a fetch to
-      one. The fix is to drop the port when deriving the permission origin
-      (`*://localhost/*` covers every port on that host) while KeyRoutine's own
-      matcher keeps matching the port as written.
-      *Done when:* a site pattern with a port can be granted, and a test
-      covers both derivations.
+- [x] ~~A site with a port cannot be granted.~~ Fixed — `permissionOrigin()`
+      and `fetchOrigin()` now drop the port before building the origin
+      (`*://localhost/*` instead of `*://localhost:8000/*`), since Chrome
+      match patterns have no port syntax and the permission was host-wide
+      regardless. `matchesPattern()` — what a routine actually runs
+      through — still matches the port exactly, so a routine written for
+      :8000 does not also fire on :9000. Three new tests cover both
+      directions.
 - [ ] **Verify the Import paste fix in a real browser.** The jsdom test
       pins the autofocus declaration, but jsdom has no modal dialog — only
       Chrome can confirm one ⌘V is now enough. If it is not, the cause is

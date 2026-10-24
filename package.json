@@ -1,6 +1,6 @@
 {
   "name": "hotkey_plugin",
-  "version": "0.6.0",
+  "version": "0.1.0",
   "description": "KeyRoutine — hotkey macros for any site.",
   "type": "module",
   "scripts": {

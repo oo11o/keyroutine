@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KeyRoutine",
-  "version": "0.6.0",
+  "version": "0.1.0",
   "description": "Hotkey macros for any site.",
   "icons": {
     "16": "icons/icon16.png",

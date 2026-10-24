@@ -210,13 +210,24 @@ export function patternHost(pattern: string): string {
   return (slash === -1 ? afterScheme : afterScheme.slice(0, slash)).toLowerCase();
 }
 
+// Chrome match patterns (what chrome.permissions.request() takes) have no
+// syntax for a port — "*://localhost:8000/*" is rejected outright, not
+// narrowed. Dropping it is still sound: the permission is host-wide already
+// (every path, every scheme via "*://"), so "*://localhost/*" covers every
+// port on that host, and KeyRoutine's own matching (patternToRegExp) is what
+// actually narrows a routine to the port written in its pattern — this only
+// ever decided whether the content script could be on the host at all.
+function stripPort(host: string): string {
+  return host.split(":")[0];
+}
+
 // The chrome.permissions origin a pattern needs granted before a routine
 // scoped to it can run — host-only, even for a URL-level pattern. KeyRoutine's
 // own matching (patternToRegExp) still decides which routines fire once the
 // content script is there; this only decides whether it can be there at all.
 export function permissionOrigin(pattern: string): string {
   const host = patternHost(pattern);
-  return host === "" ? "" : `*://${host}/*`;
+  return host === "" ? "" : `*://${stripPort(host)}/*`;
 }
 
 // The origin a fetchUrl step needs granted before the worker will call it
@@ -234,7 +245,7 @@ export function fetchOrigin(url: string): string {
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
   if (parsed.host === "" || /[$\{]/.test(parsed.host)) return "";
-  return `*://${parsed.host.toLowerCase()}/*`;
+  return `*://${stripPort(parsed.host.toLowerCase())}/*`;
 }
 
 // "Everywhere" has no host to derive a permission from — it means literally

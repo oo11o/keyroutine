@@ -277,6 +277,16 @@ describe("permissionOrigin", () => {
   it("has no origin for a blank pattern", () => {
     expect(permissionOrigin("  ")).toBe("");
   });
+
+  // Chrome match patterns have no syntax for a port — "*://localhost:8000/*"
+  // is rejected outright by chrome.permissions.request(), not narrowed. The
+  // permission is host-wide regardless (every path, every scheme), so
+  // dropping the port loses nothing the permission itself could express;
+  // matchesPattern (below) is what still respects the port a routine wrote.
+  it("drops the port — chrome.permissions.request() has no syntax for one", () => {
+    expect(permissionOrigin("localhost:8000/orders")).toBe("*://localhost/*");
+    expect(permissionOrigin("localhost:8000")).toBe("*://localhost/*");
+  });
 });
 
 describe("siteHost / siteScope", () => {
@@ -412,6 +422,14 @@ describe("queries and fragments", () => {
     expect(matchesPattern("https://evil.test/#https://dzo.lh/", "dzo.lh")).toBe(false);
   });
 
+  // The permission origin drops the port (see permissionOrigin above) — the
+  // matcher a routine actually runs through does not, and must not, or a
+  // routine written for :8000 would also fire on :9000.
+  it("still matches the port exactly, even though the permission for it does not", () => {
+    expect(matchesPattern("http://localhost:8000/orders", "localhost:8000/orders")).toBe(true);
+    expect(matchesPattern("http://localhost:9000/orders", "localhost:8000/orders")).toBe(false);
+  });
+
   it("treats a bare host pattern as matching with or without www.", () => {
     expect(matchesPattern("https://www.ukr.net/", "ukr.net")).toBe(true);
     expect(matchesPattern("https://ukr.net/", "www.ukr.net")).toBe(true);
@@ -479,8 +497,13 @@ describe("fetchOrigin", () => {
     expect(fetchOrigin("file:///etc/passwd")).toBe("");
   });
 
-  it("keeps a port, which is part of the origin", () => {
-    expect(fetchOrigin("http://localhost:8080/api")).toBe("*://localhost:8080/*");
+  // Same reason as permissionOrigin: chrome.permissions.request() cannot
+  // represent a port, so one is dropped from the origin asked for — a
+  // fetchUrl step aimed at a dev server on a non-default port can still be
+  // granted. The URL requested at runtime still carries the real port
+  // (background/worker.ts fetches the step's own url, not this origin).
+  it("drops the port — chrome.permissions.request() has no syntax for one", () => {
+    expect(fetchOrigin("http://localhost:8080/api")).toBe("*://localhost/*");
   });
 });
 
