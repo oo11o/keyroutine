@@ -9,7 +9,6 @@ export type Binding = {
 };
 
 export type Step =
-  | { id: string; type: "copyBySelector"; selector: string }
   | { id: string; type: "readBySelector"; selector: string; saveAs?: string }
   | { id: string; type: "inputToSelector"; selector: string; value: string }
   | { id: string; type: "focusBySelector"; selector: string }
@@ -23,24 +22,31 @@ export type Step =
   | { id: string; type: "openUrlInCurrentTab"; url: string }
   | { id: string; type: "fetchUrl"; url: string; saveAs?: string };
 
-// A named set of URL patterns. Stacks point at one of these to stop being
+// A named set of URL patterns. Routines point at one of these to stop being
 // global — see core/match.ts for what a pattern may look like.
 export type Site = {
   id: string;
-  name: string; // "test.dzo.com.ua", "prozorro" — the label shown in the builder
-  patterns: string[]; // ["https://test.dzo.com.ua/*", "*://*.prozorro.gov.ua/*"]
+  name: string; // "test.example.com", "partner-api" — the label shown in the builder
+  patterns: string[]; // ["https://test.example.com/*", "*://*.partner-api.com/*"]
+  // Whether typing a pattern here asks Chrome for it right away, or just adds
+  // it to the config and leaves "Grant access" for later. Absent means true —
+  // existing sites keep today's behavior unchanged. Never read as "is this
+  // granted": that is only ever true from chrome.permissions.contains() at
+  // the moment it is asked, since Chrome lets the user revoke a grant this
+  // field would have no way to notice.
+  autoGrant?: boolean;
 };
 
-export type Stack = {
+export type Routine = {
   id: string;
   name: string;
   binding: Binding;
   enabled: boolean;
   steps: Step[]; // array from day one, even though v0 runs exactly one
-  // Which site this stack belongs to; absent or null means "common" — it
-  // applies everywhere. One site, not a list: a site-scoped stack beats a
+  // Which site this routine belongs to; absent or null means "common" — it
+  // applies everywhere. One site, not a list: a site-scoped routine beats a
   // common one on the same chord, and that precedence is only decidable
-  // while each stack has a single owner.
+  // while each routine has a single owner.
   siteId?: string | null;
 };
 
@@ -48,14 +54,14 @@ export const SCHEMA_VERSION = 2;
 
 export type Config = {
   schemaVersion: typeof SCHEMA_VERSION;
-  stacks: Stack[];
+  routines: Routine[];
   sites: Site[];
 };
 
 export type ToastVerbosity = "none" | "min" | "max";
 
 export type Settings = {
-  debug: boolean; // gates the "[Keystack] chord -> stack" console.log
+  debug: boolean; // gates the "[KeyRoutine] chord -> routine" console.log
   toast: ToastVerbosity; // "none": no toast. "min": chord + name (+ reason on failure). "max": full step list
 };
 

@@ -1,7 +1,7 @@
-import type { Config, Stack } from "../core/schema";
+import type { Config, Routine } from "../core/schema";
 import { matches } from "../core/keys";
 import { loadConfig } from "../core/configStore";
-import { applicableSections, applicableStacks, type StackSection } from "../core/match";
+import { applicableSections, applicableRoutines, type RoutineSection } from "../core/match";
 
 function isTypingTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -10,13 +10,13 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
 }
 
-// A matched stack plus what applies on this page, grouped into its three tiers
-// (everywhere / this domain / these URLs). The sections are only for the $stacks
+// A matched routine plus what applies on this page, grouped into its three tiers
+// (everywhere / this domain / these URLs). The sections are only for the $routines
 // builtin — the cheatsheet popup shows them under those headings — and are
 // carried alongside so the executor needs no second read of its own. Scoped to
 // what applies here on purpose: a cheatsheet listing another site's chords is
 // worse than no cheatsheet.
-export type Route = { stack: Stack; sections: StackSection[] };
+export type Route = { routine: Routine; sections: RoutineSection[] };
 
 // The config could not be read at all, so no chord can match and every
 // hotkey is dead. Returned as data rather than shown from here: resolving
@@ -34,10 +34,10 @@ function looksLikeChord(e: KeyboardEvent): boolean {
   return e.ctrlKey || e.altKey || e.metaKey;
 }
 
-// Resolves a keydown event to the stack it should run, if any. A pure
+// Resolves a keydown event to the routine it should run, if any. A pure
 // lookup — no preventDefault, no logging, no side effects — so the caller
 // decides what "claiming" the keystroke actually means.
-export async function resolveStack(e: KeyboardEvent): Promise<Route | ConfigError | null> {
+export async function resolveRoutine(e: KeyboardEvent): Promise<Route | ConfigError | null> {
   if (isTypingTarget(e.target)) return null;
 
   let config: Config;
@@ -52,9 +52,9 @@ export async function resolveStack(e: KeyboardEvent): Promise<Route | ConfigErro
     return looksLikeChord(e) ? { configError: (err as Error).message } : null;
   }
 
-  // applicableStacks() returns the narrowest scope first, which is what makes a
-  // URL-specific stack beat a domain one and a domain one beat a common one on
+  // applicableRoutines() returns the narrowest scope first, which is what makes a
+  // URL-specific routine beat a domain one and a domain one beat a common one on
   // the same chord — this lookup does not need to know that sites exist.
-  const stack = applicableStacks(config, location.href).find((s) => matches(e, s.binding));
-  return stack ? { stack, sections: applicableSections(config, location.href) } : null;
+  const routine = applicableRoutines(config, location.href).find((s) => matches(e, s.binding));
+  return routine ? { routine, sections: applicableSections(config, location.href) } : null;
 }

@@ -7,8 +7,8 @@
 // Kept in core alongside background/protocol.ts (which covers the worker
 // messages) so the two sides cannot drift on the `type` strings.
 
-export const PROBE_MESSAGE_TYPE = "keystack-probe";
-export const PICK_MESSAGE_TYPE = "keystack-pick";
+export const PROBE_MESSAGE_TYPE = "keyroutine-probe";
+export const PICK_MESSAGE_TYPE = "keyroutine-pick";
 
 export type ProbeRequest = { type: typeof PROBE_MESSAGE_TYPE; selector: string };
 

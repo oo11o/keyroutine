@@ -1,34 +1,106 @@
-import type { Config, Site, Stack } from "./schema";
+import type { Config, Site, Routine } from "./schema";
 
 // URL patterns, deliberately a small subset of Chrome's match patterns: "*"
 // is the only wildcard and everything else matches literally. We need our own
 // matcher because no Chrome API tests an arbitrary pattern string against a
 // URL — the manifest ones are consumed by the browser, never exposed to us.
 //
-// A pattern with no "://" is read as a bare host: "dzo.lh" means
-// "*://dzo.lh/*". That shorthand exists because it is what people type into
+// A pattern with no "://" is read as a bare host: "example.com" means
+// "*://example.com/*". That shorthand exists because it is what people type into
 // the builder's site box, and reading it literally would match nothing.
 export function expandPattern(pattern: string): string {
   const trimmed = pattern.trim();
   if (!trimmed) return trimmed;
   if (trimmed.includes("://")) return trimmed;
-  // Host only, unless the user typed a path too ("dzo.lh/cabinet").
+  // Host only, unless the user typed a path too ("example.com/account").
   return trimmed.includes("/") ? `*://${trimmed}` : `*://${trimmed}/*`;
 }
 
-// Anchored at both ends, so "https://dzo.lh/*" does not match
-// "https://evil.test/?next=https://dzo.lh/".
+// Anchored at both ends, so "https://example.com/*" does not match
+// "https://evil.test/?next=https://example.com/".
+//
+// A pattern with no "*" in it anywhere covers the page it names *and whatever
+// is under it*: "example.com/reports" is how everyone writes "the reports
+// section", and reading it as that one exact URL made it silently useless the
+// moment you opened a report. Writing a "*" yourself turns the shorthand off
+// and the pattern is matched literally, so "example.com/reports/*" still means
+// strictly below /reports, and "example.com/search?q=*" still means exactly
+// that query.
+//
+// The subtree is a path step, never a string prefix: /reports covers
+// /reports/4821 and not /reports-archive.
 export function patternToRegExp(pattern: string): RegExp {
-  const escaped = expandPattern(pattern)
+  const literal = !pattern.includes("*");
+  // A trailing slash would otherwise demand a second one from the subtree.
+  const expanded = literal ? expandPattern(pattern).replace(/\/$/, "") : expandPattern(pattern);
+  const escaped = expanded
     .split("*")
     .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
     .join(".*");
-  return new RegExp(`^${escaped}$`, "i");
+  return new RegExp(`^${escaped}${literal ? "(/.*)?" : ""}$`, "i");
+}
+
+// What a pattern is actually tested against. A URL carries two parts nobody
+// writes into a pattern by accident:
+//
+//   - the fragment, which never reaches the server and never identifies a
+//     section of a site, so it is always dropped;
+//   - the query, which does — but "example.com/reports" plainly means the
+//     reports page, not "the reports page only while it is unfiltered". A
+//     pattern that says nothing about the query matches any query; one that
+//     mentions "?" is taken at its word and matched against the whole URL.
+//
+// Without this, adding the section you are standing on silently fails the
+// moment you are on page 2 of it.
+function urlForPattern(url: string, pattern: string): string {
+  const withoutHash = url.split("#")[0];
+  return expandPattern(pattern).includes("?") ? withoutHash : withoutHash.split("?")[0];
+}
+
+// For a bare host pattern typed without "://" or "*" (the builder's site-box
+// shorthand), "www." is the one subdomain variance nobody means to exclude:
+// typing "ukr.net" when the site actually lives at "www.ukr.net" (or vice
+// versa) is a naming accident, not an intent to scope the pattern tighter.
+// Anything fancier than that — real subdomains, explicit schemes, wildcards
+// the user wrote themselves — stays exact, so this only ever toggles one
+// specific "www." prefix on or off the host.
+function wwwToggled(pattern: string): string | null {
+  if (pattern.includes("://") || pattern.includes("*")) return null;
+  const slash = pattern.indexOf("/");
+  const host = slash === -1 ? pattern : pattern.slice(0, slash);
+  const rest = slash === -1 ? "" : pattern.slice(slash);
+  if (!host) return null;
+  return host.toLowerCase().startsWith("www.") ? host.slice(4) + rest : `www.${host}${rest}`;
+}
+
+// A site pattern that claims every host — "*", "*://*/*", or anything whose
+// last host label is a wildcard ("example.*", which is every TLD). Refused,
+// not supported: a "site" that is every site would be Common wearing a site's
+// clothes, and that distinction carries weight now — Fetch URL is allowed in
+// a site-scoped routine precisely because a site names where it may reach
+// (see siteOnlySteps in core/stepMeta.ts). Everywhere is still available; it
+// is called Common, and it cannot hold a fetch.
+export function overBroadPattern(pattern: string): boolean {
+  const host = patternHost(pattern);
+  if (host === "") return false; // a blank pattern is an unfilled row, not this
+  const last = host.split(":")[0].split(".").pop() ?? "";
+  return host === "*" || last === "" || last.includes("*");
+}
+
+export function matchesPattern(url: string, pattern: string): boolean {
+  // Belt and braces for a config that was written by hand: such a pattern is
+  // refused by the builder and by Save, and matches nothing if it arrives
+  // anyway, so no routine can fire through one.
+  if (overBroadPattern(pattern)) return false;
+  if (expandPattern(pattern) === "") return false;
+  if (patternToRegExp(pattern).test(urlForPattern(url, pattern))) return true;
+  const toggled = wwwToggled(pattern.trim());
+  return toggled !== null && patternToRegExp(toggled).test(urlForPattern(url, toggled));
 }
 
 export function matchesUrl(url: string, patterns: string[]): boolean {
   // A blank pattern is an unfilled row in the builder, not a match-everything.
-  return patterns.some((p) => expandPattern(p) !== "" && patternToRegExp(p).test(url));
+  return patterns.some((p) => matchesPattern(url, p));
 }
 
 // How narrowly a pattern aims. A pattern that constrains only the host applies
@@ -47,12 +119,10 @@ export function patternLevel(pattern: string): "domain" | "url" {
 
 // The level at which a site claims this URL, or null if it does not. A site with
 // both kinds of pattern counts as the narrower one it actually matched on:
-// "dzo.lh" plus "dzo.lh/cabinet/*" is a URL-level site once you are in the
-// cabinet, and a domain-level one everywhere else on the host.
+// "example.com" plus "example.com/account/*" is a URL-level site once you are
+// in the account area, and a domain-level one everywhere else on the host.
 export function siteLevel(url: string, site: Site): "domain" | "url" | null {
-  const matched = site.patterns.filter(
-    (p) => expandPattern(p) !== "" && patternToRegExp(p).test(url)
-  );
+  const matched = site.patterns.filter((p) => matchesPattern(url, p));
   if (matched.length === 0) return null;
   return matched.some((p) => patternLevel(p) === "url") ? "url" : "domain";
 }
@@ -76,52 +146,213 @@ export function siteFor(url: string, sites: Site[]): Site | null {
   return (matched.find((m) => m.level === "url") ?? matched[0])?.site ?? null;
 }
 
-export function isCommon(stack: Stack): boolean {
-  return stack.siteId === undefined || stack.siteId === null;
+export function isCommon(routine: Routine): boolean {
+  return routine.siteId === undefined || routine.siteId === null;
 }
 
-// What applies here, in three tiers: everywhere, then this domain, then these
-// particular URLs. Built for the cheatsheet popup, which shows them under those
+// What applies here, in three tiers: these particular URLs, then this domain,
+// then everywhere. Built for the cheatsheet popup, which shows them under those
 // headings, and reused for resolution — so the order a hotkey is chosen in and
 // the order it is *explained* in come from one place and cannot drift.
 //
-// Display order, widest tier first. An empty tier is left out, not shown empty.
-export type StackSection = { level: Level; label: string; stacks: Stack[] };
+// Narrowest tier first, because that is the order precedence works in: the
+// routine that actually fires on this page is the first one listed, and the wider
+// tiers below it are what is left over. An empty tier is left out, not shown
+// empty.
+export type RoutineSection = { level: Level; label: string; routines: Routine[] };
 
 const LEVEL_LABEL: Record<"domain" | "url", string> = {
   domain: "This domain",
   url: "This URL"
 };
 
-export function applicableSections(config: Config, url: string): StackSection[] {
-  const enabled = config.stacks.filter((s) => s.enabled);
-  const sections: StackSection[] = [];
-
-  const common = enabled.filter(isCommon);
-  if (common.length > 0) sections.push({ level: "common", label: "Everywhere", stacks: common });
+export function applicableSections(config: Config, url: string): RoutineSection[] {
+  const enabled = config.routines.filter((s) => s.enabled);
+  const sections: RoutineSection[] = [];
 
   const matched = sitesFor(url, config.sites);
-  for (const level of ["domain", "url"] as const) {
+  for (const level of ["url", "domain"] as const) {
     for (const { site } of matched.filter((m) => m.level === level)) {
-      const stacks = enabled.filter((s) => s.siteId === site.id);
-      if (stacks.length === 0) continue;
-      sections.push({ level, label: `${LEVEL_LABEL[level]} · ${site.name}`, stacks });
+      const routines = enabled.filter((s) => s.siteId === site.id);
+      if (routines.length === 0) continue;
+      sections.push({ level, label: `${LEVEL_LABEL[level]} · ${site.name}`, routines });
     }
   }
+
+  const common = enabled.filter(isCommon);
+  if (common.length > 0) sections.push({ level: "common", label: "Everywhere", routines: common });
+
   return sections;
 }
 
-// Every enabled stack that could fire on this URL, narrowest scope first: a
-// URL-specific stack beats a domain one, which beats a common one. The order is
-// the point — the resolver picks a chord with a plain `.find()`, so it never has
-// to know that sites exist at all.
+// Every enabled routine that could fire on this URL, narrowest scope first: a
+// URL-specific routine beats a domain one, which beats a common one. That is
+// already the order the sections are in, so this is the same list with the
+// headings taken off — the resolver picks a chord with a plain `.find()` and
+// never has to know that sites exist at all.
 //
-// A stack pointing at a siteId that no longer exists applies nowhere. It is
+// A routine pointing at a siteId that no longer exists applies nowhere. It is
 // deliberately not promoted to common: a deleted site must not hand its chords
 // to every page on the web.
-export function applicableStacks(config: Config, url: string): Stack[] {
-  const sections = applicableSections(config, url);
-  // Not the display order reversed: within one tier, config order still decides.
-  const tier = (level: Level) => sections.filter((s) => s.level === level).flatMap((s) => s.stacks);
-  return [...tier("url"), ...tier("domain"), ...tier("common")];
+export function applicableRoutines(config: Config, url: string): Routine[] {
+  return applicableSections(config, url).flatMap((section) => section.routines);
+}
+
+// The host a pattern aims at, lowercased and with the scheme and path dropped.
+// Grouping key for the Where column: "https://stage.example.com/reports" and
+// "stage.example.com" are the same site to a reader, so they should be the same
+// site to the list.
+export function patternHost(pattern: string): string {
+  const expanded = expandPattern(pattern);
+  if (expanded === "") return "";
+  const afterScheme = expanded.slice(expanded.indexOf("://") + 3);
+  const slash = afterScheme.indexOf("/");
+  return (slash === -1 ? afterScheme : afterScheme.slice(0, slash)).toLowerCase();
+}
+
+// The chrome.permissions origin a pattern needs granted before a routine
+// scoped to it can run — host-only, even for a URL-level pattern. KeyRoutine's
+// own matching (patternToRegExp) still decides which routines fire once the
+// content script is there; this only decides whether it can be there at all.
+export function permissionOrigin(pattern: string): string {
+  const host = patternHost(pattern);
+  return host === "" ? "" : `*://${host}/*`;
+}
+
+// The origin a fetchUrl step needs granted before the worker will call it
+// (see background/worker.ts). Stricter than permissionOrigin(): a step URL is
+// a template, so a host still holding a variable ("$base/items") names no
+// origin to ask for, and neither does a non-http scheme. Returns "" in both
+// cases, so the builder stays quiet rather than offering a grant on a host
+// that may not be the one the step ends up calling.
+export function fetchOrigin(url: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return "";
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+  if (parsed.host === "" || /[$\{]/.test(parsed.host)) return "";
+  return `*://${parsed.host.toLowerCase()}/*`;
+}
+
+// "Everywhere" has no host to derive a permission from — it means literally
+// every site, which is its own grant rather than a per-pattern one.
+export const EVERYWHERE_ORIGIN = "<all_urls>";
+
+// Which of the granted origins KeyRoutine may actually run its content script
+// on. Not simply "everything granted": a fetchUrl target is granted so the
+// worker can *call* it (see background/worker.ts), and calling an API is no
+// reason to inject a key listener into its pages and read their DOM. So the
+// injection set is derived from the config — the sites the user pointed a
+// routine at — and intersected with what Chrome has actually granted.
+//
+// This is the only place the two capabilities are separated. Chrome's own
+// grant does not distinguish them: a granted origin authorises both, and it
+// is this function declining to register the script that keeps a fetch-only
+// host un-injected.
+export function injectableOrigins(granted: string[], sites: Site[]): string[] {
+  const wanted = new Set<string>();
+  for (const site of sites) {
+    for (const pattern of site.patterns) {
+      const origin = permissionOrigin(pattern);
+      if (origin !== "") wanted.add(origin);
+    }
+  }
+  // Everywhere is an injection choice by definition — the user asked for
+  // routines that fire on every site, so there is no narrower set to derive.
+  return granted.filter((origin) => origin === EVERYWHERE_ORIGIN || wanted.has(origin));
+}
+
+// The path a pattern narrows to, or "" when it claims the whole host.
+export function patternPath(pattern: string): string {
+  const expanded = expandPattern(pattern);
+  if (patternLevel(expanded) === "domain") return "";
+  const afterScheme = expanded.slice(expanded.indexOf("://") + 3);
+  return afterScheme.slice(afterScheme.indexOf("/"));
+}
+
+// Which host a site belongs to, and whether it claims all of it. Taken from the
+// site's first usable pattern: a site whose patterns straddle two hosts is a
+// thing the config allows, and the first one is the only non-arbitrary answer.
+export function siteHost(site: Site): string {
+  for (const pattern of site.patterns) {
+    const host = patternHost(pattern);
+    if (host !== "") return host;
+  }
+  return "";
+}
+
+// A site is domain-level if any of its patterns claims the bare host — that one
+// pattern already applies everywhere the narrower ones do.
+export function siteScope(site: Site): "domain" | "url" {
+  return site.patterns.some((p) => expandPattern(p) !== "" && patternLevel(p) === "domain")
+    ? "domain"
+    : "url";
+}
+
+// The Where column's shape: a host, and the path-scoped sites nested under it.
+// Read out of the patterns rather than declared with a parent field, for the
+// same reason patternLevel is — a stored parent could disagree with the
+// patterns that actually decide where routines fire.
+export type SiteGroup = { site: Site; areas: Site[] };
+
+export function groupSites(sites: Site[]): SiteGroup[] {
+  // First domain-level site per host wins the group; a second one is a sibling,
+  // not a child, because it claims the host just as widely.
+  const parents = new Map<string, Site>();
+  for (const site of sites) {
+    const host = siteHost(site);
+    if (host === "" || siteScope(site) !== "domain" || parents.has(host)) continue;
+    parents.set(host, site);
+  }
+
+  const parentOf = (site: Site): Site | null => {
+    const parent = parents.get(siteHost(site));
+    return parent && parent.id !== site.id && siteScope(site) === "url" ? parent : null;
+  };
+
+  // Two passes, so an area listed before its host in the config still lands
+  // under it instead of disappearing.
+  const groups: SiteGroup[] = [];
+  const byId = new Map<string, SiteGroup>();
+  for (const site of sites) {
+    if (parentOf(site)) continue;
+    const group: SiteGroup = { site, areas: [] };
+    groups.push(group);
+    byId.set(site.id, group);
+  }
+  for (const site of sites) {
+    const parent = parentOf(site);
+    if (parent) byId.get(parent.id)?.areas.push(site);
+  }
+  return groups;
+}
+
+// A concrete URL a pattern accepts, used only to ask whether two patterns can
+// ever hit the same page. "*" is dropped rather than filled, and a wildcard
+// scheme becomes https, so "example.com/reports/*" yields
+// "https://example.com/reports/".
+function sampleUrl(pattern: string): string {
+  const expanded = expandPattern(pattern);
+  if (expanded === "") return "";
+  return expanded.replace("*://", "https://").split("*").join("");
+}
+
+// Do these two patterns overlap — is there a page both would claim? Testing
+// every URL is not possible, so each pattern's sample is offered to the other:
+// that catches the cases the UI needs ("example.com" vs "example.com/reports",
+// a host vs a wildcard host) and errs towards "no" on exotic patterns, which
+// costs a note in the builder rather than a wrong hotkey.
+export function patternsOverlap(a: string, b: string): boolean {
+  const sampleA = sampleUrl(a);
+  const sampleB = sampleUrl(b);
+  if (sampleA === "" || sampleB === "") return false;
+  return matchesUrl(sampleA, [b]) || matchesUrl(sampleB, [a]);
+}
+
+export function sitesOverlap(a: Site, b: Site): boolean {
+  if (a.id === b.id) return true;
+  return a.patterns.some((p) => b.patterns.some((q) => patternsOverlap(p, q)));
 }

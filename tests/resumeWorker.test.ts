@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
+  LOAD_SETTINGS_MESSAGE_TYPE,
   SAVE_RESUME_MESSAGE_TYPE,
   TAKE_RESUME_MESSAGE_TYPE,
   type ResumeRecord
@@ -15,7 +16,7 @@ let listener: Listener;
 let store: Record<string, unknown>;
 
 function record(over: Partial<ResumeRecord> = {}): ResumeRecord {
-  return { stackId: "sync", nextStep: 2, vars: [], notes: [], expiresAt: Date.now() + 15_000, ...over };
+  return { routineId: "sync", nextStep: 2, vars: [], notes: [], expiresAt: Date.now() + 15_000, ...over };
 }
 
 function send(message: unknown, tabId: number | undefined): Promise<unknown> {
@@ -37,11 +38,20 @@ beforeEach(async () => {
     runtime: {
       onMessage: { addListener: (fn: Listener) => (listener = fn) },
       onInstalled: { addListener: () => {} },
-      openOptionsPage: async () => {}
+      onStartup: { addListener: () => {} },
+      openOptionsPage: async () => {},
+      getURL: (p: string) => `chrome-extension://x/${p}`
     },
     action: { onClicked: { addListener: () => {} } },
+    permissions: {
+      contains: async () => true,
+      onAdded: { addListener: () => {} },
+      onRemoved: { addListener: () => {} }
+    },
     storage: {
       local: { get: async () => ({}), set: async () => {} },
+      // The worker re-syncs the content script when the config changes.
+      onChanged: { addListener: () => {} },
       session: {
         get: async (k: string) => ({ [k]: store[k] }),
         set: async (entries: Record<string, unknown>) => Object.assign(store, entries),
@@ -84,7 +94,7 @@ describe("resume records in the worker", () => {
     expect((await take()).record).toBeNull();
   });
 
-  it("does not let another tab claim this tab's stack", async () => {
+  it("does not let another tab claim this tab's routine", async () => {
     await save(record(), 1);
 
     expect((await take(2)).record).toBeNull();
@@ -97,5 +107,30 @@ describe("resume records in the worker", () => {
 
   it("leaves messages it does not own to other listeners", async () => {
     expect(await send({ type: "something-else" }, 1)).toBeUndefined();
+  });
+});
+
+// config/settings.json is read here rather than fetched by the content
+// script directly — see protocol.ts for why: a privileged context can load
+// its own bundled file with no manifest exposure at all, where the content
+// script's own fetch of it would need web_accessible_resources, handing it
+// to every page's own script too.
+describe("loading settings in the worker", () => {
+  const loadSettings = () => send({ type: LOAD_SETTINGS_MESSAGE_TYPE }, 1) as Promise<{ settings: unknown }>;
+
+  it("reads config/settings.json through its own extension URL, not web_accessible_resources", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ debug: true, toast: "show" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { settings } = await loadSettings();
+
+    expect(fetchMock).toHaveBeenCalledWith("chrome-extension://x/config/settings.json", { cache: "no-store" });
+    expect(settings).toEqual({ debug: true, toast: "show" });
+  });
+
+  it("returns an empty object rather than throwing when the file is missing", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("404")));
+
+    expect(await loadSettings()).toEqual({ settings: {} });
   });
 });

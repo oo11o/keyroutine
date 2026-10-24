@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { runStack, StepError } from "../src/content/runner";
-import type { Stack } from "../src/core/schema";
+import { runRoutine, StepError } from "../src/content/runner";
+import type { Routine } from "../src/core/schema";
 
 // jsdom refuses to let location.assign be redefined ("Cannot redefine
 // property"), so the seam is the module boundary instead: navigateHere is
@@ -12,7 +12,6 @@ vi.mock("../src/page/navigate", async (importOriginal) => {
 });
 import { navigateHere } from "../src/page/navigate";
 import { SAVE_RESUME_MESSAGE_TYPE, type SaveResumeRequest } from "../src/background/protocol";
-import { MASK } from "../src/core/redact";
 
 const went = vi.mocked(navigateHere);
 
@@ -29,14 +28,16 @@ function visitedUrl(): string {
   return went.mock.calls[0][0];
 }
 
-function stackWith(url: string): Stack {
+// Scoped to a site: readBySelector below is site-only (see core/stepMeta.ts).
+function routineWith(url: string): Routine {
   return {
     id: "sync",
     name: "Sync Tender",
     binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
+    siteId: "site",
     steps: [
-      { id: "s1", type: "readBySelector", selector: "#tender_id" },
+      { id: "s1", type: "readBySelector", selector: "#tender_id", saveAs: "s1" },
       { id: "s2", type: "openUrlInCurrentTab", url }
     ]
   };
@@ -58,7 +59,7 @@ describe("openUrlInCurrentTab", () => {
   it("navigates this tab with $vars substituted from earlier steps", async () => {
     document.body.innerHTML = `<input id="tender_id" value="e3cf4bdd" />`;
 
-    const notes = await runStack(stackWith("http://dzo.lh/cron/directSinhro.php?tender_id=$s1"));
+    const notes = await runRoutine(routineWith("http://dzo.lh/cron/directSinhro.php?tender_id=$s1"));
 
     expect(went).toHaveBeenCalledOnce();
     expect(visitedUrl()).toBe("http://dzo.lh/cron/directSinhro.php?tender_id=e3cf4bdd");
@@ -68,7 +69,7 @@ describe("openUrlInCurrentTab", () => {
   it("percent-encodes the substituted value so it cannot inject a query parameter", async () => {
     document.body.innerHTML = `<input id="tender_id" value="abc&run=evil" />`;
 
-    await runStack(stackWith("http://dzo.lh/sync.php?tender_id=$s1&type=tenders"));
+    await runRoutine(routineWith("http://dzo.lh/sync.php?tender_id=$s1&type=tenders"));
 
     expect(visitedUrl()).toBe("http://dzo.lh/sync.php?tender_id=abc%26run%3Devil&type=tenders");
   });
@@ -76,7 +77,7 @@ describe("openUrlInCurrentTab", () => {
   it("resolves a relative URL against the current page", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-7" />`;
 
-    await runStack(stackWith("/cron/directSinhro.php?tender_id=$s1"));
+    await runRoutine(routineWith("/cron/directSinhro.php?tender_id=$s1"));
 
     expect(visitedUrl()).toBe(`${location.origin}/cron/directSinhro.php?tender_id=T-7`);
   });
@@ -84,36 +85,36 @@ describe("openUrlInCurrentTab", () => {
   it("refuses a non-http scheme instead of navigating to it", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
 
-    const err = await runStack(stackWith("javascript:alert(1)")).catch((e) => e);
+    const err = await runRoutine(routineWith("javascript:alert(1)")).catch((e) => e);
 
     expect(err).toBeInstanceOf(StepError);
     expect(err.message).toMatch(/only http\/https/);
     expect(went).not.toHaveBeenCalled();
   });
 
-  it("does not run the rest of the stack in this page — it suspends it", async () => {
+  it("does not run the rest of the routine in this page — it suspends it", async () => {
     document.body.innerHTML = `
       <input id="tender_id" value="T-42" />
       <input id="after" value="" />`;
-    const stack = stackWith("http://dzo.lh/sync.php?id=$s1");
-    stack.steps.push({ id: "s3", type: "inputToSelector", selector: "#after", value: "$s1" });
+    const routine = routineWith("http://dzo.lh/sync.php?id=$s1");
+    routine.steps.push({ id: "s3", type: "inputToSelector", selector: "#after", value: "$s1" });
 
-    const notes = await runStack(stack);
+    const notes = await runRoutine(routine);
 
     expect(went).toHaveBeenCalledOnce();
     expect(notes).toHaveLength(2); // the read and the navigation, not the fill
     expect(document.querySelector<HTMLInputElement>("#after")!.value).toBe("");
   });
 
-  it("parks the rest of the stack for the next page, with its vars and notes", async () => {
+  it("parks the rest of the routine for the next page, with its vars and notes", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
-    const stack = stackWith("http://dzo.lh/sync.php?id=$s1");
-    stack.steps.push({ id: "s3", type: "popup", body: "$s1" });
+    const routine = routineWith("http://dzo.lh/sync.php?id=$s1");
+    routine.steps.push({ id: "s3", type: "popup", body: "$s1" });
 
-    await runStack(stack);
+    await runRoutine(routine);
 
     const record = savedRecord()!;
-    expect(record.stackId).toBe("sync");
+    expect(record.routineId).toBe("sync");
     expect(record.nextStep).toBe(2); // s3, the step that has not run
     expect(record.notes).toEqual(['read "T-42"', "went to http://dzo.lh/sync.php?id=T-42"]);
     expect(Object.fromEntries(record.vars)).toEqual({ value: "T-42", s1: "T-42" });
@@ -122,8 +123,8 @@ describe("openUrlInCurrentTab", () => {
 
   it("saves the record before navigating, not after", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
-    const stack = stackWith("http://dzo.lh/sync.php?id=$s1");
-    stack.steps.push({ id: "s3", type: "popup", body: "done" });
+    const routine = routineWith("http://dzo.lh/sync.php?id=$s1");
+    routine.steps.push({ id: "s3", type: "popup", body: "done" });
     const order: string[] = [];
     sendMessage.mockImplementation(async () => {
       order.push("saved");
@@ -133,7 +134,7 @@ describe("openUrlInCurrentTab", () => {
       order.push("navigated");
     });
 
-    await runStack(stack);
+    await runRoutine(routine);
 
     // Once location.assign runs there is no guarantee another await ever
     // resolves, so a save that came second could simply never arrive.
@@ -143,24 +144,24 @@ describe("openUrlInCurrentTab", () => {
   it("parks nothing when it is the last step — there is nothing to resume", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
 
-    await runStack(stackWith("http://dzo.lh/sync.php?id=$s1"));
+    await runRoutine(routineWith("http://dzo.lh/sync.php?id=$s1"));
 
     expect(went).toHaveBeenCalledOnce();
     expect(savedRecord()).toBeUndefined();
   });
 
-  it("never parks a secret — they are re-seeded on the other side", async () => {
+  it("never parks a variable from the Variables tab — it is re-seeded there", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
-    const stack = stackWith("http://dzo.lh/sync.php?id=$s1&run=$secret_runToken");
-    stack.steps.push({ id: "s3", type: "popup", body: "done" });
+    const routine = routineWith("http://dzo.lh/sync.php?id=$s1&run=$runToken");
+    routine.steps.push({ id: "s3", type: "popup", body: "done" });
 
-    await runStack(stack, undefined, { runToken: "hunter2" });
+    await runRoutine(routine, undefined, { runToken: "hunter2" });
 
     const names = savedRecord()!.vars.map(([name]) => name);
-    expect(names).not.toContain("secret_runToken");
-    // Not in the vars, and not smuggled through a note either — the note
-    // for this step is literally "went to ...&run=hunter2".
-    expect(JSON.stringify(savedRecord())).not.toContain("hunter2");
-    expect(savedRecord()!.notes[1]).toContain(MASK);
+    expect(names).not.toContain("runToken");
+    // The step's note does quote the URL it went to, token and all. That is
+    // the cost of dropping masking along with the "secret" prefix: notes are
+    // display text, and nothing reads them back.
+    expect(savedRecord()!.notes[1]).toContain("run=hunter2");
   });
 });

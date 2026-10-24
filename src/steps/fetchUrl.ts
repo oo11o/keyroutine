@@ -7,7 +7,7 @@ import { showSpinner } from "../ui/spinner";
 // Module-level, not per-call: a hotkey mashed twice before the first request
 // lands would otherwise fire the endpoint (e.g. a sync trigger) a second
 // time before the first result is even known. One fetchUrl at a time across
-// the whole page, regardless of which stack or chord it came from.
+// the whole page, regardless of which routine or chord it came from.
 let inFlight = false;
 
 export const fetchUrl: Handler = async (step, ctx) => {
@@ -16,9 +16,9 @@ export const fetchUrl: Handler = async (step, ctx) => {
 
   const url = resolveHttpUrl(step.url, ctx);
 
-  // Origin + path only, no query string: a $secret_* substituted into the
-  // URL is only masked later, at the presentation boundary (core/redact.ts)
-  // — showing the full URL here would put it on screen unmasked.
+  // Origin + path only, no query string: a spinner is a one-line caption, and
+  // these URLs carry report ids, run tokens and whatever else a template
+  // interpolated — none of it readable at a glance anyway.
   const { origin, pathname } = new URL(url);
   const hide = showSpinner(`Fetching ${origin}${pathname}…`);
   inFlight = true;

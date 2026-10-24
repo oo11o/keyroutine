@@ -1,5 +1,5 @@
-import type { Stack } from "../core/schema";
+import type { Routine } from "../core/schema";
 
-export function logDebug(chord: string, stack: Stack, debug: boolean): void {
-  if (debug) console.log(`[Keystack] ${chord} → "${stack.name}" (${stack.id})`);
+export function logDebug(chord: string, routine: Routine, debug: boolean): void {
+  if (debug) console.log(`[KeyRoutine] ${chord} → "${routine.name}" (${routine.id})`);
 }

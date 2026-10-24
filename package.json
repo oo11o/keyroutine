@@ -1,9 +1,10 @@
 {
   "name": "hotkey_plugin",
   "version": "0.6.0",
-  "description": "Keystack — hotkey macros for any site.",
+  "description": "KeyRoutine — hotkey macros for any site.",
   "type": "module",
   "scripts": {
+    "clean": "rm -rf dist",
     "build": "vite build && vite build --config vite.background.config.ts && vite build --config vite.options.config.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

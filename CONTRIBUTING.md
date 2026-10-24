@@ -1,6 +1,6 @@
 # Branching and versioning
 
-Keystack uses lightweight trunk-based development: short-lived branches off
+KeyRoutine uses lightweight trunk-based development: short-lived branches off
 `master`, merged via PR. See `.github/pull_request_template.md` for the PR
 checklist.
 
@@ -37,7 +37,7 @@ asked for (e.g. "cut a release", "tag this"):
    covers everything merged since the last tag, not just the latest PR.
 2. Tag the commit and push the tag:
    ```
-   git tag -a vX.Y.Z -m "Keystack vX.Y.Z\n\n- ..."
+   git tag -a vX.Y.Z -m "KeyRoutine vX.Y.Z\n\n- ..."
    git push origin vX.Y.Z
    ```
 

@@ -1,13 +1,18 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { runStack, StepError } from "../src/content/runner";
-import type { Stack, Step } from "../src/core/schema";
+import { runRoutine, StepError } from "../src/content/runner";
+import type { Routine, Step } from "../src/core/schema";
 
-function stackOf(...steps: Step[]): Stack {
+// Scoped to a site: several step types here are site-only now (anything
+// that names a selector, since a selector written for one page's markup
+// means nothing, or the wrong thing, on every other page a Common routine
+// would also fire on) — see siteOnly in core/stepMeta.ts.
+function routineOf(...steps: Step[]): Routine {
   return {
     id: "login",
     name: "Log in",
     binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
+    siteId: "site",
     steps
   };
 }
@@ -24,7 +29,7 @@ beforeEach(() => {
 
 describe("focusBySelector", () => {
   it("puts focus on the field the selector matches", async () => {
-    const notes = await runStack(stackOf(focus('[name="email"]')));
+    const notes = await runRoutine(routineOf(focus('[name="email"]')));
 
     expect(document.activeElement).toBe(document.querySelector('[name="email"]'));
     expect(notes).toEqual(['focused "[name="email"]"']);
@@ -36,14 +41,14 @@ describe("focusBySelector", () => {
     el.addEventListener("focus", () => seen.push("focus"));
     el.addEventListener("focusin", () => seen.push("focusin"));
 
-    await runStack(stackOf(focus('[name="email"]')));
+    await runRoutine(routineOf(focus('[name="email"]')));
 
     expect(seen).toEqual(["focus", "focusin"]);
   });
 
-  it("moves focus between fields when run twice in a stack", async () => {
-    await runStack(
-      stackOf(focus('[name="email"]', "s1"), focus('[name="password"]', "s2"))
+  it("moves focus between fields when run twice in a routine", async () => {
+    await runRoutine(
+      routineOf(focus('[name="email"]', "s1"), focus('[name="password"]', "s2"))
     );
 
     expect(document.activeElement).toBe(document.querySelector('[name="password"]'));
@@ -53,13 +58,13 @@ describe("focusBySelector", () => {
     const blurred: string[] = [];
     document.querySelector('[name="email"]')!.addEventListener("blur", () => blurred.push("email"));
 
-    await runStack(stackOf(focus('[name="email"]', "s1"), focus('[name="password"]', "s2")));
+    await runRoutine(routineOf(focus('[name="email"]', "s1"), focus('[name="password"]', "s2")));
 
     expect(blurred).toEqual(["email"]);
   });
 
   it("fails the step when nothing matches", async () => {
-    const err = await runStack(stackOf(focus("#nope"))).catch((e) => e);
+    const err = await runRoutine(routineOf(focus("#nope"))).catch((e) => e);
 
     expect(err).toBeInstanceOf(StepError);
     expect(err.message).toBe('No element for "#nope"');
@@ -68,14 +73,14 @@ describe("focusBySelector", () => {
   it("reports a field that refused focus instead of claiming success", async () => {
     // el.focus() on a disabled input is silently a no-op in the DOM — the
     // step would otherwise report "focused" with focus still on <body>.
-    const err = await runStack(stackOf(focus('[name="disabled"]'))).catch((e) => e);
+    const err = await runRoutine(routineOf(focus('[name="disabled"]'))).catch((e) => e);
 
     expect(err).toBeInstanceOf(StepError);
     expect(err.message).toMatch(/did not take focus/);
   });
 
   it("reports a plain element with no tabindex the same way", async () => {
-    const err = await runStack(stackOf(focus("#plaindiv"))).catch((e) => e);
+    const err = await runRoutine(routineOf(focus("#plaindiv"))).catch((e) => e);
 
     expect(err).toBeInstanceOf(StepError);
     expect(err.message).toMatch(/did not take focus/);
@@ -84,7 +89,7 @@ describe("focusBySelector", () => {
   it("focuses a non-field element that opts in with tabindex", async () => {
     document.body.innerHTML = `<div id="menu" tabindex="0">menu</div>`;
 
-    await runStack(stackOf(focus("#menu")));
+    await runRoutine(routineOf(focus("#menu")));
 
     expect(document.activeElement).toBe(document.querySelector("#menu"));
   });

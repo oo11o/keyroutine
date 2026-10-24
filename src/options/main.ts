@@ -2,16 +2,16 @@ import { clear, h } from "./el";
 import * as store from "./store";
 import * as probe from "./probe";
 import { renderSites } from "./sitesPane";
-import { renderStacks } from "./stacksPane";
+import { renderRoutines } from "./routinesPane";
 import { renderSteps } from "./stepsPane";
-import { loadSecretNames, renderSecrets } from "./secretsPane";
+import { loadVarNames, renderVars } from "./varsPane";
 import { openExport, openImport } from "./portJson";
 
 // The builder's entry point: boot the draft, draw the three columns, and keep
 // the top bar honest about whether there is anything unsaved.
 
 const builder = document.getElementById("builder") as HTMLElement;
-const secrets = document.getElementById("secrets") as HTMLElement;
+const varsPane = document.getElementById("vars") as HTMLElement;
 const tabs = document.getElementById("tabs") as HTMLElement;
 const topActions = document.getElementById("topbar-actions") as HTMLElement;
 
@@ -30,7 +30,7 @@ const saveButton = h("button", {
 });
 const problems = h("div", { class: "problems", hidden: true });
 
-type Tab = "builder" | "secrets";
+type Tab = "builder" | "vars";
 let tab: Tab = "builder";
 
 /* ── the three columns ─────────────────────────────────────────────────── */
@@ -40,12 +40,12 @@ function render(): void {
   clear(builder);
 
   const sites = h("section");
-  const stacks = h("section");
+  const routines = h("section");
   const steps = h("section");
   renderSites(sites);
-  renderStacks(stacks);
+  renderRoutines(routines);
   renderSteps(steps);
-  builder.append(sites, stacks, steps);
+  builder.append(sites, routines, steps);
 
   dirtyDot.hidden = !store.isDirty();
   saveButton.disabled = !store.isDirty();
@@ -86,16 +86,16 @@ function renderTabs(): void {
       "aria-selected": tab === id ? "true" : "false",
       onClick: () => void selectTab(id)
     });
-  tabs.append(button("builder", "Builder"), button("secrets", "Variables"));
+  tabs.append(button("builder", "Builder"), button("vars", "Variables"));
 }
 
 async function selectTab(next: Tab): Promise<void> {
   tab = next;
   builder.hidden = next !== "builder";
-  secrets.hidden = next !== "secrets";
+  varsPane.hidden = next !== "vars";
   renderTabs();
-  if (next === "secrets") {
-    await renderSecrets(secrets, (names) => {
+  if (next === "vars") {
+    await renderVars(varsPane, (names: string[]) => {
       // A deleted variable must stop being offered by the picker, and a new
       // one must start.
       void store.init(store.getPageUrl(), names);
@@ -119,7 +119,7 @@ async function save(): Promise<void> {
     setStatus(
       clashes === 0
         ? "Saved — your hotkeys are live"
-        : `Saved — but ${clashes} stack${clashes === 1 ? "" : "s"} share a hotkey with another`
+        : `Saved — but ${clashes} routine${clashes === 1 ? "" : "s"} share a hotkey with another`
     );
     return;
   }
@@ -184,8 +184,8 @@ async function boot(): Promise<void> {
   // A match count or a run report changes what the columns show without
   // changing the draft, so it needs its own way to ask for a redraw.
   probe.subscribe(render);
-  const [url, secretNames] = await Promise.all([currentPageUrl(), loadSecretNames()]);
-  await store.init(url, secretNames);
+  const [url, varNames] = await Promise.all([currentPageUrl(), loadVarNames()]);
+  await store.init(url, varNames);
 }
 
 // Leaving with unsaved edits loses them, and the browser's own prompt is the

@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { showPopup } from "../src/ui/popup";
 
 function getPanel(): HTMLElement | null {
-  const host = document.getElementById("keystack-popup-host");
+  const host = document.getElementById("keyroutine-popup-host");
   return host?.shadowRoot?.querySelector(".panel") ?? null;
 }
 
 function getBackdrop(): HTMLElement | null {
-  const host = document.getElementById("keystack-popup-host");
+  const host = document.getElementById("keyroutine-popup-host");
   return host?.shadowRoot?.querySelector(".backdrop") ?? null;
 }
 
@@ -32,9 +32,9 @@ beforeEach(() => {
 
 describe("showPopup", () => {
   it("renders the title and body inside a shadow root, not into the page", async () => {
-    const closed = showPopup("Keystack hotkeys", "Ctrl+Alt+1  Copy Tender");
+    const closed = showPopup("KeyRoutine hotkeys", "Ctrl+Alt+1  Copy Tender");
     const panel = getPanel()!;
-    expect(panel.querySelector(".title")!.textContent).toBe("Keystack hotkeys");
+    expect(panel.querySelector(".title")!.textContent).toBe("KeyRoutine hotkeys");
     expect(panel.querySelector(".body")!.textContent).toBe("Ctrl+Alt+1  Copy Tender");
     expect(document.body.textContent).toBe(""); // nothing leaked into the page DOM
     pressEscape();
@@ -83,7 +83,7 @@ describe("showPopup", () => {
     const first = showPopup("First", "1");
     const second = showPopup("Second", "2");
     await first; // opening the second closed it
-    const host = document.getElementById("keystack-popup-host")!;
+    const host = document.getElementById("keyroutine-popup-host")!;
     expect(host.shadowRoot!.querySelectorAll(".backdrop").length).toBe(1);
     expect(getPanel()!.querySelector(".title")!.textContent).toBe("Second");
     pressEscape();

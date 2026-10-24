@@ -1,4 +1,5 @@
-import type { Step } from "./schema";
+import type { Routine, Step } from "./schema";
+import { isCommon } from "./match";
 import { MAX_WAIT_MS } from "./limits";
 
 // What each step type looks like *as a form*. Until now a step's parameters
@@ -86,9 +87,25 @@ export type StepMeta = {
   // builder shows no variable name for those steps.
   outNote: string;
   // The default name a producer's result is stored under — the thing a later
-  // step reads as $<name>. Type-derived rather than s1/s2 so a stack reads as
+  // step reads as $<name>. Type-derived rather than s1/s2 so a routine reads as
   // prose: $text, $response. Non-producers have none.
   varName?: string;
+  // True when a routine reads as finished once this step has run: a popup is
+  // the answer the hotkey was pressed for. The runner does not treat it
+  // specially — it dismisses the panel and carries on — this is the builder
+  // declining to offer "and then?" where there is nothing sensible to add.
+  endsRoutine?: boolean;
+  // True when the step may only appear in a routine scoped to a site, never in
+  // a Common ("everywhere") one. Least privilege, for two different reasons
+  // that land on the same flag: fetchUrl reaches off the page entirely, and a
+  // selector-based action (read/click/focus/fill an element, press a key
+  // aimed by one) names a piece of DOM specific to one site's markup — a
+  // selector written for one page means nothing, or means the wrong thing, on
+  // every other page a Common routine would also fire on. Either way there is
+  // no site rule saying what the action was for. Enforced in the builder (the
+  // type is not offered), on save, and again in the runner — see
+  // siteOnlySteps below.
+  siteOnly?: boolean;
   // One line for the step list. Must tolerate a half-filled step — the
   // builder renders it while the user is still typing.
   summary(step: Step): string;
@@ -112,19 +129,8 @@ const selectorField: FieldSpec = {
   label: "Element",
   kind: "selector",
   required: true,
-  placeholder: "#tender_id",
+  placeholder: "#example-id",
   help: "Press Pick and click the element on the page, or paste a CSS selector from DevTools (right-click › Copy › Copy selector)."
-};
-
-const saveAsField: FieldSpec = {
-  name: "saveAs",
-  label: "Also available as",
-  kind: "varName",
-  required: false,
-  advanced: true,
-  result: true,
-  placeholder: "tender",
-  help: "A second name for the result. The action's own variable name works anyway, so this is only here for configs that were written by hand."
 };
 
 const titleField: FieldSpec = {
@@ -133,7 +139,7 @@ const titleField: FieldSpec = {
   kind: "template",
   required: false,
   advanced: true,
-  placeholder: "Sync result"
+  placeholder: "Result"
 };
 
 // Record<Step["type"], …> on purpose: adding an arm to the union without
@@ -144,20 +150,11 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Read element",
     group: "read",
     icon: "eye",
-    help: "Reads an element's value or text, so later actions can use it. The clipboard is left alone.",
+    siteOnly: true,
+    help: "Reads an element's value or text, so later actions can use it.",
     produces: true,
     outNote: "The element's value, or its text when it is not a field.",
     varName: "text",
-    summary: (s) => text(s, "selector"),
-    fields: [selectorField, saveAsField]
-  },
-  copyBySelector: {
-    label: "Copy element to clipboard",
-    group: "read",
-    icon: "copy",
-    help: "Reads the text of an element on the page and puts it on the system clipboard.",
-    produces: false,
-    outNote: "No result — the text goes to the clipboard only, so there is no variable for later actions.",
     summary: (s) => text(s, "selector"),
     fields: [selectorField]
   },
@@ -165,6 +162,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Fetch URL",
     group: "read",
     icon: "download",
+    siteOnly: true,
     help: "Requests a URL through the service worker, so the page's CORS rules do not apply. JSON comes back pretty-printed. One request at a time.",
     produces: true,
     outNote: "The response body. JSON arrives pretty-printed.",
@@ -178,14 +176,14 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         required: true,
         placeholder: "https://api.example.com/items/$text",
         help: "http(s) only. Each substituted value is URL-encoded, so a value with & cannot add a parameter."
-      },
-      saveAsField
+      }
     ]
   },
   inputToSelector: {
     label: "Set field value",
     group: "write",
     icon: "pencil",
+    siteOnly: true,
     help: "Sets an input's value through the native setter and fires input/change, so React-style forms notice.",
     produces: false,
     outNote: "No result — it fills the field and nothing else.",
@@ -205,6 +203,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Focus element",
     group: "write",
     icon: "crosshair",
+    siteOnly: true,
     help: "Puts the keyboard focus on an element — pair it with Press key, which goes to whatever has focus.",
     produces: false,
     outNote: "No result — it moves the keyboard focus.",
@@ -215,7 +214,8 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Click element",
     group: "write",
     icon: "pointer",
-    help: "Clicks an element on the page. If the click navigates away, the rest of the stack is lost — put a Wait on the next page instead of assuming.",
+    siteOnly: true,
+    help: "Clicks an element on the page. If the click navigates away, the rest of the routine is lost — put a Wait on the next page instead of assuming.",
     produces: false,
     outNote: "No result — it clicks and nothing else.",
     summary: (s) => text(s, "selector"),
@@ -225,6 +225,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Press key",
     group: "write",
     icon: "key",
+    siteOnly: true,
     help: "Sends one key to whatever currently has focus. Aim it with Focus element first.",
     produces: false,
     outNote: "No result — it sends the key and nothing else.",
@@ -264,9 +265,10 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Show popup",
     group: "show",
     icon: "window",
-    help: "An in-page panel that blocks the stack until dismissed, so a popup mid-stack is a checkpoint. On success it replaces the toast.",
+    help: "An in-page panel that blocks the routine until dismissed, so a popup mid-routine is a checkpoint. On success it replaces the toast.",
     produces: false,
     outNote: "No result — it shows the panel and waits for you to dismiss it.",
+    endsRoutine: true,
     summary: (s) => text(s, "title", text(s, "body")),
     fields: [
       titleField,
@@ -286,6 +288,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     help: "The same panel with a live, path-aware line filter — for bodies that run to hundreds of lines.",
     produces: false,
     outNote: "No result — it shows the panel and waits for you to dismiss it.",
+    endsRoutine: true,
     summary: (s) => text(s, "title", text(s, "body")),
     fields: [
       titleField,
@@ -302,7 +305,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Open URL in a new tab",
     group: "navigate",
     icon: "newTab",
-    help: "Opens a tab and leaves this page alone, so the rest of the stack keeps running here.",
+    help: "Opens a tab and leaves this page alone, so the rest of the routine keeps running here.",
     produces: false,
     outNote: "No result — the new tab is on its own.",
     summary: (s) => text(s, "url"),
@@ -312,7 +315,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         label: "URL",
         kind: "url",
         required: true,
-        placeholder: "https://example.com/t/$text"
+        placeholder: "https://example.com/items/$text"
       }
     ]
   },
@@ -320,7 +323,7 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Go to URL (this tab)",
     group: "navigate",
     icon: "navigate",
-    help: "Leaves this page. The rest of the stack is parked and picked up by the next page in this tab, within 15 seconds.",
+    help: "Leaves this page. The rest of the routine is parked and picked up by the next page in this tab, within 15 seconds.",
     produces: false,
     outNote: "No result — the actions after it continue on the next page.",
     summary: (s) => text(s, "url"),
@@ -330,13 +333,28 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         label: "URL",
         kind: "url",
         required: true,
-        placeholder: "http://dzo.lh/cabinet/logout"
+        placeholder: "https://example.com/logout"
       }
     ]
   }
 };
 
 // The order the "Add action" menu offers, and the heading each group gets.
+// Which of a routine's steps may not run where it is scoped. Empty for every
+// site-scoped routine; for a Common one it is the routine's siteOnly steps. One
+// function for all three layers, so the builder, the save check and the
+// runner cannot drift from one another.
+export function siteOnlySteps(routine: Routine): Step[] {
+  if (!isCommon(routine)) return [];
+  return routine.steps.filter((step) => STEP_META[step.type].siteOnly === true);
+}
+
+// Why a Common routine may not hold this action, in the one sentence the
+// builder, the save problem and the runtime error all use.
+export function siteOnlyReason(type: Step["type"]): string {
+  return `${STEP_META[type].label} is only available in a routine scoped to a site — a Common routine fires on every page, so there is no site rule to say what it may reach.`;
+}
+
 export const STEP_GROUPS: { group: StepGroup; label: string }[] = [
   { group: "read", label: "Read" },
   { group: "write", label: "Act on the page" },
@@ -368,8 +386,35 @@ export function templateFields(type: Step["type"]): FieldSpec[] {
 
 // A new step of this type, with every default filled in and nothing else.
 // Ids are the caller's business — only it knows which are taken.
-export function blankStep(type: Step["type"], id: string): Step {
+// The name a producer's result is read back by, defaulted from what the
+// action holds — $text, $response — and numbered only when that name is
+// already taken in this routine. Generated rather than asked for, because a
+// routine is useful the moment it is built and naming is a thing the user may
+// do later, in the Save as field, or never.
+export function freeVarName(type: Step["type"], taken: Set<string>): string | null {
+  const base = STEP_META[type].varName;
+  if (!base) return null; // not a producer — there is no result to name
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n++) {
+    const candidate = `${base}${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+// Every name a routine's producers currently claim, so a new one can avoid
+// them. Shared by the builder and the config migration.
+export function varNamesIn(steps: Step[]): Set<string> {
+  const names = new Set<string>();
+  for (const step of steps) {
+    const saveAs = (step as { saveAs?: string }).saveAs;
+    if (saveAs) names.add(saveAs);
+  }
+  return names;
+}
+
+export function blankStep(type: Step["type"], id: string, saveAs?: string): Step {
   const step: Record<string, unknown> = { id, type };
+  if (saveAs) step.saveAs = saveAs;
   for (const f of STEP_META[type].fields) {
     if (f.default !== undefined) step[f.name] = f.default;
     else if (f.required) step[f.name] = f.kind === "number" ? 0 : "";

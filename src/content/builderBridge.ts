@@ -9,7 +9,7 @@ import { pickElement } from "../page/pickElement";
 // The page's side of the builder's two questions (see core/builderProtocol).
 // All of it is read-only or explicitly asked for: nothing here touches the page
 // unless the options page sends a message, and the options page only sends one
-// when the user presses Pick or Test. Running a stack is the hotkey's job.
+// when the user presses Pick or Test. Running a routine is the hotkey's job.
 
 export function listenForBuilder(): void {
   chrome.runtime.onMessage.addListener((message: unknown, _sender, respond) => {

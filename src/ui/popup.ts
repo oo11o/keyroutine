@@ -27,7 +27,7 @@ let closeCurrent: (() => void) | null = null;
 function getPopupRoot(): ShadowRoot {
   if (popupRoot) return popupRoot;
   popupHost = document.createElement("div");
-  popupHost.id = "keystack-popup-host";
+  popupHost.id = "keyroutine-popup-host";
   document.documentElement.appendChild(popupHost);
 
   popupRoot = popupHost.attachShadow({ mode: "open" });
@@ -106,7 +106,7 @@ function getPopupRoot(): ShadowRoot {
       margin-top: 18px;
     }
     /* The ids and the path are one header block: the full gap goes above the
-       first of them. The ids stack tight together, and the path gets a small
+       first of them. The ids routine tight together, and the path gets a small
        gap of its own so it reads as a separate fact from the ids above it. */
     .id + .id { margin-top: 0; }
     .id + .path { margin-top: 8px; }
@@ -150,7 +150,7 @@ export type PopupOptions = {
 
 // Resolves when the popup is closed — by ESC, by a click on the backdrop, or
 // by the × button. Awaiting it is what makes a popup step a checkpoint in a
-// stack: the steps after it run once you dismiss it.
+// routine: the steps after it run once you dismiss it.
 export function showPopup(title: string, body: string, opts: PopupOptions = {}): Promise<void> {
   closeCurrent?.();
 

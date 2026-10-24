@@ -2,12 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Keystack Builder</title>
+    <title>KeyRoutine Builder</title>
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
     <header class="topbar">
-      <h1>Keystack</h1>
+      <h1>
+        <svg class="brandmark" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="14 10 100 100" fill="none" aria-hidden="true">
+          <path d="M102 52V84A18 18 0 0 1 84 102H44A18 18 0 0 1 26 84V44A18 18 0 0 1 44 26H70" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M88 26L68 11.5V40.5Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round"/>
+        </svg>
+        KeyRoutine
+      </h1>
       <nav class="tabs" id="tabs" aria-label="Sections"></nav>
       <div class="topbar-actions" id="topbar-actions"></div>
     </header>
@@ -15,7 +21,7 @@
     <!-- Both panels are rendered by src/options/main.ts; extension pages
          forbid inline <script>, hence the separate bundle. -->
     <main id="builder" class="builder"></main>
-    <main id="secrets" class="secrets" hidden></main>
+    <main id="vars" class="vars" hidden></main>
 
     <script src="options.js"></script>
   </body>

@@ -1,6 +1,5 @@
 import type { Step } from "../core/schema";
 import type { Handler } from "./types";
-import { copyBySelector } from "./copyBySelector";
 import { readBySelector } from "./readBySelector";
 import { inputToSelector } from "./inputToSelector";
 import { focusBySelector } from "./focusBySelector";
@@ -14,7 +13,6 @@ import { openUrlInCurrentTab } from "./openUrlInCurrentTab";
 import { fetchUrl } from "./fetchUrl";
 
 export const handlers: Record<Step["type"], Handler> = {
-  copyBySelector,
   readBySelector,
   inputToSelector,
   focusBySelector,

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { runStack, StepError } from "../src/content/runner";
-import type { Stack } from "../src/core/schema";
+import { runRoutine, StepError } from "../src/content/runner";
+import type { Routine } from "../src/core/schema";
 
 // jsdom's window.open is a no-op that returns null — which is exactly what a
 // blocked popup looks like — so every test stubs it explicitly.
@@ -14,14 +14,16 @@ function openedUrl(): string {
   return open.mock.calls[0][0] as string;
 }
 
-function stackWith(url: string, selector = "#tender_id"): Stack {
+// Scoped to a site: readBySelector below is site-only (see core/stepMeta.ts).
+function routineWith(url: string, selector = "#tender_id"): Routine {
   return {
     id: "sync",
     name: "Sync Tender",
     binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
+    siteId: "site",
     steps: [
-      { id: "s1", type: "readBySelector", selector },
+      { id: "s1", type: "readBySelector", selector, saveAs: "s1" },
       { id: "s2", type: "openUrlInNewTab", url }
     ]
   };
@@ -40,7 +42,7 @@ describe("openUrlInNewTab", () => {
   it("opens a new tab with $vars substituted from earlier steps", async () => {
     document.body.innerHTML = `<input id="tender_id" value="e3cf4bdd" />`;
 
-    await runStack(stackWith("http://dzo.lh/cron/directSinhro.php?tender_id=$s1&type=tenders"));
+    await runRoutine(routineWith("http://dzo.lh/cron/directSinhro.php?tender_id=$s1&type=tenders"));
 
     expect(open).toHaveBeenCalledOnce();
     expect(openedUrl()).toBe("http://dzo.lh/cron/directSinhro.php?tender_id=e3cf4bdd&type=tenders");
@@ -50,15 +52,15 @@ describe("openUrlInNewTab", () => {
   it("percent-encodes the substituted value so it cannot inject a query parameter", async () => {
     document.body.innerHTML = `<input id="tender_id" value="abc&run=evil" />`;
 
-    await runStack(stackWith("http://dzo.lh/sync.php?tender_id=$s1&type=tenders"));
+    await runRoutine(routineWith("http://dzo.lh/sync.php?tender_id=$s1&type=tenders"));
 
     expect(openedUrl()).toBe("http://dzo.lh/sync.php?tender_id=abc%26run%3Devil&type=tenders");
   });
 
-  it("leaves the separators the stack author typed in the template alone", async () => {
+  it("leaves the separators the routine author typed in the template alone", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
 
-    await runStack(stackWith("http://dzo.lh/sync.php?a=1&b=2&tender_id=$s1"));
+    await runRoutine(routineWith("http://dzo.lh/sync.php?a=1&b=2&tender_id=$s1"));
 
     // The literal &s stay separators; only the value is encoded.
     expect(openedUrl()).toBe("http://dzo.lh/sync.php?a=1&b=2&tender_id=T-42");
@@ -67,7 +69,7 @@ describe("openUrlInNewTab", () => {
   it("resolves a relative URL against the current page", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-7" />`;
 
-    await runStack(stackWith("/cron/directSinhro.php?tender_id=$s1"));
+    await runRoutine(routineWith("/cron/directSinhro.php?tender_id=$s1"));
 
     expect(openedUrl()).toBe(`${location.origin}/cron/directSinhro.php?tender_id=T-7`);
   });
@@ -75,7 +77,7 @@ describe("openUrlInNewTab", () => {
   it("treats $$ as a literal $ rather than encoding it", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-1" />`;
 
-    await runStack(stackWith("http://dzo.lh/sync.php?cost=$$5&id=$s1"));
+    await runRoutine(routineWith("http://dzo.lh/sync.php?cost=$$5&id=$s1"));
 
     expect(openedUrl()).toBe("http://dzo.lh/sync.php?cost=$5&id=T-1");
   });
@@ -84,7 +86,7 @@ describe("openUrlInNewTab", () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
     stubOpen(null); // what window.open returns when the popup blocker fires
 
-    const err = await runStack(stackWith("http://dzo.lh/sync.php?id=$s1")).catch((e) => e);
+    const err = await runRoutine(routineWith("http://dzo.lh/sync.php?id=$s1")).catch((e) => e);
 
     expect(err).toBeInstanceOf(StepError);
     expect(err.message).toMatch(/blocked the new tab/);
@@ -95,7 +97,7 @@ describe("openUrlInNewTab", () => {
   it("refuses a non-http scheme instead of opening it", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
 
-    const err = await runStack(stackWith("javascript:alert(1)")).catch((e) => e);
+    const err = await runRoutine(routineWith("javascript:alert(1)")).catch((e) => e);
 
     expect(err).toBeInstanceOf(StepError);
     expect(err.message).toMatch(/only http\/https/);
@@ -107,7 +109,7 @@ describe("openUrlInNewTab", () => {
     // start a new URL.
     document.body.innerHTML = `<input id="tender_id" value="x@evil.com/" />`;
 
-    await runStack(stackWith("http://dzo.lh/sync.php?id=$s1"));
+    await runRoutine(routineWith("http://dzo.lh/sync.php?id=$s1"));
 
     expect(new URL(openedUrl()).host).toBe("dzo.lh");
   });
@@ -115,7 +117,7 @@ describe("openUrlInNewTab", () => {
   it("reports an unknown variable instead of opening a broken URL", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-42" />`;
 
-    const err = await runStack(stackWith("http://dzo.lh/sync.php?id=$nope")).catch((e) => e);
+    const err = await runRoutine(routineWith("http://dzo.lh/sync.php?id=$nope")).catch((e) => e);
 
     expect(err).toBeInstanceOf(StepError);
     expect(err.message).toMatch(/unknown variable "\$nope"/);

@@ -1,14 +1,21 @@
 import { columnHead, h, iconButton } from "./el";
 import { icon } from "./icons";
 import type { Step } from "../core/schema";
-import { STEP_GROUPS, STEP_META, STEP_TYPES, formFields, templateFields } from "../core/stepMeta";
+import {
+  STEP_GROUPS,
+  STEP_META,
+  STEP_TYPES,
+  formFields,
+  siteOnlyReason,
+  templateFields
+} from "../core/stepMeta";
 import { availableVars, referencedVars } from "../core/vars";
 import * as store from "./store";
 import * as probe from "./probe";
 import { renderField } from "./fields";
 import { keyCaps } from "./chordInput";
 
-// Column 3 — what. The actions of the open stack as a pipeline: the hotkey that
+// Column 3 — what. The actions of the open routine as a pipeline: the hotkey that
 // starts it, one card per action in run order, and the point where another one
 // is added. Nothing here knows what an action type is — the list of types comes
 // from STEP_META and each form is its `fields` run through renderField, so a new
@@ -18,7 +25,7 @@ import { keyCaps } from "./chordInput";
 // core/stepMeta.ts.
 
 export function renderSteps(pane: HTMLElement): void {
-  const stack = store.currentStack();
+  const routine = store.currentRoutine();
   pane.className = "c-act";
 
   pane.append(
@@ -28,15 +35,15 @@ export function renderSteps(pane: HTMLElement): void {
       glyph: "play",
       eyebrow: "3 · What",
       title: "Actions",
-      count: stack?.steps.length ?? 0,
-      sub: stack
-        ? ["In ", h("strong", { text: stack.name }), " · run top to bottom"]
-        : ["Pick a stack on the left"]
+      count: routine?.steps.length ?? 0,
+      sub: routine
+        ? ["In ", h("strong", { text: routine.name }), " · run top to bottom"]
+        : ["Pick a routine on the left"]
     })
   );
 
-  if (!stack) {
-    pane.append(h("div", { class: "empty", text: "Pick a stack, or add one." }));
+  if (!routine) {
+    pane.append(h("div", { class: "empty", text: "Pick a routine, or add one." }));
     return;
   }
 
@@ -50,11 +57,14 @@ export function renderSteps(pane: HTMLElement): void {
   pipeline.append(triggerRow());
 
   const current = store.currentStep();
-  stack.steps.forEach((step, index) => {
-    pipeline.append(actionRow(step, index, stack.steps.length, current?.id === step.id));
+  routine.steps.forEach((step, index) => {
+    pipeline.append(actionRow(step, index, routine.steps.length, current?.id === step.id));
   });
 
-  pipeline.append(addRow());
+  // A popup is the answer the hotkey was pressed for: it is the last action a
+  // routine has, so the pipeline ends there rather than asking "and then?".
+  const last: Step | undefined = routine.steps[routine.steps.length - 1];
+  pipeline.append(last && STEP_META[last.type].endsRoutine ? endNote(last) : addRow());
   pane.append(pipeline);
 }
 
@@ -64,12 +74,12 @@ function rail(...children: (Node | string | null)[]): HTMLElement {
   return h("div", { class: "rail" }, ...(children.filter(Boolean) as Node[]));
 }
 
-// What starts the stack, said in one line. It is the only place the hotkey and
-// the site appear together, which is also the only way to see that a stack is
+// What starts the routine, said in one line. It is the only place the hotkey and
+// the site appear together, which is also the only way to see that a routine is
 // bound to a chord on a site where it can never fire.
 function triggerRow(): HTMLElement {
-  const stack = store.currentStack()!;
-  const where = stack.siteId == null ? "any site" : store.siteName(stack.siteId);
+  const routine = store.currentRoutine()!;
+  const where = routine.siteId == null ? "any site" : store.siteName(routine.siteId);
 
   const body = h(
     "div",
@@ -78,14 +88,14 @@ function triggerRow(): HTMLElement {
       "div",
       { class: "triggerline" },
       h("span", { class: "soft", text: "When you press" }),
-      keyCaps(stack.binding),
+      keyCaps(routine.binding),
       h("span", { class: "soft", text: "on" }),
       h("span", { class: "where", text: where })
     )
   );
-  if (!stack.enabled) {
+  if (!routine.enabled) {
     body.append(
-      h("div", { class: "warn", text: "This stack is off — the hotkey does nothing right now." })
+      h("div", { class: "warn", text: "This routine is off — the hotkey does nothing right now." })
     );
   }
 
@@ -113,8 +123,14 @@ function actionRow(step: Step, index: number, total: number, open: boolean): HTM
 }
 
 function actionCard(step: Step, index: number, total: number, open: boolean): HTMLElement {
-  const stack = store.currentStack()!;
+  const routine = store.currentRoutine()!;
   const meta = STEP_META[step.type];
+  // Neither arrow may leave an action standing after a popup: the popup is
+  // where the routine ends, so it cannot move off the bottom, and the action
+  // above it cannot move past it.
+  const ends = meta.endsRoutine === true;
+  const next = routine.steps[index + 1];
+  const endsAfter = next !== undefined && STEP_META[next.type].endsRoutine === true;
   const card = h("div", { class: `card step ${open ? "is-open" : ""}`.trim() });
 
   const text = h(
@@ -136,9 +152,17 @@ function actionCard(step: Step, index: number, total: number, open: boolean): HT
     text
   );
 
+  // An older config, or an import, can hold an action this routine's scope may
+  // not run. The runner refuses it; the card says so before the hotkey does.
+  const outOfScope = meta.siteOnly === true && store.getScope().kind === "common";
+  if (outOfScope) head.append(h("span", { class: "errchip", text: "Needs a site" }));
+
   const missing = missingVars(step, index);
   if (missing) head.append(h("span", { class: "errchip mono", text: `$${missing} undefined` }));
-  if (meta.produces) head.append(h("span", { class: "outchip mono", text: `→ $${step.id}` }));
+  if (meta.produces) {
+    const name = (step as { saveAs?: string }).saveAs;
+    head.append(h("span", { class: "outchip mono", text: name ? `→ $${name}` : "→ unnamed" }));
+  }
 
   card.append(
     h(
@@ -148,8 +172,10 @@ function actionCard(step: Step, index: number, total: number, open: boolean): HT
       h(
         "div",
         { class: "steptools" },
-        iconButton("up", "Move up", () => move(step.id, -1), { disabled: index === 0 }),
-        iconButton("down", "Move down", () => move(step.id, 1), { disabled: index === total - 1 }),
+        iconButton("up", "Move up", () => move(step.id, -1), { disabled: index === 0 || ends }),
+        iconButton("down", "Move down", () => move(step.id, 1), {
+          disabled: index === total - 1 || endsAfter
+        }),
         iconButton("copy", "Duplicate action", () => store.duplicateStep(step.id)),
         iconButton("trash", "Delete action", () => store.deleteStep(step.id))
       )
@@ -168,8 +194,8 @@ function move(id: string, delta: number): void {
 // runs — the chip on the header, which is how an unknown variable is visible
 // without opening every card.
 function missingVars(step: Step, index: number): string | null {
-  const stack = store.currentStack()!;
-  const known = new Set(availableVars(stack, index, store.getSecretNames()).map((v) => v.name));
+  const routine = store.currentRoutine()!;
+  const known = new Set(availableVars(routine, index, store.getVarNames()).map((v) => v.name));
   for (const spec of templateFields(step.type)) {
     const value = (step as unknown as Record<string, unknown>)[spec.name];
     if (typeof value !== "string") continue;
@@ -180,11 +206,11 @@ function missingVars(step: Step, index: number): string | null {
 }
 
 function actionBody(step: Step, index: number): HTMLElement {
-  const stack = store.currentStack()!;
+  const routine = store.currentRoutine()!;
   const meta = STEP_META[step.type];
   // Lazily, and per call: what an action may read depends on where it sits, and
   // it can be moved while its form is open.
-  const vars = () => availableVars(stack, index, store.getSecretNames());
+  const vars = () => availableVars(routine, index, store.getVarNames());
 
   const body = h("div", { class: "cardbody" }, h("p", { class: "stepdesc", text: meta.help }));
 
@@ -196,7 +222,7 @@ function actionBody(step: Step, index: number): HTMLElement {
     value: (step as unknown as Record<string, unknown>)[spec.name],
     onChange: (value: string) => store.patchStep(step.id, { [spec.name]: coerce(spec.kind, value) }),
     vars,
-    testKey: probe.testKey(stack.id, step.id, spec.name)
+    testKey: probe.testKey(routine.id, step.id, spec.name)
   });
 
   for (const spec of plain) body.append(renderField(spec, context(spec)));
@@ -212,6 +238,10 @@ function actionBody(step: Step, index: number): HTMLElement {
     }
     if (anySet) details.open = true;
     body.append(details);
+  }
+
+  if (meta.siteOnly === true && store.getScope().kind === "common") {
+    body.append(h("p", { class: "errtext", text: siteOnlyReason(step.type) }));
   }
 
   body.append(resultBox(step));
@@ -237,63 +267,60 @@ function resultBox(step: Step): HTMLElement {
     return box;
   }
 
+  const name = (step as { saveAs?: string }).saveAs ?? "";
   box.append(
     h(
       "div",
       { class: "outline" },
       h("span", { text: "Later actions can use it as" }),
-      h("span", { class: "outchip mono", text: `$${step.id}` })
+      h("span", { class: "outchip mono", text: name === "" ? "— unnamed" : `$${name}` })
     ),
-    varNameField(step),
+    saveAsField(step, name),
     h("div", { class: "hint", text: meta.outNote })
   );
-
-  const saveAs = (step as { saveAs?: string }).saveAs;
-  if (saveAs) {
-    box.append(
-      h(
-        "div",
-        { class: "outline" },
-        h("span", { class: "hint", text: "Also available as" }),
-        h("span", { class: "outchip mono", text: `$${saveAs}` })
-      )
-    );
-  }
   return box;
 }
 
-// The variable's name is the action's id — $<id> is how the runner binds it —
-// so renaming it can break a later template. The rename is applied on blur, not
-// per keystroke, or every intermediate spelling would count as a rename.
-function varNameField(step: Step): HTMLElement {
-  const stack = store.currentStack()!;
-  const input = h("input", { id: "step-var", class: "input mono", type: "text", value: step.id });
+// Save as: the one name a producer's result is read back by. Generated when
+// the action is added ($text, $response) so a routine works before anyone has
+// named anything, and editable here — renaming it can break a later template,
+// which is what the confirm is for. Applied on blur rather than per keystroke,
+// or every intermediate spelling would count as a rename.
+//
+// The action's id is not this and is not editable: it identifies the action,
+// it is not what anything reads.
+function saveAsField(step: Step, current: string): HTMLElement {
+  const routine = store.currentRoutine()!;
+  const input = h("input", { id: "step-var", class: "input mono", type: "text", value: current });
   const problem = h("div", { class: "errtext", hidden: true });
 
   const refuse = (message: string): void => {
     problem.textContent = message;
     problem.hidden = false;
-    input.value = step.id;
+    input.value = current;
   };
 
   const commit = (): void => {
     const next = input.value.trim();
-    if (next === step.id) return;
+    if (next === current) return;
     if (!/^\w+$/.test(next)) return refuse("letters, digits and _ only — it is used as $name");
-    if (stack.steps.some((s) => s.id === next)) return refuse(`"${next}" is already taken in this stack`);
+    const taken = routine.steps.some(
+      (s) => s.id !== step.id && (s as { saveAs?: string }).saveAs === next
+    );
+    if (taken) return refuse(`"${next}" is already taken in this routine`);
 
-    const breaks = store.renamesBreak(stack, step.id);
+    const breaks = store.renamesBreak(routine, current);
     if (breaks.length > 0) {
       const ok = confirm(
         `${breaks.map((b) => b.message).join("\n")}\n\n` +
           `Renaming this variable will not update those. Rename anyway?`
       );
       if (!ok) {
-        input.value = step.id;
+        input.value = current;
         return;
       }
     }
-    store.setStepId(step.id, next);
+    store.setStepVarName(step.id, next);
   };
 
   input.addEventListener("blur", commit);
@@ -304,7 +331,7 @@ function varNameField(step: Step): HTMLElement {
   return h(
     "label",
     { class: "field" },
-    h("span", { class: "label", text: "Variable name" }),
+    h("span", { class: "label", text: "Save as" }),
     input,
     h("span", { class: "hint", text: "Name it after what it holds, so later actions read clearly." }),
     problem
@@ -312,6 +339,19 @@ function varNameField(step: Step): HTMLElement {
 }
 
 /* ── adding an action ──────────────────────────────────────────────────── */
+
+function endNote(last: Step): HTMLElement {
+  return h(
+    "div",
+    { class: "prow" },
+    rail(h("span", { class: "seg", style: "height:6px" }), h("span", { class: "node node-end" }, icon("check"))),
+    h(
+      "div",
+      { class: "prow-body" },
+      h("div", { class: "endnote", text: `${STEP_META[last.type].label} ends the routine.` })
+    )
+  );
+}
 
 function addRow(): HTMLElement {
   const wrap = h("div", { class: "prow-body" });
@@ -340,19 +380,26 @@ function addRow(): HTMLElement {
       menu.append(h("div", { class: "cat", text: label }));
       for (const type of types) {
         const meta = STEP_META[type];
+        // Offered but disabled, with the reason in place of the help: hiding
+        // it would leave someone looking for Fetch URL in a Common routine
+        // wondering where it went, which is worse than being told.
+        const blocked = meta.siteOnly === true && store.getScope().kind === "common";
         menu.append(
           h(
             "button",
             {
               type: "button",
-              onClick: () => store.addStep(type)
+              disabled: blocked,
+              onClick: () => {
+                if (!blocked) store.addStep(type);
+              }
             },
             h("span", { class: "typeicon" }, icon(meta.icon)),
             h(
               "span",
               {},
               h("div", { class: "name", text: meta.label }),
-              h("div", { class: "note", text: meta.help })
+              h("div", { class: "note", text: blocked ? siteOnlyReason(type) : meta.help })
             )
           )
         );

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 2,
+  "sites": [
+    { "id": "app", "name": "app.example.com", "patterns": ["app.example.com"] },
+    { "id": "orders", "name": "/orders", "patterns": ["app.example.com/orders"] },
+    { "id": "docs", "name": "docs.example.org", "patterns": ["docs.example.org"] }
+  ],
+  "routines": [
+    {
+      "id": "6yttzzh2",
+      "name": "Fill test login",
+      "binding": { "code": "Digit1", "ctrl": true, "alt": true, "shift": false, "meta": false },
+      "enabled": true,
+      "siteId": null,
+      "steps": [
+        { "id": "j93ws210", "type": "inputToSelector", "selector": "#email", "value": "qa@example.com" },
+        { "id": "zb1t35pu", "type": "inputToSelector", "selector": "#password", "value": "demo-password" },
+        { "id": "b4s637jy", "type": "clickBySelector", "selector": "button[type=\"submit\"]" }
+      ]
+    },
+    {
+      "id": "idpxsv9y",
+      "name": "Show my hotkeys",
+      "binding": { "code": "Digit0", "ctrl": true, "alt": true, "shift": false, "meta": false },
+      "enabled": true,
+      "siteId": null,
+      "steps": [
+        { "id": "wt5da71b", "type": "popup", "title": "KeyRoutine hotkeys", "body": "$routines" }
+      ]
+    },
+    {
+      "id": "ovqqo5q0",
+      "name": "Order as JSON",
+      "binding": { "code": "Digit2", "ctrl": true, "alt": true, "shift": false, "meta": false },
+      "enabled": true,
+      "siteId": "app",
+      "steps": [
+        { "id": "9wouf8zo", "type": "readBySelector", "selector": "#order-id", "saveAs": "orderId" },
+        { "id": "vfunaxb4", "type": "fetchUrl", "url": "https://api.example.com/orders/$orderId", "saveAs": "order" },
+        { "id": "pb2qyfyn", "type": "popupJson", "title": "Order $orderId", "body": "$order" }
+      ]
+    },
+    {
+      "id": "ki48tcyl",
+      "name": "Save, then back to the list",
+      "binding": { "code": "Digit3", "ctrl": true, "alt": true, "shift": false, "meta": false },
+      "enabled": true,
+      "siteId": "app",
+      "steps": [
+        { "id": "ih6pmrcl", "type": "clickBySelector", "selector": "#save" },
+        { "id": "c6gbt6gz", "type": "wait", "ms": 800 },
+        { "id": "464fa96u", "type": "openUrlInCurrentTab", "url": "/orders" }
+      ]
+    },
+    {
+      "id": "5g53e38f",
+      "name": "Open this order in a new tab",
+      "binding": { "code": "Digit4", "ctrl": true, "alt": true, "shift": false, "meta": false },
+      "enabled": true,
+      "siteId": "orders",
+      "steps": [
+        { "id": "qg3b6mix", "type": "readBySelector", "selector": "#order-id", "saveAs": "orderId" },
+        { "id": "f6erlgm0", "type": "openUrlInNewTab", "url": "https://app.example.com/orders/$orderId/print" }
+      ]
+    },
+    {
+      "id": "u4hkphgg",
+      "name": "What page am I on",
+      "binding": { "code": "Digit5", "ctrl": true, "alt": true, "shift": false, "meta": false },
+      "enabled": false,
+      "siteId": "docs",
+      "steps": [
+        { "id": "8vxy5opx", "type": "readBySelector", "selector": "h1", "saveAs": "heading" },
+        { "id": "7aeclf6e", "type": "popup", "title": "$title", "body": "$heading\n\n$url" }
+      ]
+    }
+  ]
+}

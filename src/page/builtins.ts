@@ -1,5 +1,5 @@
-import type { Stack } from "../core/schema";
-import type { StackSection } from "../core/match";
+import type { Routine } from "../core/schema";
+import type { RoutineSection } from "../core/match";
 import type { RunContext } from "../core/context";
 import { formatBinding } from "../core/keys";
 
@@ -9,21 +9,21 @@ import { formatBinding } from "../core/keys";
 // a chord — so the popup cannot claim a hotkey the runtime would not run.
 //
 //   Everywhere
-//     Ctrl(⌃)+Opt(⌥)+1  Copy Tender
+//     Ctrl(⌃)+Opt(⌥)+1  Copy Report
 //
-//   This domain · dzo.lh
-//     Ctrl(⌃)+Opt(⌥)+3  Sync Tender (local)
+//   This domain · example.com
+//     Ctrl(⌃)+Opt(⌥)+3  Sync Report (local)
 //
-//   This URL · new tender form
+//   This URL · new report form
 //     Ctrl(⌃)+Opt(⌥)+8  logoutLogin
 //
 // Chords are padded to one width across every section, so the names line up
 // down the whole popup rather than per group.
-export function formatStackList(sections: StackSection[]): string {
+export function formatRoutineList(sections: RoutineSection[]): string {
   const groups = sections
     .map((section) => ({
       label: section.label,
-      rows: section.stacks
+      rows: section.routines
         .filter((s) => s.enabled)
         .map((s) => [formatBinding(s.binding), s.name] as const)
     }))
@@ -57,10 +57,10 @@ export function formatStackList(sections: StackSection[]): string {
 // Reads location/document/window directly, which is why this lives in
 // page/ rather than core/context.ts — it cannot run outside a page (e.g. in
 // a future service worker).
-export function seedBuiltins(ctx: RunContext, sections: StackSection[], current?: Stack): void {
+export function seedBuiltins(ctx: RunContext, sections: RoutineSection[], current?: Routine): void {
   ctx.set("url", location.href);
   ctx.set("title", document.title);
   ctx.set("selection", window.getSelection()?.toString() ?? "");
-  ctx.set("stacks", formatStackList(sections));
-  ctx.set("stackName", current?.name ?? "");
+  ctx.set("routines", formatRoutineList(sections));
+  ctx.set("routineName", current?.name ?? "");
 }

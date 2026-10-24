@@ -267,7 +267,7 @@ function validate(spec: FieldSpec, value: string): string | null {
 
   if (spec.kind === "url") {
     // The template is checked, not the result: $vars are unknown until the
-    // stack runs, so anything but a clearly wrong scheme has to be allowed.
+    // routine runs, so anything but a clearly wrong scheme has to be allowed.
     const looksTemplated = referencedVars(value).length > 0;
     if (!looksTemplated && !/^https?:\/\//i.test(trimmed)) return "must start with http:// or https://";
     if (looksTemplated && !/^(https?:\/\/|\$)/i.test(trimmed)) {

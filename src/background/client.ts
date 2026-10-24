@@ -1,13 +1,16 @@
 // The content-script side of everything that needs the service worker:
-// the fetchUrl step's request, and the resume records that let a stack
+// the fetchUrl step's request, and the resume records that let a routine
 // survive a navigation. Nothing here touches the network or storage
 // directly — that's the whole point of going through the worker.
 import {
   FETCH_MESSAGE_TYPE,
+  LOAD_SETTINGS_MESSAGE_TYPE,
   SAVE_RESUME_MESSAGE_TYPE,
   TAKE_RESUME_MESSAGE_TYPE,
   type FetchRequest,
   type FetchResponse,
+  type LoadSettingsRequest,
+  type LoadSettingsResponse,
   type ResumeRecord,
   type ResumeResponse,
   type SaveResumeRequest,
@@ -25,14 +28,14 @@ export async function fetchInBackground(url: string): Promise<FetchResult> {
   return response;
 }
 
-// Parks a suspended stack in the worker, keyed by this tab. Awaited before
+// Parks a suspended routine in the worker, keyed by this tab. Awaited before
 // the navigation actually starts — see runner.ts.
 export async function saveResume(record: ResumeRecord): Promise<void> {
   const request: SaveResumeRequest = { type: SAVE_RESUME_MESSAGE_TYPE, record };
   await chrome.runtime.sendMessage(request);
 }
 
-// Claims this tab's pending stack, if any. Destructive on the worker side,
+// Claims this tab's pending routine, if any. Destructive on the worker side,
 // so two content scripts racing cannot both resume the same record.
 // Failures are swallowed: this runs on every page load, and a missing
 // worker must not turn into a console error on every site you visit.
@@ -44,4 +47,14 @@ export async function takeResume(): Promise<ResumeRecord | null> {
   } catch {
     return null;
   }
+}
+
+// config/settings.json, read by the worker (see protocol.ts) rather than
+// fetched here directly. Failures are swallowed the same way takeResume's
+// are: this runs on every routine, and a missing worker must not surface as
+// anything louder than the caller's own defaults.
+export async function loadSettingsFromBackground(): Promise<Record<string, unknown>> {
+  const request: LoadSettingsRequest = { type: LOAD_SETTINGS_MESSAGE_TYPE };
+  const response = (await chrome.runtime.sendMessage(request)) as LoadSettingsResponse | undefined;
+  return response?.settings ?? {};
 }

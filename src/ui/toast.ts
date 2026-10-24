@@ -1,6 +1,6 @@
 import type { ToastVerbosity } from "../core/schema";
 
-// The result of one runStack() call, in a shape the UI can render without
+// The result of one runRoutine() call, in a shape the UI can render without
 // needing to know about StepError or the run context.
 export type RunOutcome =
   | { ok: true; notes: string[] }
@@ -14,21 +14,28 @@ export type RunOutcome =
 // page that resets *all* elements, but that's a much rarer case than
 // ordinary CSS leakage.
 //
-// Only the latest toast is ever shown — showToast() clears #container before
-// appending, so a new hotkey result always replaces whatever was there,
-// pinned or not.
-let toastContainer: HTMLElement | null = null;
+// One zone, two slots, stacked: the started toast and the fetch spinner
+// (ui/spinner.ts) used to be entirely separate fixed-position elements
+// pinned to the identical screen coordinates, so a fetch starting right
+// after the hotkey's own toast fired rendered on top of it instead of beside
+// it — which looked like the toast had vanished early, when really it was
+// just buried. Now each gets its own slot in one flex column: a fetch
+// starting leaves the toast where it is and adds the spinner below it, and
+// the spinner clearing on completion leaves the toast exactly as it was.
+// Exported for ui/spinner.ts; nothing outside ui/ reaches either slot.
+let toastSlot: HTMLElement | null = null;
+let spinnerSlot: HTMLElement | null = null;
 
-function getToastContainer(): HTMLElement {
-  if (toastContainer) return toastContainer;
+function getZone(): { toastSlot: HTMLElement; spinnerSlot: HTMLElement } {
+  if (toastSlot && spinnerSlot) return { toastSlot, spinnerSlot };
   const host = document.createElement("div");
-  host.id = "keystack-toast-host";
+  host.id = "keyroutine-toast-host";
   document.documentElement.appendChild(host);
 
   const shadowRoot = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
   style.textContent = `
-    #container {
+    #zone {
       position: fixed;
       top: 24px;
       left: 24px;
@@ -38,15 +45,22 @@ function getToastContainer(): HTMLElement {
       gap: 8px;
       pointer-events: none;
     }
-    .toast {
+    /* Both children share one width, so replacing one with the other never
+       resizes the box — a toast handing off to a spinner (a fetch step
+       starting) or back should read as one continuing thing, not a flicker. */
+    .toast, .spinner {
       pointer-events: auto;
-      padding: 10px 16px;
+      min-width: 320px;
+      max-width: 320px;
+      box-sizing: border-box;
       border-radius: 8px;
       font: 13px/1.4 -apple-system, system-ui, sans-serif;
       color: #fff;
       box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
-      max-width: 320px;
       word-break: break-word;
+    }
+    .toast {
+      padding: 10px 16px;
       cursor: pointer;
     }
     .toast.ok { background: #1a7f37; }
@@ -64,13 +78,38 @@ function getToastContainer(): HTMLElement {
       opacity: .85;
       white-space: pre-line;
     }
+    .spinner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      background: #1f2328;
+    }
+    .spinner .dot {
+      flex: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, .3);
+      border-top-color: #fff;
+      animation: keyroutine-spin .7s linear infinite;
+    }
+    @keyframes keyroutine-spin { to { transform: rotate(360deg); } }
   `;
   shadowRoot.appendChild(style);
 
-  toastContainer = document.createElement("div");
-  toastContainer.id = "container";
-  shadowRoot.appendChild(toastContainer);
-  return toastContainer;
+  const zone = document.createElement("div");
+  zone.id = "zone";
+  toastSlot = document.createElement("div");
+  spinnerSlot = document.createElement("div");
+  zone.append(toastSlot, spinnerSlot);
+  shadowRoot.appendChild(zone);
+  return { toastSlot, spinnerSlot };
+}
+
+// For ui/spinner.ts, which only ever touches its own slot.
+export function getSpinnerSlot(): HTMLElement {
+  return getZone().spinnerSlot;
 }
 
 const TOAST_DURATION_MS = 3000;
@@ -80,11 +119,11 @@ function numberList(items: string[]): string[] {
   return items.map((item, i) => `${i + 1}. ${item}`);
 }
 
-// detail lines: [0] is the title (stack name + status), then a blank line,
+// detail lines: [0] is the title (routine name + status), then a blank line,
 // then one line per step. white-space: pre-line on .detail renders the \n's.
 function showToast(chord: string, detailLines: string[], ok: boolean) {
-  const container = getToastContainer();
-  container.replaceChildren(); // only the latest toast is ever shown, pinned or not
+  const { toastSlot } = getZone();
+  toastSlot.replaceChildren(); // only the latest toast is ever shown, pinned or not
 
   const el = document.createElement("div");
   el.className = `toast ${ok ? "ok" : "err"}`;
@@ -98,7 +137,7 @@ function showToast(chord: string, detailLines: string[], ok: boolean) {
   detailEl.textContent = detailLines.join("\n");
 
   el.append(chordEl, detailEl);
-  container.appendChild(el);
+  toastSlot.appendChild(el);
 
   // Click once to pin (cancels auto-dismiss); click again to close it.
   let pinned = false;
@@ -114,22 +153,35 @@ function showToast(chord: string, detailLines: string[], ok: boolean) {
   });
 }
 
-// A config that will not parse is a special kind of failure: no stack ran,
-// so there is no chord, no stack name and no step list to report. It also
+// A config that will not parse is a special kind of failure: no routine ran,
+// so there is no chord, no routine name and no step list to report. It also
 // deliberately ignores the toast verbosity setting — verbosity tunes how
 // much detail a *run* reports, and here nothing can run at all. Silence is
 // the exact failure mode this exists to remove: before it, one stray comma
-// in stacks.json made every hotkey dead with no feedback anywhere.
+// in routines.json made every hotkey dead with no feedback anywhere.
 export function showConfigErrorToast(message: string): void {
-  showToast("Keystack", ["\u2717 config/stacks.json could not be read", "", message], false);
+  showToast("KeyRoutine", ["\u2717 config/routines.json could not be read", "", message], false);
 }
 
-// "none": show nothing. "min": chord + stack name, plus the failure reason
+// The instant acknowledgement: fired the moment a keypress is matched to a
+// routine, before a single step has run — "none" aside, it doesn't vary with
+// verbosity, because there is no result yet to vary it with. This is what a
+// routine whose last step is a long fetch or a popup needs: without it, the
+// only feedback was the detailed toast at the very end, which on a
+// popup-ending routine meant nothing showed until the popup was dismissed —
+// by which point the moment it would have mattered (confirming the right
+// chord fired) had passed.
+export function showStartedToast(chord: string, routineName: string, verbosity: ToastVerbosity): void {
+  if (verbosity === "none") return;
+  showToast(chord, [routineName], true);
+}
+
+// "none": show nothing. "min": chord + routine name, plus the failure reason
 // if it failed — no per-step detail. "max": full numbered step list, with a
 // separator before the failing step on failure.
 export function showResultToast(
   chord: string,
-  stackName: string,
+  routineName: string,
   outcome: RunOutcome,
   verbosity: ToastVerbosity
 ): void {
@@ -137,19 +189,19 @@ export function showResultToast(
 
   if (verbosity === "min") {
     if (outcome.ok) {
-      showToast(chord, [`✓ ${stackName}`], true);
+      showToast(chord, [`✓ ${routineName}`], true);
     } else {
-      showToast(chord, [`✗ ${stackName}: ${outcome.message}`], false);
+      showToast(chord, [`✗ ${routineName}: ${outcome.message}`], false);
     }
     return;
   }
 
   // max
   if (outcome.ok) {
-    showToast(chord, [`✓ ${stackName}`, "", ...numberList(outcome.notes)], true);
+    showToast(chord, [`✓ ${routineName}`, "", ...numberList(outcome.notes)], true);
   } else {
     const lines = numberList(outcome.notes);
     lines.push("", SEPARATOR, `${outcome.stepIndex + 1}. ✗ ${outcome.stepType}: ${outcome.message}`);
-    showToast(chord, [`✗ ${stackName}`, "", ...lines], false);
+    showToast(chord, [`✗ ${routineName}`, "", ...lines], false);
   }
 }

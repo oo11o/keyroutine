@@ -1,11 +1,11 @@
 // URL handling shared by the URL steps (openUrlInNewTab, openUrlInCurrentTab,
 // fetchUrl). Touches `location`, so it lives in page/ rather than core/ —
-// same split as dom.ts and clipboard.ts.
+// same split as dom.ts.
 import { resolve, type RunContext } from "../core/context";
 
-// Relative URLs resolve against the current page, so a stack can say
+// Relative URLs resolve against the current page, so a routine can say
 // "/cron/sync.php?id=$s1" without hardcoding the host it runs on.
-// Only http/https are allowed: a stacks.json can be shared or imported, and
+// Only http/https are allowed: a routines.json can be shared or imported, and
 // `javascript:` in window.open (or a fetch target) would be a code-execution
 // footgun none of these steps is meant to offer.
 export function toHttpUrl(raw: string): string {
@@ -33,7 +33,7 @@ export function resolveHttpUrl(template: string, ctx: RunContext): string {
 // blocked popup indistinguishable from a successful one — and for a hotkey
 // a silent no-op is the worst possible outcome. So we keep the handle and
 // check it. Dropping noopener costs nothing here: the destination origin is
-// whatever the stack author wrote in their own config, and interpolated
+// whatever the routine author wrote in their own config, and interpolated
 // values are percent-encoded, so a value read off the page cannot steer the
 // tab to a different origin.
 export function openTab(url: string): void {

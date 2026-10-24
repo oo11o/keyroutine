@@ -55,7 +55,7 @@ function segment(el: Element): string {
 
 // A selector for this element: the shortest ancestor path that matches it and
 // nothing else. Walks up only as far as it has to, so a page with an id on the
-// element gets `#tender_id` rather than a chain down from <body>.
+// element gets `#report_id` rather than a chain down from <body>.
 export function cssSelectorFor(el: Element, root: Document = document): string {
   if (el.id && isPlainIdent(el.id) && unique(`#${el.id}`, root)) return `#${el.id}`;
 
@@ -73,7 +73,7 @@ export function cssSelectorFor(el: Element, root: Document = document): string {
   return parts.join(" > ");
 }
 
-const OVERLAY_ID = "keystack-picker";
+const OVERLAY_ID = "keyroutine-picker";
 
 // Resolves with a selector for whatever the user clicks, or null if they press
 // Escape. The highlight is pointer-events:none and every mouse event is taken
@@ -98,7 +98,7 @@ export function pickElement(): Promise<string | null> {
       "padding:7px 12px;border-radius:8px;background:#1a1a1d;color:#ededf0;" +
       "border:1px solid #3c3c45;box-shadow:0 8px 28px rgba(0,0,0,.45);white-space:nowrap;" +
       "overflow:hidden;text-overflow:ellipsis";
-    label.textContent = "Keystack: click an element to pick it — Esc to cancel";
+    label.textContent = "KeyRoutine: click an element to pick it — Esc to cancel";
 
     host.append(box, label);
     document.documentElement.append(host);
