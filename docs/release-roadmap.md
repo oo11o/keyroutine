@@ -26,16 +26,11 @@ pushed. What is missing is hosting, assets, and one real functionality gap
       tags (`v0.2.0`–`v0.2.2`) predate this and sort ahead of a future
       `v0.1.0` tag; harmless for the Store submission itself, just worth
       knowing if you tag this release.
-- [ ] **Write release notes that lead with the breaking parts**, because
-      every one of them will otherwise arrive as "my hotkeys stopped
-      working":
-      1. site access is now granted per site — existing routines need a grant
-         before they fire again (`docs/chrome-store-submission.md`, "What
-         changed for an existing install");
-      2. "Copy element to clipboard" is gone; those steps become "Read
-         element" on load;
-      3. Fetch URL and every selector-based action now only run in a routine
-         scoped to a site.
+- [x] ~~Write release notes for the breaking changes~~ — not needed. This is
+      the first-ever submission; there is no existing install base to break.
+      The "what changed for an existing install" section in
+      `docs/chrome-store-submission.md` stays as internal documentation of
+      the permission model, not as user-facing release notes.
 - [x] ~~Commit the toast/UX redesign~~ — done.
 - [x] ~~Commit the site-only expansion + grant-row removal~~ — done
       (`44e417a`), now merged to master.
@@ -86,11 +81,11 @@ pushed. What is missing is hosting, assets, and one real functionality gap
       goes through `parseConfig`, not through the Save/Import check, so a
       future seed holding a fetch in a Common routine would be written to
       storage and then refused at run time. One check, one test.
-- [ ] **Run the upgrade path on a real profile.** Load a profile that has
-      the pre-change config, update the extension, and confirm: old routines
-      show "Not granted", granting one makes its hotkey work without a
-      reload, a `copyBySelector` step became "Read element", and a Common
-      routine with a fetch reports the scope error instead of calling.
+- [x] ~~Run the upgrade path on a real profile.~~ Not applicable — this is
+      the first submission, there is no existing install to upgrade from.
+      The migration code (`migrateStep`, the per-site grant check) stays in
+      place for when a *future* version needs it, but there's nothing to
+      verify against today.
 
 ## Phase 3 — worth having before the listing goes public
 
