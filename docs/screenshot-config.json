@@ -11,7 +11,7 @@
       "name": "Fill test login",
       "binding": { "code": "Digit1", "ctrl": true, "alt": true, "shift": false, "meta": false },
       "enabled": true,
-      "siteId": null,
+      "siteId": "app",
       "steps": [
         { "id": "j93ws210", "type": "inputToSelector", "selector": "#email", "value": "qa@example.com" },
         { "id": "zb1t35pu", "type": "inputToSelector", "selector": "#password", "value": "demo-password" },
