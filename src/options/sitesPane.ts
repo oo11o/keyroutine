@@ -69,6 +69,11 @@ async function hasAllOrigins(site: Site): Promise<boolean> {
   return granted.every(Boolean);
 }
 
+async function ensureAllOrigins(site: Site): Promise<boolean> {
+  const granted = await Promise.all(site.patterns.map(ensureOrigin));
+  return granted.every(Boolean);
+}
+
 export function renderSites(pane: HTMLElement): void {
   const config = store.getConfig();
   const scope = store.getScope();
@@ -219,6 +224,18 @@ function addButton(pageUrl: string | null, claimed: { domain: boolean; url: bool
   );
 }
 
+// One sentence per place this row appears, not one phrase with a noun
+// swapped in — a site grant is about routines running there, the Common
+// grant is about reaching every site at all, and (see stepsPane.ts) a fetch
+// grant is about a network request, never about running on a page. Blurring
+// those into one template reads as accurate everywhere and precise nowhere.
+function siteWording(label: "this site" | "this area"): { granted: string; missing: string } {
+  return {
+    granted: `Access granted — routines can run on ${label}.`,
+    missing: `Not granted yet — routines cannot run on ${label}.`
+  };
+}
+
 // The only place in the builder that can ask Chrome for <all_urls>: a
 // Common routine fires on every page, which is not a site pattern it could
 // attach an auto-request checkbox to. Without this, no Common routine of
@@ -283,12 +300,17 @@ function siteSettings(siteId: string): HTMLElement {
   const areas = group && group.site.id === site.id ? group.areas : [];
   const count = store.routineCount({ kind: "site", siteId: site.id });
 
+  const grant = grantStatusRow(
+    siteWording(parent ? "this area" : "this site"),
+    () => hasAllOrigins(site),
+    () => ensureAllOrigins(site)
+  );
+
   const patternProblem = h("div", { class: "errtext", hidden: true });
 
-  // The only place left that can trigger chrome.permissions.request() at
-  // all — the standalone grant row/button was removed. Off means a typed
-  // pattern is added without asking Chrome for anything; there is currently
-  // no other way to ask afterward short of retyping the pattern.
+  // Off means a typed pattern is added without asking Chrome for anything —
+  // the grant row above is then the way to ask afterward, without having to
+  // delete and retype the pattern.
   const autoGrant = h("input", {
     id: "site-auto-grant",
     type: "checkbox",
@@ -315,7 +337,7 @@ function siteSettings(siteId: string): HTMLElement {
     patternProblem.hidden = true;
     add.value = "";
     store.patchSite(site.id, { patterns: [...site.patterns, pattern] });
-    if (site.autoGrant !== false) void ensureOrigin(pattern);
+    if (site.autoGrant !== false) void ensureOrigin(pattern).then(grant.refresh);
   });
 
   return h(
@@ -381,6 +403,7 @@ function siteSettings(siteId: string): HTMLElement {
         ? h("span", { class: "errtext", text: "Without a pattern this site matches nothing." })
         : null
     ),
+    site.patterns.length > 0 ? grant.element : null,
     h(
       "div",
       {},

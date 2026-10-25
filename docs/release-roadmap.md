@@ -142,7 +142,7 @@ a human sitting down at the Developer Dashboard.
       fire on. The two navigate actions (open URL in a new/current tab)
       stayed out: they don't depend on the current page's structure.
 
-## Phase 5 — the grant row was removed, both halves are back
+## Phase 5 — the grant row was removed, all three are back
 
 - [x] ~~Restore a Fetch URL step's own grant.~~ Done — `fetchGrantRow()` is
       back in `stepsPane.ts`, built on `grantRow.ts` (restored) and the
@@ -162,11 +162,20 @@ a human sitting down at the Developer Dashboard.
       can ask Chrome for `<all_urls>`, since Common fires on every page and
       has no site pattern to attach an auto-request checkbox to. One test
       restored alongside it.
+- [x] ~~Restore a site's own grant, so unchecking auto-request is not a
+      one-way door.~~ Flagged as a UX problem after the fact: the
+      auto-request checkbox only fires the moment a pattern is typed — if
+      it was off, or access was revoked some other way, there was no way
+      left to ask again short of deleting and retyping the pattern. Restored
+      `ensureAllOrigins()`, `siteWording()`, and the `grantStatusRow` in
+      `siteSettings()` (`sitesPane.ts`) — the checkbox now covers the
+      moment a pattern is added, the row covers every moment after. One
+      test restored alongside it.
       *Done when:* there is some way, anywhere in the builder, to grant
-      Common's own `<all_urls>` access — **done.**
+      Common's own `<all_urls>` access — **done** — and to grant or re-grant
+      a site's own access without retyping its pattern — **done.**
 
-Both halves of the original "Grant access" row are back, each where it
-belongs: a site's own access still goes through the auto-request checkbox
-(`sitesPane.ts`, unchanged), Common through its card, and a Fetch URL step
-through its own card. Nothing underneath was ever actually removed — only
-the three UI call sites were, and now they're reconnected.
+All three grant rows the builder ever had are back: a site's own card, the
+Common card, and a Fetch URL step's card. Nothing underneath was ever
+actually removed — only the UI call sites were, and now they're all
+reconnected.

@@ -197,9 +197,9 @@ describe("the Sites column", () => {
     add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
 
     expect(store.getConfig().sites[0].patterns).toContain("dzo.lh/new");
-    // Nothing else in the builder can ask Chrome for this host now — the
-    // standalone grant row was removed — so unchecking this is currently a
-    // one-way door until the pattern is retyped.
+    // The pattern itself asked for nothing — the site's own grant row
+    // (below, once a pattern exists) is the other way to ask, without
+    // retyping the pattern.
     expect(fake.requested).toEqual([]);
   });
 
@@ -287,6 +287,20 @@ describe("the Sites column", () => {
 
     expect(texts(panes.sites, ".settings-head")).toEqual(["Area settings"]);
     expect(panes.sites.textContent).toContain("An area of dzo.lh");
+  });
+
+  it("says when a selected site's access is not yet granted, and grants it on click", async () => {
+    const fake = stubChromePermissions(); // nothing granted
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Not granted yet"));
+
+    const grantBtn = [...panes.sites.querySelectorAll(".grantrow button")][0] as HTMLElement;
+    grantBtn.click();
+
+    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Access granted"));
+    expect(fake.requested).toEqual([["*://dzo.lh/*"]]);
   });
 
   it("offers a grant for Common, scoped to every site rather than one host", async () => {
