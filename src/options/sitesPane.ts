@@ -308,18 +308,6 @@ function siteSettings(siteId: string): HTMLElement {
 
   const patternProblem = h("div", { class: "errtext", hidden: true });
 
-  // Off means a typed pattern is added without asking Chrome for anything —
-  // the grant row above is then the way to ask afterward, without having to
-  // delete and retype the pattern.
-  const autoGrant = h("input", {
-    id: "site-auto-grant",
-    type: "checkbox",
-    checked: site.autoGrant !== false
-  });
-  autoGrant.addEventListener("change", () =>
-    store.patchSite(site.id, { autoGrant: autoGrant.checked ? undefined : false })
-  );
-
   add.addEventListener("keydown", (e) => {
     if ((e as KeyboardEvent).key !== "Enter") return;
     const pattern = add.value.trim();
@@ -336,8 +324,12 @@ function siteSettings(siteId: string): HTMLElement {
     }
     patternProblem.hidden = true;
     add.value = "";
+    // No auto-request here any more: the grant row below (newly visible,
+    // now that there is a pattern) is the one place that asks Chrome,
+    // whether that's right after typing a pattern or any time later — one
+    // path instead of two that could drift apart. The redraw patchSite
+    // triggers rebuilds that row fresh, so there is nothing to refresh here.
     store.patchSite(site.id, { patterns: [...site.patterns, pattern] });
-    if (site.autoGrant !== false) void ensureOrigin(pattern).then(grant.refresh);
   });
 
   return h(
@@ -370,12 +362,6 @@ function siteSettings(siteId: string): HTMLElement {
         " to add it."
       ),
       patternProblem,
-      h(
-        "label",
-        { class: "field-check" },
-        autoGrant,
-        "Automatically request access when I add a domain here"
-      ),
       // The three shapes a pattern can take, said as plainly as the add
       // field's own placeholder: what you'd type, and what it means. Run
       // together as one line rather than a list — four short facts, not

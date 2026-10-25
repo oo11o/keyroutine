@@ -163,58 +163,17 @@ describe("the Sites column", () => {
     expect(store.getConfig().sites[0].patterns).toEqual(["*.dzo.com.ua"]);
   });
 
-  it("checks the auto-request box by default, and requests access on Enter", async () => {
+  it("adding a pattern never asks Chrome on its own — the grant row below is the only path", async () => {
     const fake = stubChromePermissions();
     store.selectScope({ kind: "site", siteId: "local" });
     draw();
-
-    const box = panes.sites.querySelector("#site-auto-grant") as HTMLInputElement;
-    expect(box.checked).toBe(true);
-
-    const add = panes.sites.querySelector("#site-add-pattern") as HTMLInputElement;
-    add.value = "dzo.lh/new";
-    add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-
-    await vi.waitFor(() => expect(fake.requested).toEqual([["*://dzo.lh/*"]]));
-  });
-
-  it("unchecking auto-request adds the pattern without asking Chrome for it", async () => {
-    const fake = stubChromePermissions();
-    store.selectScope({ kind: "site", siteId: "local" });
-    draw();
-
-    const box = panes.sites.querySelector("#site-auto-grant") as HTMLInputElement;
-    box.checked = false;
-    box.dispatchEvent(new Event("change"));
-    draw();
-
-    // Unchecked is a preference, not a grant state — it must not get written
-    // as a flag the builder could later mistake for "access is in place".
-    expect(store.getConfig().sites[0].autoGrant).toBe(false);
 
     const add = panes.sites.querySelector("#site-add-pattern") as HTMLInputElement;
     add.value = "dzo.lh/new";
     add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
 
     expect(store.getConfig().sites[0].patterns).toContain("dzo.lh/new");
-    // The pattern itself asked for nothing — the site's own grant row
-    // (below, once a pattern exists) is the other way to ask, without
-    // retyping the pattern.
     expect(fake.requested).toEqual([]);
-  });
-
-  it("re-checking auto-request clears the stored preference rather than writing true", () => {
-    store.selectScope({ kind: "site", siteId: "local" });
-    store.patchSite("local", { autoGrant: false });
-    draw();
-
-    const box = panes.sites.querySelector("#site-auto-grant") as HTMLInputElement;
-    expect(box.checked).toBe(false);
-
-    box.checked = true;
-    box.dispatchEvent(new Event("change"));
-
-    expect(store.getConfig().sites[0].autoGrant).toBeUndefined();
   });
 
   it("offers the current host as a new site only when no site claims it", async () => {

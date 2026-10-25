@@ -95,14 +95,14 @@ exactly what is still flagged. This is a one-time cost of the narrower
 permission model and is worth calling out in the update's release notes
 rather than letting it surface as "my hotkeys stopped working."
 
-**Open problem, not yet solved:** the standalone "Grant access" row/button
-(site settings, Common, a Fetch URL step) was removed from the builder. A new
-pattern typed with the auto-request checkbox on still asks Chrome
-immediately, same as before — but that is now the *only* path left. A site
-granted before this change keeps working, but a profile updating into this
-state, Common, and any Fetch URL step have no button anywhere to ask Chrome
-for access. Needs a replacement before this ships, or Common/fetchUrl are
-permanently inert for anyone who was not already granted.
+**Resolved.** The standalone "Grant access" row was briefly removed from the
+builder (site settings, Common, a Fetch URL step), then restored to all
+three once the UX gap was flagged: a site's own settings, the Common card,
+and a Fetch URL step's card each have their own grant row, asking for
+exactly the access that part of the builder needs. There is no longer an
+auto-request-on-type checkbox — adding a pattern never asks Chrome on its
+own, so there is exactly one place to look for "is this granted," not two
+that could say different things.
 
 ## Listing assets still needed
 

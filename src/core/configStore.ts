@@ -196,10 +196,7 @@ function parseSite(raw: unknown, index: number, errors: string[]): Site | null {
   return {
     id,
     name: typeof raw.name === "string" && raw.name !== "" ? raw.name : id,
-    patterns,
-    // Omitted rather than written as `true`: absent already means on, and a
-    // config that never touched this setting should not start saying so.
-    ...(raw.autoGrant === false ? { autoGrant: false } : {})
+    patterns
   };
 }
 

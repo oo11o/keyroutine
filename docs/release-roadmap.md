@@ -168,14 +168,25 @@ a human sitting down at the Developer Dashboard.
       it was off, or access was revoked some other way, there was no way
       left to ask again short of deleting and retyping the pattern. Restored
       `ensureAllOrigins()`, `siteWording()`, and the `grantStatusRow` in
-      `siteSettings()` (`sitesPane.ts`) — the checkbox now covers the
-      moment a pattern is added, the row covers every moment after. One
-      test restored alongside it.
+      `siteSettings()` (`sitesPane.ts`).
       *Done when:* there is some way, anywhere in the builder, to grant
       Common's own `<all_urls>` access — **done** — and to grant or re-grant
       a site's own access without retyping its pattern — **done.**
+- [x] ~~Drop the auto-request checkbox entirely.~~ With the site's own grant
+      row back, the checkbox was a second path to the same permission that
+      could say something different from the row ("on" while the row says
+      "Not granted" the moment before it's clicked) — one UI element
+      claiming a state the actual source of truth,
+      `chrome.permissions.contains()`, has to be asked for separately
+      anyway. Removed `Site.autoGrant` from the schema (`core/schema.ts`),
+      its parsing (`core/configStore.ts`), and the checkbox + its handler
+      (`options/sitesPane.ts`). Adding a pattern now only ever adds it; the
+      grant row is the one place, not two, to ask Chrome for access or see
+      whether it was given. Four tests updated: three autoGrant-specific
+      ones collapsed into one ("adding a pattern never asks Chrome on its
+      own"), plus the now-pointless `configStore` round-trip test removed.
 
 All three grant rows the builder ever had are back: a site's own card, the
-Common card, and a Fetch URL step's card. Nothing underneath was ever
-actually removed — only the UI call sites were, and now they're all
-reconnected.
+Common card, and a Fetch URL step's card — each the single place to ask
+for, and see, that part's access. Nothing underneath was ever actually
+removed from `grant.ts`; only the UI call sites changed.

@@ -28,13 +28,6 @@ export type Site = {
   id: string;
   name: string; // "test.example.com", "partner-api" — the label shown in the builder
   patterns: string[]; // ["https://test.example.com/*", "*://*.partner-api.com/*"]
-  // Whether typing a pattern here asks Chrome for it right away, or just adds
-  // it to the config and leaves "Grant access" for later. Absent means true —
-  // existing sites keep today's behavior unchanged. Never read as "is this
-  // granted": that is only ever true from chrome.permissions.contains() at
-  // the moment it is asked, since Chrome lets the user revoke a grant this
-  // field would have no way to notice.
-  autoGrant?: boolean;
 };
 
 export type Routine = {
