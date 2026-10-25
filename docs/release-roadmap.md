@@ -134,17 +134,26 @@ forms and one real functionality gap (Phase 5).
       fire on. The two navigate actions (open URL in a new/current tab)
       stayed out: they don't depend on the current page's structure.
 
-## Phase 5 — the grant row was removed, and nothing replaced it
+## Phase 5 — the grant row was removed, half of it is back
 
-- [ ] **Decide how Common and a Fetch URL step ever get access again.** The
-      standalone "Grant access" row (site settings, Common, a Fetch URL
-      step) is gone. A site pattern typed with the auto-request checkbox on
-      still asks Chrome immediately — that part still works — but it is now
-      the *only* path in the whole builder that can call
-      `chrome.permissions.request()`. Common and every Fetch URL step have
-      no UI left to ever grant them, and a site whose pattern was added with
-      the checkbox off, or that existed before this session, has no way to
-      ask again short of retyping the pattern.
+- [x] ~~Restore a Fetch URL step's own grant.~~ Done — `fetchGrantRow()` is
+      back in `stepsPane.ts`, built on `grantRow.ts` (restored) and the
+      `ensureHostOrigin`/`hasHostOrigin` helpers in `grant.ts`, which were
+      never actually removed — only the UI calling them was. Per the
+      design: a site's own access covers its DOM (`test.com` → granted once
+      when added); a Fetch URL step's host is checked and granted
+      separately only if it differs from what the site already covers
+      (`api.example.com` ≠ `test.com`); declining leaves the row showing
+      "blocked" with an explanation, not a dead end. Two tests restored
+      alongside it (`tests/builderPanes.test.ts`).
+- [ ] **Common still has no grant of its own.** The hotkey listener itself
+      is the content script (`injectableOrigins` in `core/match.ts`), so a
+      Common routine of *any* type — even a bare Wait — never fires at all
+      on a page the content script wasn't injected into. That injection
+      only happens on origins the user granted: the sites they added, or
+      `<all_urls>` ("Everywhere") if granted. There is still no UI path to
+      ask for the latter; `ensureEverywhere()` / `hasEverywhere()` in
+      `grant.ts` are intact and unused. Not addressed by this session's
+      instruction, which covered only the Fetch URL case.
       *Done when:* there is some way, anywhere in the builder, to grant
-      Common and a Fetch URL step's host — even if it is not the row that
-      was removed.
+      Common's own `<all_urls>` access.
