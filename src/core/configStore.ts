@@ -1,6 +1,6 @@
 import type { Binding, Config, Site, Routine, Step } from "./schema";
 import { SCHEMA_VERSION } from "./schema";
-import { STEP_META, isStepType } from "./stepMeta";
+import { STEP_META, isStepType, siteOnlySteps } from "./stepMeta";
 import { newId } from "./ids";
 
 // Where the config lives, and the only place it is validated.
@@ -319,10 +319,16 @@ export async function seedIfEmpty(): Promise<Config> {
   const raw = await readBundledConfig();
   if (raw === undefined) return EMPTY_CONFIG; // nothing shipped, nothing to seed
   const result = parseConfig(raw);
-  // A bundled seed that fails to parse is a bug in the shipped file, not the
-  // user's problem: leave storage untouched so the builder starts empty rather
-  // than storing something known-broken.
+  // A bundled seed that fails to parse, or holds a site-only action (Read
+  // element, Fetch URL, ...) in a Common routine, is a bug in the shipped
+  // file, not the user's problem: leave storage untouched so the builder
+  // starts empty rather than storing something the runner would refuse to
+  // run the first time its hotkey is pressed. The builder's own Save and
+  // Import already check this (scopeProblems in options/store.ts); a seed
+  // bypasses both by going straight through parseConfig, so it needs the
+  // same check made here instead.
   if (!isParsed(result)) return EMPTY_CONFIG;
+  if (result.config.routines.some((routine) => siteOnlySteps(routine).length > 0)) return EMPTY_CONFIG;
   await saveConfig(result.config);
   return result.config;
 }

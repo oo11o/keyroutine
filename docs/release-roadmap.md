@@ -93,10 +93,17 @@ a human sitting down at the Developer Dashboard.
       Chrome can confirm one ⌘V is now enough. If it is not, the cause is
       the options page running in an iframe inside `chrome://extensions`,
       which is not ours to fix.
-- [ ] **Guard the bundled seed with the same scope rule.** `seedIfEmpty()`
-      goes through `parseConfig`, not through the Save/Import check, so a
-      future seed holding a fetch in a Common routine would be written to
-      storage and then refused at run time. One check, one test.
+- [x] ~~Guard the bundled seed with the same scope rule.~~ Done —
+      `seedIfEmpty()` (`src/core/configStore.ts`) now checks
+      `siteOnlySteps(routine)` on every parsed routine, the same function
+      the builder's Save and Import already use (`scopeProblems` in
+      `options/store.ts`), and discards the seed exactly like a parse
+      failure (storage untouched, builder starts empty) if any routine
+      fails it. The actual shipped seed (`public/config/routines.json`, a
+      Common popup) is unaffected. One existing test's fixture needed
+      fixing — it unintentionally relied on a schemaVersion-1 migration
+      landing a `readBySelector` step in Common, which this guard now
+      correctly refuses — plus one new test for the guard itself.
 - [x] ~~Run the upgrade path on a real profile.~~ Not applicable — this is
       the first submission, there is no existing install to upgrade from.
       The per-site grant check stays in place for when a *future* version

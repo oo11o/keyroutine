@@ -386,7 +386,11 @@ describe("seedIfEmpty", () => {
 
   it("copies the bundled config into storage on a fresh install", async () => {
     const storage = stubChromeStorage();
-    stubBundle(V1);
+    // A v1 config migrates every routine to Common (siteId: null) — V1's own
+    // readBySelector step is site-only, so a seed-shaped fixture needs a
+    // Common-safe step type instead, same as every other Common fixture in
+    // this file.
+    stubBundle({ ...V1, routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "wait", ms: 10 }] }] });
 
     const config = await seedIfEmpty();
 
@@ -418,6 +422,27 @@ describe("seedIfEmpty", () => {
 
     await seedIfEmpty();
 
+    expect(storage.data[CONFIG_KEY]).toBeUndefined();
+  });
+
+  it("stores nothing when the bundled seed holds a site-only action in a Common routine", async () => {
+    const storage = stubChromeStorage();
+    stubBundle({
+      schemaVersion: 2,
+      sites: [],
+      routines: [
+        {
+          id: "leak",
+          name: "Leak",
+          binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false },
+          enabled: true,
+          siteId: null,
+          steps: [{ id: "s1", type: "fetchUrl", url: "https://api.test/x" }]
+        }
+      ]
+    });
+
+    await expect(seedIfEmpty()).resolves.toMatchObject({ routines: [] });
     expect(storage.data[CONFIG_KEY]).toBeUndefined();
   });
 });
