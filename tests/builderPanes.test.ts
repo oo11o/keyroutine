@@ -289,6 +289,19 @@ describe("the Sites column", () => {
     expect(panes.sites.textContent).toContain("An area of dzo.lh");
   });
 
+  it("offers a grant for Common, scoped to every site rather than one host", async () => {
+    const fake = stubChromePermissions();
+    store.selectScope(store.COMMON);
+    draw();
+
+    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Not granted yet"));
+
+    const grantBtn = [...panes.sites.querySelectorAll(".grantrow button")][0] as HTMLElement;
+    grantBtn.click();
+
+    await vi.waitFor(() => expect(fake.requested).toEqual([["<all_urls>"]]));
+  });
+
   it("badges only the rows that cannot fire yet, not the granted ones", async () => {
     stubChromePermissions(["*://dzo.lh/*"]); // Common not granted, dzo.lh is
     draw();

@@ -4,7 +4,8 @@ import { groupSites, overBroadPattern, siteHost, siteScope, sitesFor } from "../
 import type { Site } from "../core/schema";
 import * as store from "./store";
 import { COMMON } from "./store";
-import { ensureOrigin, hasEverywhere, hasOrigin } from "./grant";
+import { ensureEverywhere, ensureOrigin, hasEverywhere, hasOrigin } from "./grant";
+import { grantStatusRow } from "./grantRow";
 
 // Column 1 — where. Which pages a routine is allowed to fire on: everywhere
 // ("Common"), or one of the sites below. The row for the page the builder was
@@ -218,6 +219,17 @@ function addButton(pageUrl: string | null, claimed: { domain: boolean; url: bool
   );
 }
 
+// The only place in the builder that can ask Chrome for <all_urls>: a
+// Common routine fires on every page, which is not a site pattern it could
+// attach an auto-request checkbox to. Without this, no Common routine of
+// any type — not even a bare Wait — can ever fire at all, since the hotkey
+// listener is itself the content script injectableOrigins() withholds until
+// this is granted.
+const commonWording: { granted: string; missing: string } = {
+  granted: "Access granted — routines can run on supported sites.",
+  missing: "Not granted yet — routines cannot run anywhere until this is granted."
+};
+
 function commonCard(): HTMLElement {
   return h(
     "div",
@@ -226,7 +238,8 @@ function commonCard(): HTMLElement {
       text:
         "Routines in Common work on every site. Put things you need everywhere here — " +
         "for example, pasting a test password."
-    })
+    }),
+    grantStatusRow(commonWording, hasEverywhere, ensureEverywhere).element
   );
 }
 

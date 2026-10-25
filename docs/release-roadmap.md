@@ -7,9 +7,10 @@ whose items cannot be checked is a wish list.
 Status as of 2026-10-25: the extension itself is submission-shaped (narrow
 permissions, no clipboard, fetch and every selector-based action scoped to a
 site, the rename to KeyRoutine done, a site pattern can no longer claim every
-website, version reset to 0.1.0 and committed). Phase 0 is fully done, and
-the final three-screenshot set is ready. What is missing is the Dashboard
-forms and one real functionality gap (Phase 5).
+website, version reset to 0.1.0 and committed). Phase 0 is fully done, the
+final three-screenshot set is ready, and Phase 5's permission-grant gap is
+closed — every grant path the builder ever had is back. What is missing is
+a human sitting down at the Developer Dashboard.
 
 ---
 
@@ -134,7 +135,7 @@ forms and one real functionality gap (Phase 5).
       fire on. The two navigate actions (open URL in a new/current tab)
       stayed out: they don't depend on the current page's structure.
 
-## Phase 5 — the grant row was removed, half of it is back
+## Phase 5 — the grant row was removed, both halves are back
 
 - [x] ~~Restore a Fetch URL step's own grant.~~ Done — `fetchGrantRow()` is
       back in `stepsPane.ts`, built on `grantRow.ts` (restored) and the
@@ -146,14 +147,19 @@ forms and one real functionality gap (Phase 5).
       (`api.example.com` ≠ `test.com`); declining leaves the row showing
       "blocked" with an explanation, not a dead end. Two tests restored
       alongside it (`tests/builderPanes.test.ts`).
-- [ ] **Common still has no grant of its own.** The hotkey listener itself
-      is the content script (`injectableOrigins` in `core/match.ts`), so a
-      Common routine of *any* type — even a bare Wait — never fires at all
-      on a page the content script wasn't injected into. That injection
-      only happens on origins the user granted: the sites they added, or
-      `<all_urls>` ("Everywhere") if granted. There is still no UI path to
-      ask for the latter; `ensureEverywhere()` / `hasEverywhere()` in
-      `grant.ts` are intact and unused. Not addressed by this session's
-      instruction, which covered only the Fetch URL case.
+- [x] ~~Restore Common's own grant.~~ Done — `commonCard()` in
+      `sitesPane.ts` has its `grantStatusRow` back, built on the same
+      restored `grantRow.ts` and the `ensureEverywhere`/`hasEverywhere`
+      helpers in `grant.ts`, which were likewise untouched — only the card
+      calling them was deleted. This is the one place in the builder that
+      can ask Chrome for `<all_urls>`, since Common fires on every page and
+      has no site pattern to attach an auto-request checkbox to. One test
+      restored alongside it.
       *Done when:* there is some way, anywhere in the builder, to grant
-      Common's own `<all_urls>` access.
+      Common's own `<all_urls>` access — **done.**
+
+Both halves of the original "Grant access" row are back, each where it
+belongs: a site's own access still goes through the auto-request checkbox
+(`sitesPane.ts`, unchanged), Common through its card, and a Fetch URL step
+through its own card. Nothing underneath was ever actually removed — only
+the three UI call sites were, and now they're reconnected.
