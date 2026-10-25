@@ -56,12 +56,15 @@ is missing is screenshots, Dashboard forms, and one real functionality gap
       Common — just re-shot under the new name and the fixed demo config.
       *Done when:* every uploaded file says KeyRoutine and is 1280×800,
       24-bit, no alpha.
-- [x] ~~Retake the action menu in a full window.~~ Done, but not ideal —
-      `action-menu-1280x800.png` is the right size now, but it only shows
-      Read and "Act on the page" (Wait/Show/Navigate are below the fold),
-      and it's opened on a routine named "TEST" with 0 actions. Usable as a
-      placeholder; worth a proper re-shoot on a named routine before upload.
-      Still missing: one frame of a popup firing on a real page.
+- [x] ~~Retake the action menu in a full window.~~ Re-shot on a real named
+      routine ("ReadAndShow") instead of "TEST" — shows Wait/Show/Navigate
+      and the Common-refusal rule. The window's own top bar isn't in frame
+      since the source capture was already scrolled; otherwise ready.
+- [x] ~~Shoot a popup firing on a real page.~~ `popup-live-1280x800.png` —
+      the cheatsheet popup actually open on `example.com`, toast visible.
+- [x] ~~Shoot a configured Read element step.~~ Bonus, not originally
+      planned: `read-element-detail-1280x800.png` — selector, Pick/Test,
+      "1 match on this page", and the Result/Save as panel in one frame.
 - [ ] **Fill the dashboard forms** from `docs/store-listing.md`: short
       description (91 chars, ready), detailed description, the three
       permission justifications, the single-purpose statement, and the data
