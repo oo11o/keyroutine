@@ -62,16 +62,19 @@ forms and one real functionality gap (Phase 5).
       since the source capture was already scrolled; otherwise ready.
 - [x] ~~Shoot a popup firing on a real page.~~ `popup-live-1280x800.png` —
       the cheatsheet popup actually open on `example.com`, toast visible.
-- [ ] **Fill the dashboard forms.** Everything below is already written
-      and verified against the current code — this is copy-paste, not
-      drafting:
+- [x] ~~Write everything the Dashboard forms need.~~ All copy-paste now,
+      no more drafting:
       - short description (92 chars) and detailed description, including
         the "Privacy-focused" line — `docs/store-listing.md`
       - the three permission justifications (`<all_urls>`, `scripting`,
         `storage`) — `docs/store-listing.md`
       - the single-purpose statement — `docs/chrome-store-submission.md`
-      - still needs drafting: the data declarations (authentication
-        information + website content, both "collected: yes, sold: no").
+      - the full data practices table, all 9 categories + the 3 required
+        certifications — `docs/store-listing.md` ("Data practices
+        declarations")
+- [ ] **Actually fill the Dashboard forms in.** Everything above is
+      written; a human still has to paste it into the Developer Dashboard
+      — that part has no API this session can reach.
 - [ ] **Certify Limited Use** and category (Productivity).
 
 ## Phase 2 — bugs and risks found while preparing this

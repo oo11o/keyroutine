@@ -168,3 +168,28 @@ Contact section.
 KeyRoutine declares no `clipboardWrite`: no action a routine can run writes to
 the clipboard. The one copy left is the builder's own export button, a click
 on the extension's own options page, which needs no clipboard permission.
+
+## Data practices declarations (for the Developer Dashboard's "Privacy practices" tab)
+
+Chrome asks yes/no per category, then — for anything marked yes — whether
+it's sold, and whether it's used for anything beyond the extension's stated
+function. Go through in this order:
+
+| Category | Collected? | If yes |
+|---|---|---|
+| Personally identifiable information | **No** | — |
+| Health information | **No** | — |
+| Financial and payment information | **No** | — |
+| Authentication information | **Yes** | A variable a user saves on the Variables tab (an API token, a password, anything they choose to name and store) is held in `chrome.storage.local`, in plaintext, locally. Sold: no. Used beyond the extension's function: no — a variable is only ever read back by a routine's own steps, as `$name`. |
+| Personal communications | **No** | — |
+| Location | **No** | — |
+| Web history | **No** | KeyRoutine does not log, store, or transmit a list of sites visited. (A routine's own steps may read the current page's URL/title into a variable, which is "website content," not browsing history — see below.) |
+| User activity (clicks, mouse position, scroll, keystrokes) | **No** | The one keydown listener matches a press against the user's own configured hotkeys and does nothing else — it does not log, store, or transmit keystrokes, clicks, or any other input in general. A routine's own "Click element" / "Set field value" / "Press key" steps act on the page; they don't read or record the user's activity. |
+| Website content | **Yes** | A routine's "Read element" step reads the value or text of one element the user picked, into a variable later steps can use. "Fetch URL" reads a response from a URL the user wrote into the step. Neither runs unless the user built the routine and granted the site. Sold: no. Used beyond the extension's function: no — a read value is only ever used by that routine's own later steps. |
+
+**Certifications** (all required, all true for KeyRoutine):
+- Does not sell or transfer user data to third parties, outside approved use cases.
+- Does not use or transfer user data for purposes unrelated to the item's single purpose.
+- Does not use or transfer user data to determine creditworthiness or for lending purposes.
+
+**Privacy policy URL:** https://oo11o.github.io/keyroutine/privacy-policy/
