@@ -63,8 +63,13 @@ forms and one real functionality gap (Phase 5).
 - [x] ~~Shoot a popup firing on a real page.~~ `popup-live-1280x800.png` —
       the cheatsheet popup actually open on `example.com`, toast visible.
 - [ ] **Fill the dashboard forms** from `docs/store-listing.md`: short
-      description (91 chars, ready), detailed description, the three
-      permission justifications, the single-purpose statement, and the data
+      description (92 chars, ready) and detailed description are finalized
+      with your own copy — note it dropped the privacy/permission framing
+      ("no access until granted", "no account/sync/telemetry") that was in
+      the earlier draft; that messaging still lives in the privacy policy
+      and the single-purpose statement below, just not in the listing copy
+      itself. Still to fill: the three permission justifications, the
+      single-purpose statement, and the data
       declarations (authentication information + website content, both
       "collected: yes, sold: no").
 - [ ] **Certify Limited Use** and category (Productivity).

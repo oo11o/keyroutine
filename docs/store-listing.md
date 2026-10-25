@@ -2,43 +2,37 @@
 
 ## Short description (max 132 characters)
 
-> Bind hotkeys to your own click/fill/read/fetch sequences, scoped to the sites you choose.
+> Automate browser tasks with reusable routines, keyboard shortcuts, and custom data fetching.
 
-(91 characters — room to spare if a reviewer asks for more specificity.)
+(92 characters — room to spare if a reviewer asks for more specificity.)
 
 ## Detailed description
 
-KeyRoutine turns a keyboard shortcut into whatever sequence of actions you'd
-otherwise do by hand: click a button, fill a field, read an element's text,
-fetch a URL, open a tab, wait for a popup to confirm it ran. You build the
-sequence once in the options page and fire it with a hotkey from then on.
+**Automate your browser workflow with KeyRoutine**
 
-**Built for repeat work on sites you use every day.** Point a hotkey at a
-site (or just a section of it — "this domain," "this URL," or everywhere),
-and it only shows up where it applies. If two of your routines would ever
-claim the same hotkey on the same page, KeyRoutine tells you which one wins
-before you find out the hard way.
+KeyRoutine helps you automate repetitive browser tasks with reusable
+routines and keyboard shortcuts.
 
-**No access until you grant it.** KeyRoutine asks for nothing at install.
-The first time you point a routine at a site, Chrome asks you to confirm
-access to that site — and only that site — right there in the builder.
+**Key features**
 
-**Your data stays yours.** KeyRoutine has no server. Everything you build —
-your routines, and any variables you save (an API token, a base URL, a test
-password) — lives in your browser's local storage, never in a file that
-could be read by a page you visit, and is never sent anywhere except where
-a routine you wrote yourself tells it to go. See the privacy policy for the
-full breakdown.
+**Reusable routines:** Create sequences of browser actions for tasks you
+perform regularly.
 
-**What you can chain together:**
-- Click or fill an element you've picked on the page
-- Read an element's text into a variable later actions can use
-- Fetch a URL or open it in a new or current tab
-- Navigate the current tab, with the routine resuming after the page loads
-- Show a popup to confirm a routine ran, or to surface what it found
+**Keyboard shortcuts:** Run routines quickly without repeating the same
+steps manually.
 
-**No account, no sync, no telemetry.** Install it, open the options page,
-build your first routine, and press the hotkey.
+**API requests:** Fetch additional information from public APIs to support
+your workflow.
+
+**Informative popups:** Display detailed information in a popup while a
+routine is running.
+
+**Flexible automation:** Combine browser actions, API requests, and
+information displays to reduce manual work and streamline repetitive
+processes.
+
+KeyRoutine helps you simplify repetitive tasks and access relevant
+information right when you need it.
 
 ## Complete action list (paste into the review form if asked what KeyRoutine can do)
 
