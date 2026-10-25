@@ -4,12 +4,12 @@ What is left between the code as it stands and a submitted listing, in the
 order it has to happen. Each item says how to know it is done — a roadmap
 whose items cannot be checked is a wish list.
 
-Status as of 2026-10-24: the extension itself is submission-shaped (narrow
+Status as of 2026-10-25: the extension itself is submission-shaped (narrow
 permissions, no clipboard, fetch and every selector-based action scoped to a
 site, the rename to KeyRoutine done, a site pattern can no longer claim every
-website, version reset to 0.1.0 and committed). Phase 0 is fully done. What
-is missing is screenshots, Dashboard forms, and one real functionality gap
-(Phase 5).
+website, version reset to 0.1.0 and committed). Phase 0 is fully done, and
+the final three-screenshot set is ready. What is missing is the Dashboard
+forms and one real functionality gap (Phase 5).
 
 ---
 
@@ -50,21 +50,18 @@ is missing is screenshots, Dashboard forms, and one real functionality gap
       fixed `docs/screenshot-config.json`, scaled and padded to 1280×800,
       24-bit, no alpha. Shows all three columns, "Fill test login" now
       correctly site-scoped, and the click → wait → navigate pipeline open.
-- [ ] **Retake `listing-2-site-only-fetch-1280x800.png`.** Still shows the
-      old name ("Keystack"/"Stacks"). Same framing as before — a fetch
-      routine open, showing the Site field rule that it cannot move to
-      Common — just re-shot under the new name and the fixed demo config.
-      *Done when:* every uploaded file says KeyRoutine and is 1280×800,
-      24-bit, no alpha.
+- [x] ~~Decide the final screenshot set.~~ Three, not five: `listing-1`,
+      `action-menu`, and `popup-live`. `listing-2-site-only-fetch` (stale,
+      pre-rename) and the spare `read-element-detail` frame are kept in
+      `docs/screenshots/` as history but are not part of the upload set —
+      `action-menu` already covers the "cannot move to Common" rule that
+      `listing-2` was for, on the same `ReadAndShow` routine.
 - [x] ~~Retake the action menu in a full window.~~ Re-shot on a real named
       routine ("ReadAndShow") instead of "TEST" — shows Wait/Show/Navigate
       and the Common-refusal rule. The window's own top bar isn't in frame
       since the source capture was already scrolled; otherwise ready.
 - [x] ~~Shoot a popup firing on a real page.~~ `popup-live-1280x800.png` —
       the cheatsheet popup actually open on `example.com`, toast visible.
-- [x] ~~Shoot a configured Read element step.~~ Bonus, not originally
-      planned: `read-element-detail-1280x800.png` — selector, Pick/Test,
-      "1 match on this page", and the Result/Save as panel in one frame.
 - [ ] **Fill the dashboard forms** from `docs/store-listing.md`: short
       description (91 chars, ready), detailed description, the three
       permission justifications, the single-purpose statement, and the data
