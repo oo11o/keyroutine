@@ -1,7 +1,7 @@
 {
   "name": "hotkey_plugin",
   "version": "0.1.0",
-  "description": "KeyRoutine — hotkey macros for any site.",
+  "description": "KeyRoutine — automate browser tasks with one shortcut.",
   "type": "module",
   "scripts": {
     "clean": "rm -rf dist",
