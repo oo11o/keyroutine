@@ -62,16 +62,16 @@ forms and one real functionality gap (Phase 5).
       since the source capture was already scrolled; otherwise ready.
 - [x] ~~Shoot a popup firing on a real page.~~ `popup-live-1280x800.png` —
       the cheatsheet popup actually open on `example.com`, toast visible.
-- [ ] **Fill the dashboard forms** from `docs/store-listing.md`: short
-      description (92 chars, ready) and detailed description (finalized,
-      includes a "Privacy-focused" line — local-only storage, no
-      account/cloud sync, website access controlled through browser
-      permissions — deliberately phrased without an absolute "no
-      telemetry ever" claim, so a future version adding any of that
-      doesn't contradict the listing) are ready. Still to fill: the three
-      permission justifications, the single-purpose statement, and the
-      data declarations (authentication information + website content,
-      both "collected: yes, sold: no").
+- [ ] **Fill the dashboard forms.** Everything below is already written
+      and verified against the current code — this is copy-paste, not
+      drafting:
+      - short description (92 chars) and detailed description, including
+        the "Privacy-focused" line — `docs/store-listing.md`
+      - the three permission justifications (`<all_urls>`, `scripting`,
+        `storage`) — `docs/store-listing.md`
+      - the single-purpose statement — `docs/chrome-store-submission.md`
+      - still needs drafting: the data declarations (authentication
+        information + website content, both "collected: yes, sold: no").
 - [ ] **Certify Limited Use** and category (Productivity).
 
 ## Phase 2 — bugs and risks found while preparing this
