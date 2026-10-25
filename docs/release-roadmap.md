@@ -64,12 +64,14 @@ forms and one real functionality gap (Phase 5).
       the cheatsheet popup actually open on `example.com`, toast visible.
 - [ ] **Fill the dashboard forms** from `docs/store-listing.md`: short
       description (92 chars, ready) and detailed description (finalized,
-      includes a "Privacy by design" line — no account/sync/telemetry,
-      local-only storage, no access until granted) are ready. Still to
-      fill: the three permission justifications, the single-purpose
-      statement, and the data
-      declarations (authentication information + website content, both
-      "collected: yes, sold: no").
+      includes a "Privacy-focused" line — local-only storage, no
+      account/cloud sync, website access controlled through browser
+      permissions — deliberately phrased without an absolute "no
+      telemetry ever" claim, so a future version adding any of that
+      doesn't contradict the listing) are ready. Still to fill: the three
+      permission justifications, the single-purpose statement, and the
+      data declarations (authentication information + website content,
+      both "collected: yes, sold: no").
 - [ ] **Certify Limited Use** and category (Productivity).
 
 ## Phase 2 — bugs and risks found while preparing this

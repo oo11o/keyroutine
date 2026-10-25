@@ -31,9 +31,9 @@ routine is running.
 information displays to reduce manual work and streamline repetitive
 processes.
 
-**Privacy by design:** No account, no sync, no telemetry. KeyRoutine has no
-server — your routines and any data you save stay in your browser's local
-storage, and nothing runs on a site until you grant it access yourself.
+**Privacy-focused:** Your routines are stored locally in your browser.
+KeyRoutine does not require an account or cloud sync. Website access is
+controlled through browser permissions.
 
 KeyRoutine helps you simplify repetitive tasks and access relevant
 information right when you need it.
