@@ -603,3 +603,90 @@ describe("import and export", () => {
     expect(store.getConfig().routines.map((s) => s.id)).toEqual(["copy-id", "local-sync"]);
   });
 });
+
+describe("copying and importing a single routine", () => {
+  it("exports one routine, round-trippable on its own", async () => {
+    await open();
+
+    const json = store.exportRoutineJson("local-sync");
+    const parsed = JSON.parse(json);
+
+    expect(parsed).toEqual(store.getConfig().routines.find((s) => s.id === "local-sync"));
+  });
+
+  it("exports nothing for an id that is not there", async () => {
+    await open();
+
+    expect(store.exportRoutineJson("nope")).toBe("");
+  });
+
+  it("adds a pasted routine under a fresh id, disabled, with its steps intact", async () => {
+    await open();
+
+    const result = store.importRoutine({
+      id: "copy-id", // deliberately collides — must not be kept
+      name: "Pasted",
+      binding: { code: "Digit7", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      steps: [{ id: "s1", type: "popup", body: "hi" }]
+    });
+
+    expect(result).toEqual({ ok: true });
+    const routines = store.getConfig().routines;
+    const added = routines[routines.length - 1];
+    expect(added.id).not.toBe("copy-id");
+    expect(added.name).toBe("Pasted");
+    expect(added.enabled).toBe(false);
+    expect(added.steps).toEqual([{ id: "s1", type: "popup", body: "hi" }]);
+  });
+
+  it("lands an unrecognized siteId in Common instead of refusing", async () => {
+    await open();
+
+    const result = store.importRoutine({
+      name: "From elsewhere",
+      binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      siteId: "some-other-config-site",
+      steps: [{ id: "s1", type: "popup", body: "hi" }]
+    });
+
+    expect(result).toEqual({ ok: true });
+    const routines = store.getConfig().routines;
+    expect(routines[routines.length - 1].siteId).toBeNull();
+  });
+
+  it("refuses a site-only step that would land in Common, draft unchanged", async () => {
+    await open();
+    const before = store.exportJson();
+
+    const result = store.importRoutine({
+      name: "Leaky",
+      binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      steps: [{ id: "s1", type: "clickBySelector", selector: "#go" }]
+    });
+
+    expect(result.ok).toBe(false);
+    expect((result as { problems: { message: string }[] }).problems[0].message).toContain(
+      "only available in a routine scoped to a site"
+    );
+    expect(store.exportJson()).toBe(before);
+  });
+
+  it("refuses a non-object payload", async () => {
+    await open();
+
+    expect(store.importRoutine([1, 2, 3]).ok).toBe(false);
+    expect(store.importRoutine("nope").ok).toBe(false);
+    expect(store.importRoutine(null).ok).toBe(false);
+  });
+
+  it("refuses a structurally invalid routine", async () => {
+    await open();
+
+    const result = store.importRoutine({ name: "No binding", steps: [] });
+
+    expect(result.ok).toBe(false);
+  });
+});

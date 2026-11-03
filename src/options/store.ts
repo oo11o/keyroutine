@@ -627,3 +627,49 @@ export function replaceDraft(raw: unknown): SaveResult {
 export function exportJson(): string {
   return `${JSON.stringify(config, null, 2)}\n`;
 }
+
+// One routine, for the per-card Copy button — Export's shape is the whole
+// config, which is the wrong thing to paste into a chat or another profile.
+export function exportRoutineJson(id: string): string {
+  const routine = config.routines.find((s) => s.id === id);
+  if (!routine) return "";
+  return `${JSON.stringify(routine, null, 2)}\n`;
+}
+
+// Adds a single pasted routine to the current config, as opposed to
+// replaceDraft which replaces everything. Goes through the same parseConfig
+// as everything else by wrapping the routine in a throwaway config shape —
+// there is no routine-only entry point into that validation, and there
+// should not be two.
+export function importRoutine(raw: unknown): SaveResult {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return { ok: false, problems: [{ message: "that is not a routine object" }] };
+  }
+  const candidate: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
+  delete candidate.id; // always fresh — never collide with what's already here
+  const siteIds = new Set(config.sites.map((s) => s.id));
+  if (typeof candidate.siteId === "string" && !siteIds.has(candidate.siteId)) {
+    // A site from a different config: land it in Common rather than refusing
+    // the whole paste over an id that could never have meant anything here.
+    candidate.siteId = null;
+  }
+
+  const result = parseConfig({ schemaVersion: SCHEMA_VERSION, sites: config.sites, routines: [candidate] });
+  if (!isParsed(result)) return { ok: false, problems: result.errors.map((message) => ({ message })) };
+
+  const imported: Routine = {
+    ...result.config.routines[0],
+    id: freshId(new Set(config.routines.map((s) => s.id))),
+    // Keeps its own binding; disabled avoids silently double-firing an
+    // existing chord the way an enabled duplicate would.
+    enabled: false
+  };
+  const refused = scopeProblems([imported]);
+  if (refused.length > 0) return { ok: false, problems: refused };
+
+  config.routines = [...config.routines, imported];
+  routineId = imported.id;
+  scope = imported.siteId == null ? COMMON : { kind: "site", siteId: imported.siteId };
+  announce();
+  return { ok: true };
+}

@@ -6,6 +6,7 @@ import * as store from "./store";
 import { COMMON } from "./store";
 import { hotkeyField, keyCaps } from "./chordInput";
 import { siteOnlyReason } from "../core/stepMeta";
+import { openImportRoutine } from "./portJson";
 
 // Column 2 — when. Every routine in the selected scope, each a card that expands
 // in place into its own editor: a routine is a hotkey plus a name plus where it
@@ -129,6 +130,16 @@ export function renderRoutines(pane: HTMLElement): void {
       },
       icon("plus"),
       "New routine"
+    ),
+    h(
+      "button",
+      {
+        type: "button",
+        class: "btn btn-dashed",
+        onClick: () => openImportRoutine(() => {})
+      },
+      icon("download"),
+      "Import routine"
     )
   );
 
@@ -271,6 +282,20 @@ function routineEditor(conflicted: boolean): HTMLElement {
         class: "btn btn-sm",
         text: "Duplicate",
         onClick: () => store.duplicateRoutine(routine.id)
+      }),
+      h("button", {
+        type: "button",
+        class: "btn btn-sm",
+        text: "Copy routine",
+        onClick: (e: Event) => {
+          void navigator.clipboard.writeText(store.exportRoutineJson(routine.id));
+          const btn = e.currentTarget as HTMLButtonElement;
+          const original = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => {
+            btn.textContent = original;
+          }, 1200);
+        }
       }),
       h("div", { class: "spacer" }),
       h("button", {

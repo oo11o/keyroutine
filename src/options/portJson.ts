@@ -101,6 +101,49 @@ export function openImport(onDone: () => void): void {
   area.focus();
 }
 
+export function openImportRoutine(onDone: () => void): void {
+  const area = h("textarea", {
+    class: "mono",
+    autofocus: true,
+    placeholder: '{ "name": "...", "binding": {...}, "steps": [...] }'
+  });
+  const problems = h("div", { class: "problems", hidden: true });
+  const { el, body, actions } = dialog(
+    "Import routine",
+    "Paste one routine's JSON — from someone's Copy, or hand-written. It's added as a new routine, disabled so it can't collide with an existing hotkey; enable it once you've checked the chord."
+  );
+  body.append(problems, area);
+  function load(): void {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(area.value);
+    } catch (err) {
+      show(problems, [`that is not valid JSON — ${(err as Error).message}`]);
+      return;
+    }
+    const result = store.importRoutine(raw);
+    if (!result.ok) {
+      show(problems, result.problems.map((p) => p.message));
+      return;
+    }
+    el.close();
+    onDone();
+  }
+
+  area.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      load();
+    }
+  });
+
+  actions.prepend(
+    h("button", { type: "button", class: "btn btn-primary", text: "Add routine", onClick: load })
+  );
+  el.showModal();
+  area.focus();
+}
+
 function show(host: HTMLElement, messages: string[]): void {
   host.replaceChildren(
     h("strong", { text: "Not imported:" }),

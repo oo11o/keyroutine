@@ -97,6 +97,16 @@ function openStep(id: string): void {
 
 beforeEach(async () => {
   document.body.replaceChildren(panes.sites, panes.routines, panes.steps);
+  // jsdom has no modal dialog: enough of one for the Import routine dialog to open.
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.open = true;
+    const target = this.querySelector("[autofocus]");
+    if (target instanceof HTMLElement) target.focus();
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.open = false;
+    this.dispatchEvent(new Event("close"));
+  };
   stubChromeStorage({ [CONFIG_KEY]: structuredClone(SEED) });
   probe.forgetAll();
   await store.init("http://dzo.lh/tenders/1", ["runToken"]);
@@ -371,6 +381,25 @@ describe("the Routines column", () => {
     expect(store.currentRoutine()?.name).toBe("New routine");
     expect(store.currentRoutine()?.binding.code).toBe("Digit1"); // ⌃⌥7 was the only one taken
     expect(texts(panes.routines, ".routinename")).toEqual(["Show Tender", "New routine"]);
+  });
+
+  it("copies the open routine's JSON to the clipboard and flashes a confirmation", () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+
+    const copy = [...panes.routines.querySelectorAll("button")].find(
+      (b) => b.textContent === "Copy routine"
+    ) as HTMLButtonElement;
+    copy.click();
+
+    expect(writeText).toHaveBeenCalledWith(store.exportRoutineJson("show-tender"));
+    expect(copy.textContent).toBe("Copied!");
+  });
+
+  it("offers an Import routine button that opens the paste dialog", () => {
+    clickWithText(panes.routines, "button", "Import routine");
+
+    expect(document.querySelector("dialog h2")?.textContent).toBe("Import routine");
   });
 
   // One chord, two meanings, one level apart: the site routine wins on its pages
