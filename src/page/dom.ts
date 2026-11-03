@@ -2,7 +2,27 @@
 // touches `document`, so none of it can run in a service worker — that is
 // the whole point of the page/ vs core/ split.
 
+import { sleep } from "./wait";
+
 export type TextField = HTMLInputElement | HTMLTextAreaElement;
+
+// Polls rather than using a MutationObserver: a routine's selectors target
+// arbitrary pages, and a plain poll needs no cleanup if the step times out
+// or the tab navigates away mid-wait.
+const POLL_MS = 100;
+
+export async function waitForElement(selector: string, timeoutMs: number): Promise<Element> {
+  const start = Date.now();
+  while (true) {
+    const el = document.querySelector(selector);
+    if (el) return el;
+    const elapsed = Date.now() - start;
+    if (elapsed >= timeoutMs) {
+      throw new Error(`No element for "${selector}" within ${timeoutMs}ms`);
+    }
+    await sleep(Math.min(POLL_MS, timeoutMs - elapsed));
+  }
+}
 
 export function readText(selector: string): string {
   const el = document.querySelector(selector);

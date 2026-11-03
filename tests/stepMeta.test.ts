@@ -36,7 +36,8 @@ describe("STEP_META", () => {
     // and the variable picker would be offering names that never exist.
     expect(STEP_TYPES.filter((t) => STEP_META[t].produces).sort()).toEqual([
       "fetchUrl",
-      "readBySelector"
+      "readBySelector",
+      "saveValue"
     ]);
   });
 

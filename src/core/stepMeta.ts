@@ -179,6 +179,25 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
       }
     ]
   },
+  saveValue: {
+    label: "Save value",
+    group: "read",
+    icon: "copy",
+    help: "Stashes a literal or a combination of earlier $vars under a name, so a later action can read it back without repeating the template that built it.",
+    produces: true,
+    outNote: "The resolved text.",
+    varName: "saved",
+    summary: (s) => text(s, "value"),
+    fields: [
+      {
+        name: "value",
+        label: "Value",
+        kind: "template",
+        required: true,
+        placeholder: "$text-done"
+      }
+    ]
+  },
   inputToSelector: {
     label: "Set field value",
     group: "write",
@@ -256,6 +275,29 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         kind: "number",
         required: true,
         placeholder: "500",
+        min: 0,
+        max: MAX_WAIT_MS
+      }
+    ]
+  },
+  waitForSelector: {
+    label: "Wait for element",
+    group: "wait",
+    icon: "clock",
+    siteOnly: true,
+    help: "Polls for an element to appear instead of guessing a fixed delay — the right tool when a page's render time varies.",
+    produces: false,
+    outNote: "No result — it only waits, until the element shows up or the timeout runs out.",
+    summary: (s) => `${text(s, "selector")}, ≤${text(s, "timeoutMs", "?")}ms`,
+    fields: [
+      selectorField,
+      {
+        name: "timeoutMs",
+        label: "Timeout (ms)",
+        kind: "number",
+        required: true,
+        default: 5000,
+        placeholder: "5000",
         min: 0,
         max: MAX_WAIT_MS
       }
