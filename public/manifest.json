@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KeyRoutine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Automate browser tasks with one shortcut",
   "icons": {
     "16": "icons/icon16.png",

@@ -1,6 +1,6 @@
 {
   "name": "hotkey_plugin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "KeyRoutine — automate browser tasks with one shortcut.",
   "type": "module",
   "scripts": {
