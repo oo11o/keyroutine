@@ -906,7 +906,7 @@ describe("building the user's example from scratch", () => {
     body.value = "$response";
     body.dispatchEvent(new Event("input"));
 
-    await expect(store.save()).resolves.toEqual({ ok: true });
+    await expect(store.save()).resolves.toEqual({ ok: true, warnings: [] });
 
     // The names come from what each action holds, not from a counter, and the
     // ids are generated and say nothing — the two are separate things now.

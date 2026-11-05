@@ -535,7 +535,15 @@ export function renamesBreak(routine: Routine, oldName: string): Problem[] {
 
 /* ── saving ────────────────────────────────────────────────────────────── */
 
-export type SaveResult = { ok: true } | { ok: false; problems: Problem[] };
+// A $name nothing in this routine has produced is only a *maybe*-mistake: it
+// may equally be a Variables-tab entry the user hasn't typed in on this
+// profile yet — the common case right after pasting a routine someone else
+// exported, which deliberately never carries their secrets along with it.
+// So save() warns rather than blocks: `warnings` on a successful save, never
+// a reason by itself to refuse one. Optional because replaceDraft() and
+// importRoutine() don't run that check at all (see their own comments) —
+// absent, not an empty list claiming a check that didn't happen.
+export type SaveResult = { ok: true; warnings?: Problem[] } | { ok: false; problems: Problem[] };
 
 // Actions a routine's own scope may not run — a Fetch URL left in a Common
 // routine. Not in parseConfig on purpose: a stored config that trips this still
@@ -565,19 +573,22 @@ function scopeProblems(routines: Routine[]): Problem[] {
 
 export async function save(): Promise<SaveResult> {
   const problems: Problem[] = [];
+  const warnings: Problem[] = [];
 
   const result = parseConfig(config);
   if (!isParsed(result)) {
     problems.push(...result.errors.map((message) => ({ message })));
   }
   // The check the runtime cannot make until the hotkey is pressed: a $name
-  // nothing will have produced by then.
+  // nothing will have produced by then. Advisory, not blocking — see
+  // SaveResult: the var may just be waiting to be typed into the Variables
+  // tab on this profile.
   for (const routine of config.routines) {
     for (const unknown of unknownVars(routine, varNames)) {
-      problems.push({
+      warnings.push({
         routineId: routine.id,
         stepId: unknown.stepId,
-        message: `"${routine.name}", action ${unknown.stepId}: $${unknown.name} is not a value this routine has — check the ${unknown.field} field`
+        message: `"${routine.name}", action ${unknown.stepId}: $${unknown.name} is not defined yet — add it in the Variables tab, or check the ${unknown.field} field`
       });
     }
   }
@@ -604,7 +615,7 @@ export async function save(): Promise<SaveResult> {
   config = parsed;
   saved = JSON.stringify(config);
   announce();
-  return { ok: true };
+  return { ok: true, warnings };
 }
 
 // Replaces the draft wholesale — Import, and the Revert button. Returns the

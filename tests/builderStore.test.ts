@@ -421,7 +421,7 @@ describe("saving", () => {
     await open();
     const added = store.addRoutine("Logout");
 
-    await expect(store.save()).resolves.toEqual({ ok: true });
+    await expect(store.save()).resolves.toEqual({ ok: true, warnings: [] });
 
     expect(store.isDirty()).toBe(false);
     const stored = storage.data[CONFIG_KEY] as { routines: { id: string }[] };
@@ -452,24 +452,31 @@ describe("saving", () => {
     expect((storage.data[CONFIG_KEY] as typeof SEED).routines).toHaveLength(2);
   });
 
-  it("refuses a $var nothing in the routine produces, naming the step and field", async () => {
+  it("warns on a $var nothing in the routine produces, but still saves", async () => {
+    // It may just be a Variables-tab entry not typed in on this profile yet
+    // (the common case right after pasting someone else's routine) — see
+    // SaveResult in options/store.ts. So this is advisory, not a refusal.
+    // Site-scoped, same as the other fetchUrl tests below: fetchUrl is a
+    // site-only step, and a Common routine holding one is its own (separate,
+    // still-blocking) scope problem.
     await open();
-    store.selectRoutine("copy-id");
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.selectRoutine("local-sync");
     store.addStep("fetchUrl");
     const fetcher = store.currentStep()!.id;
     store.patchStep(fetcher, { url: "https://api.test/t/$tender" });
 
     const result = await store.save();
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.problems[0].message).toContain("$tender");
-    expect(result.problems[0].message).toContain("url");
-    expect(result.problems[0].stepId).toBe(fetcher);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings?.[0].message).toContain("$tender");
+    expect(result.warnings?.[0].message).toContain("url");
+    expect(result.warnings?.[0].stepId).toBe(fetcher);
   });
 
   // On the site-scoped routine, here and below: a fetch is a site-only action.
-  it("accepts the same $var once the step it comes from exists", async () => {
+  it("accepts the same $var once the step it comes from exists, with no warning", async () => {
     await open();
     store.selectScope({ kind: "site", siteId: "local" });
     store.selectRoutine("local-sync");
@@ -478,19 +485,22 @@ describe("saving", () => {
     store.addStep("fetchUrl");
     store.patchStep(store.currentStep()!.id, { url: "https://api.test/t/$tender" });
 
-    await expect(store.save()).resolves.toEqual({ ok: true });
+    await expect(store.save()).resolves.toEqual({ ok: true, warnings: [] });
   });
 
-  it("accepts a variable that exists and refuses one that does not", async () => {
+  it("accepts a variable that exists with no warning, and warns (but still saves) on one that does not", async () => {
     await open(null, ["runToken"]);
     store.selectScope({ kind: "site", siteId: "local" });
     store.selectRoutine("local-sync");
     store.addStep("fetchUrl");
     store.patchStep(store.currentStep()!.id, { url: "https://api.test/?run=$runToken" });
-    await expect(store.save()).resolves.toEqual({ ok: true });
+    await expect(store.save()).resolves.toEqual({ ok: true, warnings: [] });
 
     store.patchStep(store.currentStep()!.id, { url: "https://api.test/?run=$nope" });
-    await expect(store.save()).resolves.toMatchObject({ ok: false });
+    const result = await store.save();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings?.[0].message).toContain("$nope");
   });
 
   it("refuses an imported site that claims every website", async () => {

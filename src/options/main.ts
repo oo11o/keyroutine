@@ -112,7 +112,16 @@ function setStatus(text: string, isError = false): void {
 async function save(): Promise<void> {
   const result = await store.save();
   if (result.ok) {
-    problems.hidden = true;
+    const warnings = result.warnings ?? [];
+    if (warnings.length > 0) {
+      problems.replaceChildren(
+        h("strong", { text: "Saved, but check:" }),
+        h("ul", {}, ...warnings.map((p) => h("li", { text: p.message })))
+      );
+      problems.hidden = false;
+    } else {
+      problems.hidden = true;
+    }
     // A shared hotkey is not an error — one of the two simply never fires —
     // but saving is the moment it starts mattering.
     const clashes = store.chordConflicts().length;
