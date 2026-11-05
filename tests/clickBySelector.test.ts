@@ -77,4 +77,57 @@ describe("clickBySelector", () => {
     expect(notes).toHaveLength(2);
   });
 
+  describe("parking ahead of a navigating click", () => {
+    beforeEach(() => {
+      vi.stubGlobal("chrome", { runtime: { sendMessage: vi.fn().mockResolvedValue({}) } });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("parks before clicking a submit button inside a form", async () => {
+      document.body.innerHTML = `<form><button id="submit" type="submit">Send</button></form>`;
+      const sendMessage = vi.mocked(chrome.runtime.sendMessage);
+
+      const routine = routineOf(click("#submit"), { id: "s2", type: "saveValue", saveAs: "x", value: "done" });
+      await runRoutine(routine);
+
+      const [request] = sendMessage.mock.calls[0];
+      expect(request).toMatchObject({
+        type: "keyroutine-save-resume",
+        record: { routineId: "login", nextStep: 1 }
+      });
+    });
+
+    it("parks before clicking a plain link", async () => {
+      document.body.innerHTML = `<a id="submit" href="/next">Go</a>`;
+      const sendMessage = vi.mocked(chrome.runtime.sendMessage);
+
+      const routine = routineOf(click("#submit"), { id: "s2", type: "saveValue", saveAs: "x", value: "done" });
+      await runRoutine(routine);
+
+      expect(sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "keyroutine-save-resume" })
+      );
+    });
+
+    it("does not park for a plain button with no form and no href", async () => {
+      // #submit in the top-level fixture is a bare <button>, outside any form.
+      const sendMessage = vi.mocked(chrome.runtime.sendMessage);
+
+      await runRoutine(routineOf(click("#submit"), { id: "s2", type: "saveValue", saveAs: "x", value: "done" }));
+
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("does not park when the navigating click is the routine's last step", async () => {
+      document.body.innerHTML = `<form><button id="submit" type="submit">Send</button></form>`;
+      const sendMessage = vi.mocked(chrome.runtime.sendMessage);
+
+      await runRoutine(routineOf(click("#submit")));
+
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -6,6 +6,7 @@ import { navigateHere } from "../page/navigate";
 import { saveResume } from "../background/client";
 import type { ResumeRecord } from "../background/protocol";
 import { handlers } from "../steps";
+import { clickMayNavigate } from "../steps/clickBySelector";
 import { STEP_META, siteOnlyReason } from "../core/stepMeta";
 import { isCommon } from "../core/match";
 
@@ -77,6 +78,15 @@ export async function runRoutine(
         }
         const handler = handlers[step.type];
         if (!handler) throw new Error(`Unknown step type "${step.type}"`);
+
+        // A click whose default action navigates kills this document before
+        // it can park itself, so the park has to land *before* the click —
+        // same ordering as the explicit navigateTo case below, just reached
+        // from a prediction instead of a declared destination.
+        if (clickMayNavigate(step)) {
+          await park(i + 1);
+        }
+
         const { value, note, navigateTo } = await handler(step, ctx);
         if (value !== undefined) {
           // MAX_VARS caps what *steps* write; seeded values are not charged
@@ -94,21 +104,8 @@ export async function runRoutine(
         if (navigateTo) {
           // Park the rest of the routine *before* the page starts unloading;
           // once location.assign runs there is no guarantee another await
-          // ever resolves. Nothing to park if this was the last step.
-          const next = i + 1;
-          if (next < routine.steps.length) {
-            await saveResume({
-              routineId: routine.id,
-              nextStep: next,
-              // Only step-written variables cross: the ones from the Variables
-              // tab are re-seeded on the other side from storage, exactly as on
-              // a fresh run, so parking a copy of them here would be a second
-              // place for the same value to live.
-              vars: [...written].map((name) => [name, ctx.get(name)!]),
-              notes,
-              expiresAt: Date.now() + RESUME_TTL_MS
-            });
-          }
+          // ever resolves.
+          await park(i + 1);
           navigateHere(navigateTo);
           break; // this document is on its way out
         }
@@ -119,6 +116,26 @@ export async function runRoutine(
     return notes;
   } finally {
     ctx.clear();
+  }
+
+  // Saves everything needed to pick the routine back up on whatever page
+  // loads next in this tab, from the given step onward. Nothing to park if
+  // that's past the end of the routine. A park nobody claims — the click or
+  // navigation it anticipated never actually left the page — just expires
+  // under RESUME_TTL_MS, same as any other navigation that never lands.
+  async function park(nextStep: number): Promise<void> {
+    if (nextStep >= routine.steps.length) return;
+    await saveResume({
+      routineId: routine.id,
+      nextStep,
+      // Only step-written variables cross: the ones from the Variables tab
+      // are re-seeded on the other side from storage, exactly as on a fresh
+      // run, so parking a copy of them here would be a second place for the
+      // same value to live.
+      vars: [...written].map((name) => [name, ctx.get(name)!]),
+      notes,
+      expiresAt: Date.now() + RESUME_TTL_MS
+    });
   }
 }
 
