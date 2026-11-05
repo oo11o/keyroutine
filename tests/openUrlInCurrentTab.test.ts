@@ -74,6 +74,27 @@ describe("openUrlInCurrentTab", () => {
     expect(visitedUrl()).toBe("http://dzo.lh/sync.php?tender_id=abc%26run%3Devil&type=tenders");
   });
 
+  it("does not percent-encode a template that is nothing but one $var", async () => {
+    // $s1 here stands in for $startUrl: a full absolute URL some earlier
+    // step captured (typically from $url), meant to *be* the destination —
+    // not a value embedded inside a literal URL. Encoding the whole thing
+    // would turn it into something toHttpUrl can no longer recognise as
+    // absolute, and it would resolve relative to the current page instead.
+    document.body.innerHTML = `<input id="tender_id" value="http://dzo.lh/tenders/77015" />`;
+
+    await runRoutine(routineWith("$s1"));
+
+    expect(visitedUrl()).toBe("http://dzo.lh/tenders/77015");
+  });
+
+  it("still percent-encodes a $var embedded alongside literal URL text", async () => {
+    document.body.innerHTML = `<input id="tender_id" value="abc&run=evil" />`;
+
+    await runRoutine(routineWith("http://dzo.lh/sync.php?id=$s1"));
+
+    expect(visitedUrl()).toBe("http://dzo.lh/sync.php?id=abc%26run%3Devil");
+  });
+
   it("resolves a relative URL against the current page", async () => {
     document.body.innerHTML = `<input id="tender_id" value="T-7" />`;
 

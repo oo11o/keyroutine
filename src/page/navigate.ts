@@ -21,12 +21,23 @@ export function toHttpUrl(raw: string): string {
   return parsed.href;
 }
 
-// The prologue every URL step shares: substitute $vars, then validate. The
-// transform is applied per value and never to the template around it, so a
-// value holding & or = lands as one query parameter instead of injecting
-// another (see core/context.ts).
+// A template that is nothing but one $var, with no literal text around it —
+// "$startUrl", not "/cron/sync.php?id=$s1". That value is meant to *be* the
+// destination (typically one a saveValue step captured from $url before
+// navigating away), not a component embedded in a literal URL, so it must
+// not be percent-encoded: encoding a whole absolute URL turns it into
+// something no longer recognisable as one, which toHttpUrl then resolves as
+// a path relative to the current page instead of the page it names.
+const WHOLE_VAR_TEMPLATE = /^\$(\w+)$/;
+
+// The prologue every URL step shares: substitute $vars, then validate. For
+// everything but the whole-template case above, the transform is applied
+// per value and never to the template around it, so a value holding & or =
+// lands as one query parameter instead of injecting another (see
+// core/context.ts).
 export function resolveHttpUrl(template: string, ctx: RunContext): string {
-  return toHttpUrl(resolve(template, ctx, encodeURIComponent));
+  const transform = WHOLE_VAR_TEMPLATE.test(template) ? (v: string) => v : encodeURIComponent;
+  return toHttpUrl(resolve(template, ctx, transform));
 }
 
 // Passing "noopener" would make window.open always return null, leaving a
