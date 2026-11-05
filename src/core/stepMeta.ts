@@ -194,7 +194,8 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         label: "Value",
         kind: "template",
         required: true,
-        placeholder: "$text-done"
+        placeholder: "$text-done",
+        help: "Typed here literally, this travels with the routine — Export, Copy JSON, a paste into chat. For a password or token, put it in the Variables tab and reference it as $name instead; that value is never part of the config."
       }
     ]
   },
@@ -214,7 +215,8 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         label: "Value",
         kind: "template",
         required: true,
-        placeholder: "$text"
+        placeholder: "$text",
+        help: "Typed here literally — a password, an email — it travels with the routine in Export and Copy JSON. Put it in the Variables tab instead and reference it as $name; that value stays on this profile."
       }
     ]
   },
