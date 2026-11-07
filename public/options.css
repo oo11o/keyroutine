@@ -472,6 +472,16 @@ textarea.wrapbox {
 .fieldrow { display: flex; gap: 8px; flex-wrap: wrap; }
 .fieldrow .input { flex: 1 1 220px; width: auto; }
 .fieldrow .btn { height: 40px; }
+/* Unlike .fieldrow, never wraps: a narrow column plus a 220px basis would push
+   the button onto its own line, which is worse than letting the input shrink. */
+.patternadd { display: flex; gap: 8px; align-items: center; }
+.patternadd .input { flex: 1 1 auto; width: auto; min-width: 0; }
+.patternadd .iconbtn {
+  flex: none;
+  background: var(--accent);
+  color: #121214;
+}
+.patternadd .iconbtn:hover:not(:disabled) { background: #93bdff; }
 .rowline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .spacer { flex: 1 1 auto; }
 

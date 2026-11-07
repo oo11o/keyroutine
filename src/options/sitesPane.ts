@@ -308,8 +308,7 @@ function siteSettings(siteId: string): HTMLElement {
 
   const patternProblem = h("div", { class: "errtext", hidden: true });
 
-  add.addEventListener("keydown", (e) => {
-    if ((e as KeyboardEvent).key !== "Enter") return;
+  const commitPattern = () => {
     const pattern = add.value.trim();
     if (pattern === "") return;
     // A site that claims every host is Common with extra steps — and Common
@@ -330,7 +329,13 @@ function siteSettings(siteId: string): HTMLElement {
     // path instead of two that could drift apart. The redraw patchSite
     // triggers rebuilds that row fresh, so there is nothing to refresh here.
     store.patchSite(site.id, { patterns: [...site.patterns, pattern] });
+  };
+
+  add.addEventListener("keydown", (e) => {
+    if ((e as KeyboardEvent).key !== "Enter") return;
+    commitPattern();
   });
+  const addPatternBtn = iconButton("plus", "Add pattern", commitPattern);
 
   return h(
     "div",
@@ -351,7 +356,7 @@ function siteSettings(siteId: string): HTMLElement {
       { class: "field" },
       h("span", { class: "label", text: "Matches these URLs" }),
       site.patterns.length > 0 ? chips : null,
-      add,
+      h("div", { class: "patternadd" }, add, addPatternBtn),
       // The field adds nothing until this is pressed — said once, plainly,
       // rather than left for someone to discover by trial.
       h(
@@ -359,7 +364,9 @@ function siteSettings(siteId: string): HTMLElement {
         { class: "hint" },
         "Write the domain, then press ",
         h("strong", { text: "Enter" }),
-        " to add it."
+        " or the ",
+        h("strong", { text: "+" }),
+        " button to add it."
       ),
       patternProblem,
       // The three shapes a pattern can take, said as plainly as the add
