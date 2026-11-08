@@ -41,6 +41,7 @@ export function grantStatusRow(
       text.textContent =
         state === "common" && wording.common ? wording.common : granted ? wording.granted : wording.missing;
       text.classList.toggle("warntext", !granted);
+      text.classList.toggle("oktext", granted);
       button.hidden = granted;
     });
   }

@@ -80,6 +80,7 @@ svg.i {
   gap: 8px;
   white-space: nowrap;
 }
+.btn[hidden] { display: none; }
 .btn:hover:not(:disabled) { background: var(--hover); }
 .btn:disabled { opacity: 0.4; cursor: default; }
 .btn-primary { background: var(--green); border-color: var(--green); color: #fff; }
@@ -314,6 +315,17 @@ svg.i {
   gap: 16px;
 }
 .infocard { padding: 14px 16px; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+.infocard .disclosure {
+  height: auto;
+  padding: 0;
+  margin-bottom: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--faint);
+  font-size: 12.5px;
+}
+.infocard .disclosure:hover { color: var(--text); background: transparent; }
+.infocard .disclosure svg.i { width: 14px; height: 14px; }
 .settings { padding: 16px; display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
 .settings-head { font-weight: 600; font-size: 14px; }
 
@@ -450,6 +462,7 @@ textarea.wrapbox {
 .hint { font-size: 12.5px; color: var(--faint); line-height: 1.45; }
 .errtext { font-size: 13px; color: var(--danger); }
 .warntext { color: var(--warnfg); }
+.oktext { color: var(--okfg); }
 .fieldrow { display: flex; gap: 8px; flex-wrap: wrap; }
 .fieldrow .input { flex: 1 1 220px; width: auto; }
 .fieldrow .btn { height: 40px; }
