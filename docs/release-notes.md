@@ -1,5 +1,21 @@
 # Release notes
 
+## 0.3.1
+
+- Fix: an "Allow access" button that should have disappeared once access
+  was granted stayed on screen instead — fixed for every grant row in the
+  builder.
+- Fix: a page typed into a routine's "+ path" field could vanish entirely
+  if you then switched that routine to "All pages" (or any other page) —
+  it's now remembered for the rest of the session.
+- The "+ path" field and its add button now sit on one line, and the
+  field no longer renders stretched to the full width of the card.
+- "Unsaved changes" is now orange and pulses, instead of sitting in plain
+  muted text easy to miss.
+- Common's explanation text collapses behind a "What is Common?" toggle
+  once access is actually granted, instead of repeating itself on every
+  visit.
+
 ## 0.3.0
 
 - Sites are domains now, and a routine picks which page (or several at
