@@ -203,12 +203,19 @@ export function patchSite(siteId: string, patch: Partial<Omit<Site, "id">>): voi
 
 // `keepRoutines` moves this site's routines to common; without it they go with the
 // site. Asked out loud in the UI rather than guessed — either answer loses
-// something the other keeps.
+// something the other keeps. Keeping is not always possible, though: a
+// routine with a site-only step (see siteOnlySteps) has no site rule to say
+// what that step may reach once this site is gone, the same reason the
+// routine editor never offers Common to it in the first place — so it goes
+// with the site regardless of which answer was given, rather than landing in
+// an invalid state that save would only refuse to write.
 export function deleteSite(siteId: string, keepRoutines: boolean): void {
   config.sites = config.sites.filter((s) => s.id !== siteId);
   config.routines = keepRoutines
-    ? config.routines.map((s) => (s.siteId === siteId ? { ...s, siteId: null } : s))
-    : config.routines.filter((s) => s.siteId !== siteId);
+    ? config.routines
+        .filter((r) => r.siteId !== siteId || siteOnlySteps({ ...r, siteId: null }).length === 0)
+        .map((r) => (r.siteId === siteId ? { ...r, siteId: null } : r))
+    : config.routines.filter((r) => r.siteId !== siteId);
   scope = COMMON;
   clearSelection();
   announce();

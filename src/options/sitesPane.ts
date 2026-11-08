@@ -1,7 +1,8 @@
 import { columnHead, h, iconButton, row } from "./el";
 import { icon } from "./icons";
 import { groupSites, overBroadPattern, siteHost, siteScope, sitesFor } from "../core/match";
-import type { Site } from "../core/schema";
+import type { Routine, Site } from "../core/schema";
+import { siteOnlySteps } from "../core/stepMeta";
 import * as store from "./store";
 import { COMMON } from "./store";
 import { ensureEverywhere, ensureOrigin, hasEverywhere, hasOrigin } from "./grant";
@@ -331,7 +332,7 @@ function siteSettings(siteId: string): HTMLElement {
   );
   const parent = group && group.site.id !== site.id ? group.site : null;
   const areas = group && group.site.id === site.id ? group.areas : [];
-  const count = store.routineCount({ kind: "site", siteId: site.id });
+  const routinesHere = config.routines.filter((r) => r.siteId === site.id);
 
   const grant = grantStatusRow(
     siteWording(parent ? "this area" : "this site"),
@@ -438,7 +439,7 @@ function siteSettings(siteId: string): HTMLElement {
         class: "btn btn-danger btn-sm",
         style: "margin-left:-10px",
         text: parent ? "Delete area…" : "Delete site…",
-        onClick: () => confirmDelete(site.id, site.name, count, areas)
+        onClick: () => confirmDelete(site.id, site.name, routinesHere, areas)
       })
     )
   );
@@ -446,31 +447,53 @@ function siteSettings(siteId: string): HTMLElement {
 
 // The routines are the question, not the site: deleting them and promoting them
 // to "runs everywhere" each lose something the other keeps, so both are asked
-// for explicitly and neither is the default.
+// for explicitly and neither is the default. Not every routine gets a choice,
+// though — one holding a site-only step (see siteOnlySteps) has no site rule
+// left to say what that step may reach once this site is gone, the same
+// reason the routine editor never offers it Common in the first place. It
+// goes with the site regardless of which answer is given, so the dialog says
+// so up front rather than "keep" silently meaning something different for it.
 //
 // The areas are not part of the question. They are sites in their own right
 // with their own routines, so deleting the host leaves them standing — said out
 // loud, because the indentation suggests otherwise.
-function confirmDelete(siteId: string, name: string, routines: number, areas: Site[]): void {
+function confirmDelete(siteId: string, name: string, routines: Routine[], areas: Site[]): void {
   const orphans =
     areas.length > 0
       ? `\n\nIts ${plural(areas.length, "area")} (${areas.map((a) => a.name).join(", ")}) ` +
         `keep working and move up to the top of the list.`
       : "";
-  if (routines === 0) {
+  if (routines.length === 0) {
     if (confirm(`Delete the site "${name}"?${orphans}`)) store.deleteSite(siteId, false);
     return;
   }
+  const mustGo = routines.filter((r) => siteOnlySteps({ ...r, siteId: null }).length > 0);
+  const keepable = routines.length - mustGo.length;
+  const mustGoNote =
+    mustGo.length > 0
+      ? `\n\n${plural(mustGo.length, "routine")} (${mustGo.map((r) => r.name).join(", ")}) ` +
+        `can't run with no site to say what they reach, so ${mustGo.length === 1 ? "it" : "they"} will be deleted either way.`
+      : "";
+  if (keepable === 0) {
+    if (
+      confirm(`Delete "${name}" and its ${routines.length} routine${routines.length === 1 ? "" : "s"}?${orphans}`)
+    ) {
+      store.deleteSite(siteId, false);
+    }
+    return;
+  }
   const keep = confirm(
-    `"${name}" has ${routines} routine${routines === 1 ? "" : "s"}.${orphans}\n\n` +
-      `OK — keep them as common routines, running everywhere.\n` +
+    `"${name}" has ${routines.length} routine${routines.length === 1 ? "" : "s"}.${orphans}${mustGoNote}\n\n` +
+      `OK — keep the other ${plural(keepable, "routine")} as common, running everywhere.\n` +
       `Cancel — choose to delete them instead.`
   );
   if (keep) {
     store.deleteSite(siteId, true);
     return;
   }
-  if (confirm(`Delete "${name}" and its ${routines} routine${routines === 1 ? "" : "s"} for good?`)) {
+  if (
+    confirm(`Delete "${name}" and its ${routines.length} routine${routines.length === 1 ? "" : "s"} for good?`)
+  ) {
     store.deleteSite(siteId, false);
   }
 }
