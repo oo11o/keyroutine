@@ -3,7 +3,7 @@ import * as store from "../src/options/store";
 import * as probe from "../src/options/probe";
 import { CONFIG_KEY, clearCache } from "../src/core/configStore";
 import { renderSites } from "../src/options/sitesPane";
-import { renderRoutines } from "../src/options/routinesPane";
+import { forgetSeenPages, renderRoutines } from "../src/options/routinesPane";
 import { renderSteps } from "../src/options/stepsPane";
 import { PICK_MESSAGE_TYPE } from "../src/core/builderProtocol";
 import { stubChromePermissions, stubChromeStorage, stubChromeTabs } from "./fakeChrome";
@@ -109,6 +109,7 @@ beforeEach(async () => {
   };
   stubChromeStorage({ [CONFIG_KEY]: structuredClone(SEED) });
   probe.forgetAll();
+  forgetSeenPages();
   await store.init("http://dzo.lh/tenders/1", ["runToken"]);
   draw();
 });
@@ -304,6 +305,27 @@ describe("the Routines column", () => {
 
     expect(texts(panes.routines, ".routinename")).toEqual(["jsonShow"]);
     expect(store.isDirty()).toBe(true);
+  });
+
+  it("keeps a typed page as a chip after switching the routine off it, instead of losing it", () => {
+    store.selectScope({ kind: "site", siteId: "local" });
+    store.selectRoutine("sync-tender");
+    draw();
+
+    const addPage = panes.routines.querySelector(".chipinput") as HTMLInputElement;
+    addPage.value = "/test";
+    addPage.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    draw();
+
+    expect(texts(panes.routines, ".chipbtn")).toContain("/test");
+
+    // "/test" was the only routine on this site naming that page — without
+    // remembering it for the session, switching back to "All pages" would
+    // make the chip (and the path the user just typed) vanish entirely.
+    clickWithText(panes.routines, ".chipbtn", "All pages");
+    draw();
+
+    expect(texts(panes.routines, ".chipbtn")).toContain("/test");
   });
 
   it("moves a routine to a site through the Site dropdown, and follows it there", () => {
