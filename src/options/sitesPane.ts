@@ -5,7 +5,7 @@ import type { Site } from "../core/schema";
 import * as store from "./store";
 import { COMMON } from "./store";
 import { ensureEverywhere, ensureOrigin, hasEverywhere, hasOrigin } from "./grant";
-import { grantStatusRow } from "./grantRow";
+import { grantStatusRow, type GrantCheck } from "./grantRow";
 
 // Column 1 — where. Which pages a routine is allowed to fire on: everywhere
 // ("Common"), or one of the sites below. The row for the page the builder was
@@ -74,6 +74,14 @@ async function ensureAllOrigins(site: Site): Promise<boolean> {
   return granted.every(Boolean);
 }
 
+// Checked ahead of the site's own grant: Common's access, once granted,
+// already covers this site, and the row below should say that rather than
+// claiming a grant this site never actually received.
+async function siteGrantState(site: Site): Promise<GrantCheck> {
+  if (await hasEverywhere()) return "common";
+  return hasAllOrigins(site);
+}
+
 export function renderSites(pane: HTMLElement): void {
   const config = store.getConfig();
   const scope = store.getScope();
@@ -121,7 +129,20 @@ export function renderSites(pane: HTMLElement): void {
   // The panel for whatever is selected sits right under the row that opened
   // it, not at the bottom of a list that may have scrolled it out of sight —
   // the same "expands where you clicked" rule the Routines column follows.
-  if (onCommon) pane.append(commonCard());
+  // Common is the one exception: nothing anywhere can fire without this grant,
+  // so its card stays open — regardless of what else is selected — until the
+  // grant exists, instead of waiting for someone to think to click the row
+  // that explains why nothing works yet. Once granted it collapses to just
+  // the row, same as every other site.
+  const commonSlot = h("div");
+  pane.append(commonSlot);
+  if (onCommon) {
+    commonSlot.append(commonCard());
+  } else {
+    void hasEverywhere().then((granted) => {
+      if (!granted) commonSlot.append(commonCard());
+    });
+  }
 
   const groups = groupSites(config.sites);
   if (groups.length > 0) pane.append(h("div", { class: "sectionlabel", text: "Your sites" }));
@@ -229,10 +250,15 @@ function addButton(pageUrl: string | null, claimed: { domain: boolean; url: bool
 // grant is about reaching every site at all, and (see stepsPane.ts) a fetch
 // grant is about a network request, never about running on a page. Blurring
 // those into one template reads as accurate everywhere and precise nowhere.
-function siteWording(label: "this site" | "this area"): { granted: string; missing: string } {
+function siteWording(label: "this site" | "this area"): {
+  granted: string;
+  missing: string;
+  common: string;
+} {
   return {
-    granted: `Access granted — routines can run on ${label}.`,
-    missing: `Not granted yet — routines cannot run on ${label}.`
+    granted: `Access granted — your hotkeys work on ${label}.`,
+    missing: `Not granted yet — your hotkeys won't work on ${label} until this is granted.`,
+    common: `Covered by Common's access — your hotkeys already work on ${label}.`
   };
 }
 
@@ -243,8 +269,8 @@ function siteWording(label: "this site" | "this area"): { granted: string; missi
 // listener is itself the content script injectableOrigins() withholds until
 // this is granted.
 const commonWording: { granted: string; missing: string } = {
-  granted: "Access granted — routines can run on supported sites.",
-  missing: "Not granted yet — routines cannot run anywhere until this is granted."
+  granted: "Access granted — your hotkeys work on supported sites.",
+  missing: "Not granted yet — your hotkeys won't work anywhere until this is granted."
 };
 
 function commonCard(): HTMLElement {
@@ -256,7 +282,14 @@ function commonCard(): HTMLElement {
         "Routines in Common work on every site. Put things you need everywhere here — " +
         "for example, pasting a test password."
     }),
-    grantStatusRow(commonWording, hasEverywhere, ensureEverywhere).element
+    // Said here because it is easy to miss granting this and then wonder why
+    // every site below reads as granted too: it is not each site's own grant,
+    // it is this one, reused everywhere a check asks Chrome.
+    h("p", {
+      class: "hint",
+      text: "Granting this covers every site below too — none of them will need their own grant."
+    }),
+    grantStatusRow(commonWording, hasEverywhere, ensureEverywhere, { buttonClass: "btn-primary" }).element
   );
 }
 
@@ -302,7 +335,7 @@ function siteSettings(siteId: string): HTMLElement {
 
   const grant = grantStatusRow(
     siteWording(parent ? "this area" : "this site"),
-    () => hasAllOrigins(site),
+    () => siteGrantState(site),
     () => ensureAllOrigins(site)
   );
 

@@ -469,6 +469,7 @@ textarea.wrapbox {
 .input.is-err, input.is-err, textarea.is-err { border-color: #c8524a; }
 .hint { font-size: 12.5px; color: var(--faint); line-height: 1.45; }
 .errtext { font-size: 13px; color: var(--danger); }
+.warntext { color: var(--warnfg); }
 .fieldrow { display: flex; gap: 8px; flex-wrap: wrap; }
 .fieldrow .input { flex: 1 1 220px; width: auto; }
 .fieldrow .btn { height: 40px; }

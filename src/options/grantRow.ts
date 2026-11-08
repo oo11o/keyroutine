@@ -13,23 +13,34 @@ import { h } from "./el";
 // rather than afterward. This row is what covers the pattern already
 // having been added — on purpose, by unchecking that box, or because
 // access was revoked some other way — so asking again is never a retype.
+// A site can read as granted for a reason other than its own grant: Common's
+// <all_urls> covers every origin, so a site that was never granted itself
+// still passes the Chrome check. "common" says so instead of claiming a grant
+// that was never actually made for this site, which would read as a ghost
+// the next time Common's access is revoked and this site goes dark with it.
+export type GrantCheck = boolean | "common";
+
 export function grantStatusRow(
-  wording: { granted: string; missing: string },
-  check: () => Promise<boolean>,
-  request: () => Promise<boolean>
+  wording: { granted: string; missing: string; common?: string },
+  check: () => Promise<GrantCheck>,
+  request: () => Promise<boolean>,
+  opts: { buttonClass?: string } = {}
 ): { element: HTMLElement; refresh: () => void } {
   const text = h("span", { class: "hint" });
   const button = h("button", {
     type: "button",
-    class: "btn btn-sm",
+    class: `btn btn-sm ${opts.buttonClass ?? ""}`.trim(),
     text: "Grant access",
     onClick: () => void request().then(refresh)
   });
   const element = h("div", { class: "field grantrow" }, text, button);
 
   function refresh(): void {
-    void check().then((granted) => {
-      text.textContent = granted ? wording.granted : wording.missing;
+    void check().then((state) => {
+      const granted = state !== false;
+      text.textContent =
+        state === "common" && wording.common ? wording.common : granted ? wording.granted : wording.missing;
+      text.classList.toggle("warntext", !granted);
       button.hidden = granted;
     });
   }
