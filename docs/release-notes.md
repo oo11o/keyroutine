@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.3.0
+
+- Sites are domains now, and a routine picks which page (or several at
+  once) it runs on, instead of needing its own site created for every
+  page. Existing configs migrate automatically, and sites that end up
+  sharing one domain merge into a single row.
+- New "Regex" action: pull a piece out of a larger value — an id out of a
+  URL, for example — with a regular expression, no selector needed.
+- A red banner now says plainly when nothing has been allowed yet, right
+  under the logo, instead of only a quiet lock icon on whichever site you
+  happen to be looking at. The button is "Allow access" everywhere, and it
+  now actually disappears once access is granted.
+- Deleting a site now deletes any of its routines that hold a site-only
+  action (like Fetch URL) along with it, instead of leaving them broken
+  and unable to save.
+- The installed version now shows next to the logo.
+
 ## 0.2.1
 
 - Fix: a click that submits a form or follows a link no longer loses the
