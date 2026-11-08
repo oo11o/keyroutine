@@ -37,6 +37,7 @@ describe("STEP_META", () => {
     expect(STEP_TYPES.filter((t) => STEP_META[t].produces).sort()).toEqual([
       "fetchUrl",
       "readBySelector",
+      "regexExtract",
       "saveValue"
     ]);
   });

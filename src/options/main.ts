@@ -6,6 +6,9 @@ import { renderRoutines } from "./routinesPane";
 import { renderSteps } from "./stepsPane";
 import { loadVarNames, renderVars } from "./varsPane";
 import { openExport, openImport } from "./portJson";
+import { hasAnyAccess } from "./grant";
+import { hasEverywhere, hasOrigin } from "./grant";
+import { isCommon, siteOrigins } from "../core/match";
 
 // The builder's entry point: boot the draft, draw the three columns, and keep
 // the top bar honest about whether there is anything unsaved.
@@ -30,6 +33,21 @@ const saveButton = h("button", {
 });
 const problems = h("div", { class: "problems", hidden: true });
 
+// Said once, loudly, right under the logo — not a per-site hint someone has
+// to already be looking at the Sites column to notice. A profile that has
+// granted nothing cannot run a single hotkey anywhere, which is the one
+// state worth a banner rather than a lock icon.
+const accessBanner = h(
+  "div",
+  { class: "problems accessbanner", hidden: true },
+  h("strong", { text: "KeyRoutine needs access to the sites below before your hotkeys will work." }),
+  h("div", { text: "Please click Allow access on Common, or on each site, below." })
+);
+
+async function refreshAccessBanner(): Promise<void> {
+  accessBanner.hidden = await hasAnyAccess();
+}
+
 type Tab = "builder" | "vars";
 let tab: Tab = "builder";
 
@@ -50,6 +68,7 @@ function render(): void {
   dirtyDot.hidden = !store.isDirty();
   saveButton.disabled = !store.isDirty();
   restoreFocus(focus);
+  void refreshAccessBanner();
 }
 
 // Every edit redraws the columns, which would otherwise take the caret out of
@@ -188,11 +207,17 @@ async function currentPageUrl(): Promise<string | null> {
 
 async function boot(): Promise<void> {
   renderTabs();
-  builder.before(problems);
+  builder.before(accessBanner, problems);
   store.subscribe(render);
   // A match count or a run report changes what the columns show without
   // changing the draft, so it needs its own way to ask for a redraw.
   probe.subscribe(render);
+  // Clicking "Allow access" on a site's own grant row does not go through
+  // store.announce() — it only refreshes that one row — so the banner needs
+  // its own ear on the thing it is actually reporting.
+  chrome.permissions.onAdded.addListener(() => void refreshAccessBanner());
+  chrome.permissions.onRemoved.addListener(() => void refreshAccessBanner());
+  void refreshAccessBanner();
   const [url, varNames] = await Promise.all([currentPageUrl(), loadVarNames()]);
   await store.init(url, varNames);
 }

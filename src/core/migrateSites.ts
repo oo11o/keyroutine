@@ -142,7 +142,7 @@ export function migrateLegacySites(
 // host is either an old config where each page was once its own standalone
 // site with no domain sibling to nest under (migrateLegacySites above cannot
 // always tell two such orphans apart as "the same domain"), or a hand-edited
-// import. Either way, letting both stand would mean clicking "Grant access"
+// import. Either way, letting both stand would mean clicking "Allow access"
 // on one silently granting the other too (same Chrome origin) while the
 // Sites column shows them as if they needed separate grants — confusing
 // without being wrong. Run unconditionally, after parsing, so it heals a

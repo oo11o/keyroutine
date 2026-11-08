@@ -199,6 +199,44 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
       }
     ]
   },
+  regexExtract: {
+    label: "Regex",
+    group: "read",
+    icon: "braces",
+    help: "Runs a regular expression against a value and saves what it matched — the first capture group if the pattern has one, otherwise the whole match.",
+    produces: true,
+    outNote: "The matched text — a capture group of the pattern, or the whole match.",
+    varName: "match",
+    summary: (s) => text(s, "pattern"),
+    fields: [
+      {
+        name: "input",
+        label: "Text",
+        kind: "template",
+        required: true,
+        placeholder: "$url",
+        help: "The text to search — usually a $var from an earlier action."
+      },
+      {
+        name: "pattern",
+        label: "Pattern",
+        kind: "text",
+        required: true,
+        placeholder: "orders/(\\d+)/edit",
+        help: "A JavaScript regular expression, written without the surrounding / /."
+      },
+      {
+        name: "group",
+        label: "Group",
+        kind: "number",
+        required: false,
+        advanced: true,
+        min: 0,
+        placeholder: "1",
+        help: "Which capture group to save (1, 2, …), or 0 for the whole match. Left blank, it is group 1 if the pattern has one, otherwise the whole match."
+      }
+    ]
+  },
   inputToSelector: {
     label: "Set field value",
     group: "write",

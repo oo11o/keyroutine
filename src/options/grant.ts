@@ -42,3 +42,12 @@ export async function ensureEverywhere(): Promise<boolean> {
 export async function hasEverywhere(): Promise<boolean> {
   return chrome.permissions.contains({ origins: [EVERYWHERE_ORIGIN] });
 }
+
+// Whether Chrome has granted KeyRoutine any origin at all — Common, or any
+// one site. A profile that has never granted anything cannot run a single
+// hotkey anywhere, which is worth saying once, loudly, rather than only as a
+// quiet note on whichever site happens to be selected.
+export async function hasAnyAccess(): Promise<boolean> {
+  const granted = await chrome.permissions.getAll();
+  return (granted.origins?.length ?? 0) > 0;
+}

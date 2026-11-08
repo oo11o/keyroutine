@@ -235,7 +235,7 @@ describe("the Sites column", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     draw();
 
-    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Not granted yet"));
+    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Access required"));
 
     // Common's own card auto-opens while it is ungranted too (see sitesPane.ts),
     // so the site's own grant button is scoped to its settings card rather than
@@ -252,7 +252,7 @@ describe("the Sites column", () => {
     store.selectScope(store.COMMON);
     draw();
 
-    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Not granted yet"));
+    await vi.waitFor(() => expect(panes.sites.textContent).toContain("Access required"));
 
     const grantBtn = [...panes.sites.querySelectorAll(".grantrow button")][0] as HTMLElement;
     grantBtn.click();
@@ -444,14 +444,14 @@ describe("the Actions column", () => {
 
   it("chips the variable a producing action leaves behind", () => {
     // The chip shows the Save as name, which the seed spells out, not the id.
-    expect(texts(panes.steps, ".stephead .outchip")).toEqual(["→ $s1", "→ $tender"]);
+    expect(texts(panes.steps, ".stepchips .outchip")).toEqual(["→ $s1", "→ $tender"]);
   });
 
   it("chips an action whose field names a variable nothing produces", () => {
     store.patchStep("s2", { url: "https://api.test/t/$nope" });
     draw();
 
-    expect(texts(panes.steps, ".stephead .errchip")).toEqual(["$nope undefined"]);
+    expect(texts(panes.steps, ".stepchips .errchip")).toEqual(["$nope undefined"]);
   });
 
   it("opens one card at a time, and closes the open one", () => {
@@ -594,7 +594,7 @@ describe("the Actions column", () => {
     draw();
 
     expect(store.currentRoutine()!.steps[1]).toMatchObject({ id: "s2", saveAs: "tenderJson" });
-    expect(texts(panes.steps, ".stephead .outchip")).toEqual(["→ $s1", "→ $tenderJson"]);
+    expect(texts(panes.steps, ".stepchips .outchip")).toEqual(["→ $s1", "→ $tenderJson"]);
   });
 
   it("asks first when a rename would break a later action, and leaves it alone", () => {
@@ -764,11 +764,11 @@ describe("a Common routine and the actions it may not hold", () => {
     const enabled = [...panes.steps.querySelectorAll(".type-menu button")].filter(
       (b) => !(b as HTMLButtonElement).disabled
     );
-    // Thirteen types; seven are site-only now (Fetch URL plus the five
+    // Fourteen types; seven are site-only now (Fetch URL plus the five
     // selector-based actions plus Wait for element — see siteOnly in
-    // core/stepMeta.ts), leaving six Common can actually offer: Save value,
-    // wait, the two popups, and the two navigate actions.
-    expect(enabled).toHaveLength(6);
+    // core/stepMeta.ts), leaving seven Common can actually offer: Save value,
+    // Regex, wait, the two popups, and the two navigate actions.
+    expect(enabled).toHaveLength(7);
   });
 
   it("flags a fetch that is already there, from an older config", () => {
@@ -779,7 +779,7 @@ describe("a Common routine and the actions it may not hold", () => {
       url: "https://api.test/x", saveAs: "leak" });
     openStep("leak");
 
-    expect(texts(panes.steps, ".stephead .errchip")).toContain("Needs a site");
+    expect(texts(panes.steps, ".stepchips .errchip")).toContain("Needs a site");
     expect(texts(panes.steps, ".cardbody .errtext").join(" ")).toContain("scoped to a site");
     // No grant row either: nothing to grant for an action that cannot run.
     expect(panes.steps.querySelector(".cardbody .grantrow")).toBeNull();

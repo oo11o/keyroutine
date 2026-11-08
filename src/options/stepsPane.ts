@@ -155,18 +155,6 @@ function actionCard(step: Step, index: number, total: number, open: boolean): HT
     text
   );
 
-  // An older config, or an import, can hold an action this routine's scope may
-  // not run. The runner refuses it; the card says so before the hotkey does.
-  const outOfScope = meta.siteOnly === true && store.getScope().kind === "common";
-  if (outOfScope) head.append(h("span", { class: "errchip", text: "Needs a site" }));
-
-  const missing = missingVars(step, index);
-  if (missing) head.append(h("span", { class: "errchip mono", text: `$${missing} undefined` }));
-  if (meta.produces) {
-    const name = (step as { saveAs?: string }).saveAs;
-    head.append(h("span", { class: "outchip mono", text: name ? `→ $${name}` : "→ unnamed" }));
-  }
-
   card.append(
     h(
       "div",
@@ -184,6 +172,23 @@ function actionCard(step: Step, index: number, total: number, open: boolean): HT
       )
     )
   );
+
+  // Below the header, not inside it: the header's own title and summary
+  // already fight for width on a narrow column, and a chip squeezed in next
+  // to them reads as cut off rather than as its own fact.
+  const chips: HTMLElement[] = [];
+  // An older config, or an import, can hold an action this routine's scope may
+  // not run. The runner refuses it; the card says so before the hotkey does.
+  const outOfScope = meta.siteOnly === true && store.getScope().kind === "common";
+  if (outOfScope) chips.push(h("span", { class: "errchip", text: "Needs a site" }));
+
+  const missing = missingVars(step, index);
+  if (missing) chips.push(h("span", { class: "errchip mono", text: `$${missing} undefined` }));
+  if (meta.produces) {
+    const name = (step as { saveAs?: string }).saveAs;
+    chips.push(h("span", { class: "outchip mono", text: name ? `→ $${name}` : "→ unnamed" }));
+  }
+  if (chips.length > 0) card.append(h("div", { class: "stepchips" }, ...chips));
 
   if (open) card.append(actionBody(step, index));
   return card;
@@ -272,7 +277,7 @@ function fetchGrantRow(url: string): HTMLElement | null {
   return grantStatusRow(
     {
       granted: `Access granted — requests to ${host} are allowed.`,
-      missing: `Not granted yet — requests to ${host} are blocked. Granting this allows the request, not a routine running on the host's pages.`
+      missing: `Access required — requests to ${host} are blocked. Allowing this allows the request, not a routine running on the host's pages.`
     },
     () => hasHostOrigin(origin),
     () => ensureHostOrigin(origin)

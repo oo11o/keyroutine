@@ -598,6 +598,8 @@ textarea.wrapbox {
 
 .step { margin-bottom: 14px; }
 .stephead-row { display: flex; align-items: center; gap: 4px; padding: 6px 8px 6px 6px; flex-wrap: wrap; }
+/* Lined up under the title, not the icon tile beside it. */
+.stepchips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px 8px 58px; margin-top: -4px; }
 .stephead {
   flex: 1;
   min-width: 0;
@@ -717,6 +719,7 @@ textarea.wrapbox {
 }
 .problems[hidden] { display: none; }
 .problems ul { margin: 6px 0 0; padding-left: 18px; }
+.accessbanner div { margin-top: 4px; }
 .notice {
   background: var(--warnbg);
   border: 1px solid var(--warnline);

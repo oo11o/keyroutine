@@ -11,6 +11,7 @@ export type Binding = {
 export type Step =
   | { id: string; type: "readBySelector"; selector: string; saveAs?: string }
   | { id: string; type: "saveValue"; value: string; saveAs?: string }
+  | { id: string; type: "regexExtract"; input: string; pattern: string; group?: number; saveAs?: string }
   | { id: string; type: "inputToSelector"; selector: string; value: string }
   | { id: string; type: "focusBySelector"; selector: string }
   | { id: string; type: "clickBySelector"; selector: string }

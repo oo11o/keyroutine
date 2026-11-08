@@ -25,7 +25,10 @@ export function stubChromeStorage(initial: Record<string, unknown> = {}): FakeSt
     // suites that actually exercise granting.
     permissions: {
       contains: async () => true,
-      request: async () => true
+      request: async () => true,
+      getAll: async () => ({ origins: ["<all_urls>"], permissions: [] }),
+      onAdded: { addListener: () => {} },
+      onRemoved: { addListener: () => {} }
     },
     storage: {
       local: {
@@ -83,7 +86,10 @@ export function stubChromePermissions(initiallyGranted: string[] = []): FakePerm
       requested.push(origins);
       for (const o of origins) if (!granted.includes(o)) granted.push(o);
       return true;
-    }
+    },
+    getAll: async () => ({ origins: [...granted], permissions: [] }),
+    onAdded: { addListener: () => {} },
+    onRemoved: { addListener: () => {} }
   };
 
   return { granted, requested };

@@ -2,6 +2,7 @@ import type { Step } from "../core/schema";
 import type { Handler } from "./types";
 import { readBySelector } from "./readBySelector";
 import { saveValue } from "./saveValue";
+import { regexExtract } from "./regexExtract";
 import { inputToSelector } from "./inputToSelector";
 import { focusBySelector } from "./focusBySelector";
 import { clickBySelector } from "./clickBySelector";
@@ -17,6 +18,7 @@ import { fetchUrl } from "./fetchUrl";
 export const handlers: Record<Step["type"], Handler> = {
   readBySelector,
   saveValue,
+  regexExtract,
   inputToSelector,
   focusBySelector,
   clickBySelector,

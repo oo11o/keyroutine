@@ -30,7 +30,7 @@ export function grantStatusRow(
   const button = h("button", {
     type: "button",
     class: `btn btn-sm ${opts.buttonClass ?? ""}`.trim(),
-    text: "Grant access",
+    text: "Allow access",
     onClick: () => void request().then(refresh)
   });
   const element = h("div", { class: "field grantrow" }, text, button);
