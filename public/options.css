@@ -154,9 +154,21 @@ svg.i {
   border-color: var(--line2);
 }
 .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.dirty { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.dirty {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--warnfg);
+  animation: dirty-blink 1.4s ease-in-out infinite;
+}
 .dirty[hidden] { display: none; }
 .dirty .dot { width: 8px; height: 8px; border-radius: 50%; background: #f0b44c; }
+@keyframes dirty-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
 .status { font-size: 13px; color: var(--okfg); }
 .status.error { color: var(--danger); }
 
@@ -503,7 +515,6 @@ textarea.wrapbox {
   padding: 0 14px;
 }
 .chipbtn.is-sel { border-color: var(--selline); background: var(--selbg); color: var(--text); }
-.chipinput { height: 30px; width: 90px; border-radius: 999px; font-size: 13px; padding: 0 12px; }
 
 /* A quiet grey lock rather than a red badge: most sites are fine, and a lock
    reads as "needs a key" without shouting the way red does on a list where

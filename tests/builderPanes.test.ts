@@ -312,7 +312,7 @@ describe("the Routines column", () => {
     store.selectRoutine("sync-tender");
     draw();
 
-    const addPage = panes.routines.querySelector(".chipinput") as HTMLInputElement;
+    const addPage = panes.routines.querySelector('[aria-label="Add a new page"]') as HTMLInputElement;
     addPage.value = "/test";
     addPage.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
     draw();
