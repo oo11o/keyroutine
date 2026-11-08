@@ -2,6 +2,7 @@ import type { Binding, Config, Site, Routine, Step } from "./schema";
 import { SCHEMA_VERSION } from "./schema";
 import { STEP_META, isStepType, siteOnlySteps } from "./stepMeta";
 import { newId } from "./ids";
+import { isLegacySite, mergeDuplicateHostSites, migrateLegacySites } from "./migrateSites";
 
 // Where the config lives, and the only place it is validated.
 //
@@ -168,13 +169,23 @@ function parseRoutine(raw: unknown, index: number, siteIds: Set<string>, errors:
     siteId = raw.siteId;
   }
 
+  // Each entry is a path under siteId's domain; empty means every page of it.
+  // Normalized to a leading "/" — the same shape patternPath() has always
+  // produced — so a hand-written config that typed "contracts" still matches.
+  const pages = Array.isArray(raw.pages)
+    ? raw.pages
+        .filter((p): p is string => typeof p === "string" && p.trim() !== "")
+        .map((p) => (p.startsWith("/") ? p : `/${p}`))
+    : [];
+
   return {
     id,
     name: typeof raw.name === "string" && raw.name !== "" ? raw.name : id,
     binding,
     enabled: raw.enabled !== false, // absent means enabled; only an explicit false disables
     steps,
-    siteId
+    siteId,
+    pages
   };
 }
 
@@ -185,54 +196,73 @@ function parseSite(raw: unknown, index: number, errors: string[]): Site | null {
     return null;
   }
   const id = typeof raw.id === "string" && raw.id !== "" ? raw.id : newId();
-  const patterns = Array.isArray(raw.patterns)
-    ? raw.patterns.filter((p): p is string => typeof p === "string" && p.trim() !== "")
-    : [];
-  if (patterns.length === 0) {
-    // A site with no patterns matches nothing, so every routine scoped to it is
+  const host = typeof raw.host === "string" ? raw.host.trim().toLowerCase() : "";
+  if (host === "") {
+    // A site with no host matches nothing, so every routine scoped to it is
     // dead. Worth saying out loud rather than leaving the user to wonder.
-    errors.push(`site "${id}": needs at least one URL pattern`);
+    errors.push(`site "${id}": needs a domain`);
   }
   return {
     id,
     name: typeof raw.name === "string" && raw.name !== "" ? raw.name : id,
-    patterns
+    host,
+    includeSubdomains: raw.includeSubdomains === true
   };
 }
 
-// Accepts both shapes: schemaVersion 1 (routines only) and 2 (routines + sites).
-// A v1 config is a v2 config with no sites and every routine common, so the
-// migration is additive and cannot lose anything.
+// Accepts v1 (routines only), v2 (routines + path-carrying `Site.patterns`)
+// and v3 (domain-only `Site.host` + `Routine.pages`) shapes — each additive
+// over the last, so the migration cannot lose anything. A schemaVersion newer
+// than this build understands is refused outright (below) rather than risking
+// a silent misread of fields this build does not know about yet.
 export function parseConfig(raw: unknown): ParseResult {
   const errors: string[] = [];
   if (!isRecord(raw)) return { errors: ["the config is not an object"] };
+  if (typeof raw.schemaVersion === "number" && raw.schemaVersion > SCHEMA_VERSION) {
+    return {
+      errors: [
+        `this config was saved by a newer version of KeyRoutine (schema ${raw.schemaVersion}) — update the extension to open it`
+      ]
+    };
+  }
   // Routines were called stacks until the rename, and that word was the
   // config's own key — so a config written before it, or exported from an
   // older build, says "stacks". Read either and write the new one, the same
-  // way schemaVersion 1 is read and written as 2.
+  // way schemaVersion 1 is read and written as the current version.
   const rawRoutines = Array.isArray(raw.routines) ? raw.routines : raw.stacks;
   if (!Array.isArray(rawRoutines)) return { errors: ['no "routines" array in the config'] };
 
-  const sites: Site[] = [];
-  const siteIds = new Set<string>();
+  let rawSites: unknown[] = [];
   if (Array.isArray(raw.sites)) {
-    raw.sites.forEach((rawSite, i) => {
-      const site = parseSite(rawSite, i, errors);
-      if (!site) return;
-      if (siteIds.has(site.id)) {
-        errors.push(`two sites share the id "${site.id}"`);
-        return;
-      }
-      siteIds.add(site.id);
-      sites.push(site);
-    });
+    rawSites = raw.sites;
   } else if (raw.sites !== undefined) {
     errors.push('"sites" must be an array');
   }
 
+  let siteInputs = rawSites;
+  let routineInputs: unknown[] = rawRoutines;
+  if (rawSites.some(isLegacySite)) {
+    const migrated = migrateLegacySites(rawSites, rawRoutines);
+    siteInputs = migrated.sites;
+    routineInputs = migrated.routines;
+  }
+
+  const sites: Site[] = [];
+  const siteIds = new Set<string>();
+  siteInputs.forEach((rawSite, i) => {
+    const site = parseSite(rawSite, i, errors);
+    if (!site) return;
+    if (siteIds.has(site.id)) {
+      errors.push(`two sites share the id "${site.id}"`);
+      return;
+    }
+    siteIds.add(site.id);
+    sites.push(site);
+  });
+
   const routines: Routine[] = [];
   const routineIds = new Set<string>();
-  rawRoutines.forEach((rawRoutine, i) => {
+  routineInputs.forEach((rawRoutine, i) => {
     const routine = parseRoutine(rawRoutine, i, siteIds, errors);
     if (!routine) return;
     if (routineIds.has(routine.id)) {
@@ -245,7 +275,8 @@ export function parseConfig(raw: unknown): ParseResult {
   });
 
   if (errors.length > 0) return { errors };
-  return { config: { schemaVersion: SCHEMA_VERSION, routines, sites } };
+  const merged = mergeDuplicateHostSites(sites, routines);
+  return { config: { schemaVersion: SCHEMA_VERSION, routines: merged.routines, sites: merged.sites } };
 }
 
 // Memoized, and invalidated by the storage change below — so a keydown reads a

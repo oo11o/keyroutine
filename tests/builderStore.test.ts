@@ -193,9 +193,10 @@ describe("adding things", () => {
   it("selects a new site so its routines can be added straight away", async () => {
     await open();
 
-    const site = store.addSite("Prozorro", ["*://*.prozorro.gov.ua/*", "  "]);
+    const site = store.addSite("Prozorro", "Prozorro.gov.ua", true);
 
-    expect(site.patterns).toEqual(["*://*.prozorro.gov.ua/*"]); // the blank row is dropped
+    expect(site.host).toBe("prozorro.gov.ua"); // lowercased
+    expect(site.includeSubdomains).toBe(true);
     expect(store.getScope()).toEqual({ kind: "site", siteId: site.id });
   });
 });
@@ -307,21 +308,24 @@ describe("chord conflicts", () => {
         overrides: [],
         overriddenBy: [
           { id: "local-sync", name: "Sync (local)", siteId: "local", siteName: "dzo.lh" }
-        ]
+        ],
+        disjoint: []
       },
       {
         routineId: "local-sync",
         conflicts: [],
         overrides: [{ id: "copy-id", name: "Copy Tender", siteId: null, siteName: "Common" }],
-        overriddenBy: []
+        overriddenBy: [],
+        disjoint: []
       }
     ]);
   });
 
-  it("ranks an area of a site above the site itself", async () => {
+  it("ranks a page-specific routine above the whole-domain one on the same site", async () => {
     await open();
-    store.addSite("/tenders", ["dzo.lh/tenders"]);
-    store.patchRoutine("copy-id", { siteId: "tenders" });
+    // Pages live on the routine now, not a separate "area" site — both
+    // routines stay on "local", one scoped to a page of it.
+    store.patchRoutine("copy-id", { siteId: "local", pages: ["/tenders"] });
     store.patchRoutine("local-sync", {
       binding: { code: "Digit1", ctrl: true, alt: true, shift: false, meta: false }
     });

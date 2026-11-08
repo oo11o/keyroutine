@@ -134,15 +134,18 @@ describe("the cheatsheet's three tiers", () => {
     const route = (await resolveRoutine(keydown("Digit8"))) as Route;
 
     // The cheatsheet reads in precedence order, so the routine this chord will
-    // actually run here is the first one on the list.
+    // actually run here is the first one on the list. "new-tender" is a
+    // page-only legacy site with no domain sibling of its own, so it is
+    // migrated onto "local" (see migrateSites.ts) and both tiers now carry
+    // the merged site's own name rather than the old page-site's name.
     expect(route.sections.map((s) => [s.level, s.label])).toEqual([
-      ["url", "This URL · new tender form"],
+      ["url", "This page · dzo.lh"],
       ["domain", "This domain · dzo.lh"],
       ["common", "Everywhere"]
     ]);
 
     const text = formatRoutineList(route.sections);
-    expect(text.indexOf("This URL")).toBeLessThan(text.indexOf("This domain"));
+    expect(text.indexOf("This page")).toBeLessThan(text.indexOf("This domain"));
     expect(text.indexOf("This domain")).toBeLessThan(text.indexOf("Everywhere"));
     expect(text).toContain("New tender form only");
   });

@@ -73,9 +73,9 @@ function wwwToggled(pattern: string): string | null {
   return host.toLowerCase().startsWith("www.") ? host.slice(4) + rest : `www.${host}${rest}`;
 }
 
-// A site pattern that claims every host — "*", "*://*/*", or anything whose
-// last host label is a wildcard ("example.*", which is every TLD). Refused,
-// not supported: a "site" that is every site would be Common wearing a site's
+// A pattern that claims every host — "*", "*://*/*", or anything whose last
+// host label is a wildcard ("example.*", which is every TLD). Refused, not
+// supported: a "site" that is every site would be Common wearing a site's
 // clothes, and that distinction carries weight now — Fetch URL is allowed in
 // a site-scoped routine precisely because a site names where it may reach
 // (see siteOnlySteps in core/stepMeta.ts). Everywhere is still available; it
@@ -105,8 +105,6 @@ export function matchesUrl(url: string, patterns: string[]): boolean {
 
 // How narrowly a pattern aims. A pattern that constrains only the host applies
 // to a whole domain; one that constrains the path applies to particular pages.
-// Derived rather than declared: the distinction is already there in the pattern,
-// and asking the user to also tick a box would let the two disagree.
 export type Level = "common" | "domain" | "url";
 
 export function patternLevel(pattern: string): "domain" | "url" {
@@ -117,65 +115,78 @@ export function patternLevel(pattern: string): "domain" | "url" {
   return path === "" || path === "/" || path === "/*" ? "domain" : "url";
 }
 
-// The level at which a site claims this URL, or null if it does not. A site with
-// both kinds of pattern counts as the narrower one it actually matched on:
-// "example.com" plus "example.com/account/*" is a URL-level site once you are
-// in the account area, and a domain-level one everywhere else on the host.
-export function siteLevel(url: string, site: Site): "domain" | "url" | null {
-  const matched = site.patterns.filter((p) => matchesPattern(url, p));
-  if (matched.length === 0) return null;
-  return matched.some((p) => patternLevel(p) === "url") ? "url" : "domain";
-}
-
-// Every site that claims this URL, in config order. More than one legitimately
-// can — a domain-wide site and a page-specific one are exactly the case the
-// cheatsheet's three tiers exist for — so this is a list, not a first match.
-export function sitesFor(url: string, sites: Site[]): { site: Site; level: "domain" | "url" }[] {
-  const found: { site: Site; level: "domain" | "url" }[] = [];
-  for (const site of sites) {
-    const level = siteLevel(url, site);
-    if (level) found.push({ site, level });
-  }
-  return found;
-}
-
-// The narrowest site claiming this URL — for the places where only one answer
-// fits, like the column the builder opens on.
-export function siteFor(url: string, sites: Site[]): Site | null {
-  const matched = sitesFor(url, sites);
-  return (matched.find((m) => m.level === "url") ?? matched[0])?.site ?? null;
+// The path a pattern narrows to, or "" when it claims the whole host. Used by
+// the v2→v3 config migration (see core/migrateSites.ts) to read a legacy
+// URL-level site's pattern into a routine's `pages`.
+export function patternPath(pattern: string): string {
+  const expanded = expandPattern(pattern);
+  if (patternLevel(expanded) === "domain") return "";
+  const afterScheme = expanded.slice(expanded.indexOf("://") + 3);
+  return afterScheme.slice(afterScheme.indexOf("/"));
 }
 
 export function isCommon(routine: Routine): boolean {
   return routine.siteId === undefined || routine.siteId === null;
 }
 
-// What applies here, in three tiers: these particular URLs, then this domain,
-// then everywhere. Built for the cheatsheet popup, which shows them under those
-// headings, and reused for resolution — so the order a hotkey is chosen in and
-// the order it is *explained* in come from one place and cannot drift.
+// The host(s) a site's permission/matching has to cover. One entry for a plain
+// domain; two when subdomains are included, because Chrome's own
+// "*://*.example.com/*" match pattern does not also cover the bare
+// "example.com" — the two have always needed separate grants, same as typing
+// both "example.com" and "*.example.com" as patterns did before this site held
+// only one host.
+export function siteOrigins(site: Site): string[] {
+  return site.includeSubdomains ? [site.host, `*.${site.host}`] : [site.host];
+}
+
+export function siteMatchesUrl(site: Site, url: string): boolean {
+  return siteOrigins(site).some((o) => matchesPattern(url, o));
+}
+
+// The one site whose host(s) claim this URL — sites are unique per host, so
+// there is at most one answer, unlike the old multi-pattern sitesFor().
+export function siteForUrl(url: string, sites: Site[]): Site | null {
+  return sites.find((site) => siteMatchesUrl(site, url)) ?? null;
+}
+
+// Whether a routine's own pages claim this URL, given the site already matched
+// it. Empty pages means every page of the site.
+function routineMatchesUrl(routine: Routine, site: Site, url: string): boolean {
+  if (routine.pages.length === 0) return true;
+  return routine.pages.some((page) => siteOrigins(site).some((o) => matchesPattern(url, `${o}${page}`)));
+}
+
+// What applies here, in three tiers: these particular pages, then this whole
+// domain, then everywhere. Built for the cheatsheet popup, which shows them
+// under those headings, and reused for resolution — so the order a hotkey is
+// chosen in and the order it is *explained* in come from one place and cannot
+// drift.
 //
 // Narrowest tier first, because that is the order precedence works in: the
-// routine that actually fires on this page is the first one listed, and the wider
-// tiers below it are what is left over. An empty tier is left out, not shown
-// empty.
+// routine that actually fires on this page is the first one listed, and the
+// wider tiers below it are what is left over. An empty tier is left out, not
+// shown empty.
 export type RoutineSection = { level: Level; label: string; routines: Routine[] };
 
 const LEVEL_LABEL: Record<"domain" | "url", string> = {
   domain: "This domain",
-  url: "This URL"
+  url: "This page"
 };
 
 export function applicableSections(config: Config, url: string): RoutineSection[] {
-  const enabled = config.routines.filter((s) => s.enabled);
+  const enabled = config.routines.filter((r) => r.enabled);
   const sections: RoutineSection[] = [];
 
-  const matched = sitesFor(url, config.sites);
-  for (const level of ["url", "domain"] as const) {
-    for (const { site } of matched.filter((m) => m.level === level)) {
-      const routines = enabled.filter((s) => s.siteId === site.id);
-      if (routines.length === 0) continue;
-      sections.push({ level, label: `${LEVEL_LABEL[level]} · ${site.name}`, routines });
+  const site = siteForUrl(url, config.sites);
+  if (site) {
+    const onSite = enabled.filter((r) => r.siteId === site.id);
+    const pageScoped = onSite.filter((r) => r.pages.length > 0 && routineMatchesUrl(r, site, url));
+    const allPages = onSite.filter((r) => r.pages.length === 0);
+    if (pageScoped.length > 0) {
+      sections.push({ level: "url", label: `${LEVEL_LABEL.url} · ${site.name}`, routines: pageScoped });
+    }
+    if (allPages.length > 0) {
+      sections.push({ level: "domain", label: `${LEVEL_LABEL.domain} · ${site.name}`, routines: allPages });
     }
   }
 
@@ -186,10 +197,10 @@ export function applicableSections(config: Config, url: string): RoutineSection[
 }
 
 // Every enabled routine that could fire on this URL, narrowest scope first: a
-// URL-specific routine beats a domain one, which beats a common one. That is
-// already the order the sections are in, so this is the same list with the
-// headings taken off — the resolver picks a chord with a plain `.find()` and
-// never has to know that sites exist at all.
+// page-specific routine beats a whole-domain one, which beats a common one.
+// That is already the order the sections are in, so this is the same list with
+// the headings taken off — the resolver picks a chord with a plain `.find()`
+// and never has to know that sites exist at all.
 //
 // A routine pointing at a siteId that no longer exists applies nowhere. It is
 // deliberately not promoted to common: a deleted site must not hand its chords
@@ -199,9 +210,6 @@ export function applicableRoutines(config: Config, url: string): Routine[] {
 }
 
 // The host a pattern aims at, lowercased and with the scheme and path dropped.
-// Grouping key for the Where column: "https://stage.example.com/reports" and
-// "stage.example.com" are the same site to a reader, so they should be the same
-// site to the list.
 export function patternHost(pattern: string): string {
   const expanded = expandPattern(pattern);
   if (expanded === "") return "";
@@ -256,8 +264,8 @@ export const EVERYWHERE_ORIGIN = "<all_urls>";
 // on. Not simply "everything granted": a fetchUrl target is granted so the
 // worker can *call* it (see background/worker.ts), and calling an API is no
 // reason to inject a key listener into its pages and read their DOM. So the
-// injection set is derived from the config — the sites the user pointed a
-// routine at — and intersected with what Chrome has actually granted.
+// injection set is derived from the config — the sites the user created — and
+// intersected with what Chrome has actually granted.
 //
 // This is the only place the two capabilities are separated. Chrome's own
 // grant does not distinguish them: a granted origin authorises both, and it
@@ -266,79 +274,14 @@ export const EVERYWHERE_ORIGIN = "<all_urls>";
 export function injectableOrigins(granted: string[], sites: Site[]): string[] {
   const wanted = new Set<string>();
   for (const site of sites) {
-    for (const pattern of site.patterns) {
-      const origin = permissionOrigin(pattern);
+    for (const host of siteOrigins(site)) {
+      const origin = permissionOrigin(host);
       if (origin !== "") wanted.add(origin);
     }
   }
   // Everywhere is an injection choice by definition — the user asked for
   // routines that fire on every site, so there is no narrower set to derive.
   return granted.filter((origin) => origin === EVERYWHERE_ORIGIN || wanted.has(origin));
-}
-
-// The path a pattern narrows to, or "" when it claims the whole host.
-export function patternPath(pattern: string): string {
-  const expanded = expandPattern(pattern);
-  if (patternLevel(expanded) === "domain") return "";
-  const afterScheme = expanded.slice(expanded.indexOf("://") + 3);
-  return afterScheme.slice(afterScheme.indexOf("/"));
-}
-
-// Which host a site belongs to, and whether it claims all of it. Taken from the
-// site's first usable pattern: a site whose patterns straddle two hosts is a
-// thing the config allows, and the first one is the only non-arbitrary answer.
-export function siteHost(site: Site): string {
-  for (const pattern of site.patterns) {
-    const host = patternHost(pattern);
-    if (host !== "") return host;
-  }
-  return "";
-}
-
-// A site is domain-level if any of its patterns claims the bare host — that one
-// pattern already applies everywhere the narrower ones do.
-export function siteScope(site: Site): "domain" | "url" {
-  return site.patterns.some((p) => expandPattern(p) !== "" && patternLevel(p) === "domain")
-    ? "domain"
-    : "url";
-}
-
-// The Where column's shape: a host, and the path-scoped sites nested under it.
-// Read out of the patterns rather than declared with a parent field, for the
-// same reason patternLevel is — a stored parent could disagree with the
-// patterns that actually decide where routines fire.
-export type SiteGroup = { site: Site; areas: Site[] };
-
-export function groupSites(sites: Site[]): SiteGroup[] {
-  // First domain-level site per host wins the group; a second one is a sibling,
-  // not a child, because it claims the host just as widely.
-  const parents = new Map<string, Site>();
-  for (const site of sites) {
-    const host = siteHost(site);
-    if (host === "" || siteScope(site) !== "domain" || parents.has(host)) continue;
-    parents.set(host, site);
-  }
-
-  const parentOf = (site: Site): Site | null => {
-    const parent = parents.get(siteHost(site));
-    return parent && parent.id !== site.id && siteScope(site) === "url" ? parent : null;
-  };
-
-  // Two passes, so an area listed before its host in the config still lands
-  // under it instead of disappearing.
-  const groups: SiteGroup[] = [];
-  const byId = new Map<string, SiteGroup>();
-  for (const site of sites) {
-    if (parentOf(site)) continue;
-    const group: SiteGroup = { site, areas: [] };
-    groups.push(group);
-    byId.set(site.id, group);
-  }
-  for (const site of sites) {
-    const parent = parentOf(site);
-    if (parent) byId.get(parent.id)?.areas.push(site);
-  }
-  return groups;
 }
 
 // A concrete URL a pattern accepts, used only to ask whether two patterns can
@@ -361,9 +304,4 @@ export function patternsOverlap(a: string, b: string): boolean {
   const sampleB = sampleUrl(b);
   if (sampleA === "" || sampleB === "") return false;
   return matchesUrl(sampleA, [b]) || matchesUrl(sampleB, [a]);
-}
-
-export function sitesOverlap(a: Site, b: Site): boolean {
-  if (a.id === b.id) return true;
-  return a.patterns.some((p) => b.patterns.some((q) => patternsOverlap(p, q)));
 }

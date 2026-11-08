@@ -298,26 +298,6 @@ svg.i {
 }
 .avatar-globe { background: #283553; color: var(--accent); }
 
-/* Areas: a host's path-scoped sites, nested under it. Indented and hung off a
-   left rule, so the group reads as one site with sections rather than three. */
-.arealist {
-  display: flex;
-  flex-direction: column;
-  margin: 0 0 0 17px;
-  padding-left: 14px;
-  border-left: 1px solid var(--line2);
-}
-.row.is-area { min-height: 44px; gap: 8px; }
-.row.is-area .rowtitle { font-size: 14px; }
-.areamark {
-  width: 14px;
-  flex: none;
-  color: var(--faint);
-  font-size: 13px;
-  line-height: 1;
-  margin-top: -2px;
-}
-
 /* ── cards, switches, keys ─────────────────────────────────────────────── */
 
 .card { border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
@@ -499,7 +479,33 @@ textarea.wrapbox {
 }
 .chip .iconbtn { width: 24px; height: 24px; border-radius: 999px; }
 .chip .iconbtn svg.i { width: 14px; height: 14px; }
-.chiprow { display: flex; flex-wrap: wrap; gap: 6px; }
+.chiprow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* A page chip is a toggle, not a tag with a remove button — picking it is the
+   whole interaction, so it is a <button> that just changes color when on. */
+.chipbtn {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0 14px;
+}
+.chipbtn.is-sel { border-color: var(--selline); background: var(--selbg); color: var(--text); }
+.chipinput { height: 30px; width: 90px; border-radius: 999px; font-size: 13px; padding: 0 12px; }
+
+/* A quiet grey lock rather than a red badge: most sites are fine, and a lock
+   reads as "needs a key" without shouting the way red does on a list where
+   it is the common case while a profile is still being set up. */
+.lockbadge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--faint);
+  flex: none;
+}
+.lockbadge[hidden] { display: none; }
+
+/* A page header in the Routines column — the group label plus the one
+   action that belongs to the group as a whole, not to any routine in it. */
+.pagehead { display: flex; align-items: center; justify-content: space-between; margin: 10px 2px 2px; }
+.pagehead:first-child { margin-top: 2px; }
 
 .outchip, .errchip {
   display: inline-flex;

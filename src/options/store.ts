@@ -1,7 +1,7 @@
 import type { Binding, Config, Site, Routine, Step } from "../core/schema";
 import { SCHEMA_VERSION } from "../core/schema";
 import { isParsed, parseConfig, saveConfig, seedIfEmpty } from "../core/configStore";
-import { isCommon, overBroadPattern, siteFor, siteScope, sitesOverlap } from "../core/match";
+import { isCommon, overBroadPattern, patternsOverlap, siteForUrl } from "../core/match";
 import {
   STEP_META,
   blankStep,
@@ -84,7 +84,7 @@ export async function init(url: string | null, vars: string[]): Promise<void> {
   saved = JSON.stringify(config);
   // Start where the user is: if the page they came from belongs to a site, open
   // that site rather than making them find it.
-  const site = pageUrl ? siteFor(pageUrl, config.sites) : null;
+  const site = pageUrl ? siteForUrl(pageUrl, config.sites) : null;
   scope = site ? { kind: "site", siteId: site.id } : COMMON;
   // Nothing is open to begin with. Opening a routine means opening its editor,
   // and the builder has no business guessing which routine out of ten the user
@@ -179,11 +179,12 @@ function freeId(base: string, taken: Set<string>): string {
 
 /* ── sites ─────────────────────────────────────────────────────────────── */
 
-export function addSite(name: string, patterns: string[]): Site {
+export function addSite(name: string, host: string, includeSubdomains: boolean): Site {
   const site: Site = {
     id: freeId(slug(name, "site"), new Set(config.sites.map((s) => s.id))),
     name: name.trim() === "" ? "Site" : name.trim(),
-    patterns: cleanPatterns(patterns)
+    host: host.trim().toLowerCase(),
+    includeSubdomains
   };
   config.sites = [...config.sites, site];
   scope = { kind: "site", siteId: site.id };
@@ -194,9 +195,7 @@ export function addSite(name: string, patterns: string[]): Site {
 
 export function patchSite(siteId: string, patch: Partial<Omit<Site, "id">>): void {
   config.sites = config.sites.map((s) =>
-    s.id === siteId
-      ? { ...s, ...patch, patterns: patch.patterns ? cleanPatterns(patch.patterns) : s.patterns }
-      : s
+    s.id === siteId ? { ...s, ...patch, host: (patch.host ?? s.host).trim().toLowerCase() } : s
   );
   announce();
 }
@@ -228,10 +227,6 @@ export function siteName(siteId: string | null): string {
   return config.sites.find((s) => s.id === siteId)?.name ?? siteId;
 }
 
-export function cleanPatterns(patterns: string[]): string[] {
-  return patterns.map((p) => p.trim()).filter((p) => p !== "");
-}
-
 /* ── routines ────────────────────────────────────────────────────────────── */
 
 const DEFAULT_BINDING: Binding = {
@@ -251,7 +246,8 @@ export function addRoutine(name: string): Routine {
     binding: freeBinding(),
     enabled: true,
     steps: [],
-    siteId: scope.kind === "common" ? null : scope.siteId
+    siteId: scope.kind === "common" ? null : scope.siteId,
+    pages: []
   };
   config.routines = [...config.routines, routine];
   routineId = routine.id;
@@ -275,6 +271,18 @@ function freeBinding(): Binding {
 
 export function patchRoutine(id: string, patch: Partial<Omit<Routine, "id" | "steps">>): void {
   config.routines = config.routines.map((s) => (s.id === id ? { ...s, ...patch } : s));
+  announce();
+}
+
+// Moving to a different site is its own, rarer action — distinct from picking
+// a page, which stays on the same site. Pages are a path under one particular
+// host, so carrying them to a new site would either mean nothing there or
+// mean the wrong thing; clearing them (all pages) is the only answer that
+// cannot silently misfire.
+export function moveRoutineToSite(id: string, siteId: string | null): void {
+  patchRoutine(id, { siteId, pages: [] });
+  scope = siteId == null ? COMMON : { kind: "site", siteId };
+  clearSelection();
   announce();
 }
 
@@ -428,9 +436,10 @@ export type Rival = { id: string; name: string; siteId: string | null; siteName:
 // which way round it will go and leaves it alone.
 export type ChordRelations = {
   routineId: string;
-  conflicts: Rival[]; // same level — one of these never fires
+  conflicts: Rival[]; // same level, same pages — one of these never fires
   overrides: Rival[]; // this routine wins where both apply
   overriddenBy: Rival[]; // the other one wins where both apply
+  disjoint: Rival[]; // same chord, same site, but non-overlapping pages — not a conflict
 };
 
 // How narrowly a routine aims, which is how the resolver ranks it. null means it
@@ -438,49 +447,74 @@ export type ChordRelations = {
 // clash with nor override anything.
 function level(routine: Routine): 0 | 1 | 2 | null {
   if (isCommon(routine)) return 0;
-  const site = config.sites.find((s) => s.id === routine.siteId);
-  if (!site) return null;
-  return siteScope(site) === "domain" ? 1 : 2;
+  if (!config.sites.some((s) => s.id === routine.siteId)) return null;
+  return routine.pages.length === 0 ? 1 : 2;
 }
 
-// Is there a page where both apply? A common routine meets everything; two site
-// routines meet only where their patterns do.
-function canCollide(a: Routine, b: Routine): boolean {
+// Do these two page lists share a page? Reuses patternsOverlap by writing
+// each page as a pattern under the site's own host — the same subtree/query
+// rules a stored pattern always had, just no longer stored on the site.
+function pagesOverlap(site: Site, pagesA: string[], pagesB: string[]): boolean {
+  return pagesA.some((a) => pagesB.some((b) => patternsOverlap(`${site.host}${a}`, `${site.host}${b}`)));
+}
+
+// How two same-chord routines relate: unrelated (different, or no-longer-
+// real, sites), a strict override (one is "all pages", the other a specific
+// page of the same site), a real conflict (same level, and — when both are
+// page-scoped — overlapping pages), or disjoint (same site, same chord,
+// page-scoped on both sides, but pages that never overlap — the same hotkey
+// doing two different things on two different pages, which is not a clash).
+function relate(a: Routine, b: Routine): "conflict" | "overrides" | "overriddenBy" | "disjoint" | null {
   const [levelA, levelB] = [level(a), level(b)];
-  if (levelA === null || levelB === null) return false;
-  if (levelA === 0 || levelB === 0) return true;
-  const siteA = config.sites.find((s) => s.id === a.siteId);
-  const siteB = config.sites.find((s) => s.id === b.siteId);
-  return siteA !== undefined && siteB !== undefined && sitesOverlap(siteA, siteB);
+  if (levelA === null || levelB === null) return null;
+  if (levelA === 0 || levelB === 0) {
+    if (levelA === levelB) return "conflict";
+    // The narrower (bigger level number) wins — a's own level is the one that
+    // decides which bucket this is from a's point of view.
+    return levelB < levelA ? "overrides" : "overriddenBy";
+  }
+  if (a.siteId !== b.siteId) return null;
+  if (levelA !== levelB) return levelB < levelA ? "overrides" : "overriddenBy";
+  // Both site-scoped, both page-specific (level 2) at this point — level 1
+  // vs level 1 (two "all pages" routines on the same site) always conflicts.
+  if (levelA === 1) return "conflict";
+  const site = config.sites.find((s) => s.id === a.siteId);
+  if (!site) return null;
+  return pagesOverlap(site, a.pages, b.pages) ? "conflict" : "disjoint";
 }
 
 export function chordRelations(): ChordRelations[] {
   const found: ChordRelations[] = [];
   const enabled = config.routines.filter((s) => s.enabled);
   for (const routine of enabled) {
-    const mine = level(routine);
-    if (mine === null) continue;
+    if (level(routine) === null) continue;
     const relations: ChordRelations = {
       routineId: routine.id,
       conflicts: [],
       overrides: [],
-      overriddenBy: []
+      overriddenBy: [],
+      disjoint: []
     };
     for (const other of enabled) {
       if (other.id === routine.id) continue;
       if (!sameChord(other.binding, routine.binding)) continue;
-      if (!canCollide(routine, other)) continue;
-      const theirs = level(other) as 0 | 1 | 2;
+      const kind = relate(routine, other);
+      if (kind === null) continue;
       const bucket =
-        theirs === mine
+        kind === "conflict"
           ? relations.conflicts
-          : theirs < mine
+          : kind === "overrides"
             ? relations.overrides
-            : relations.overriddenBy;
+            : kind === "overriddenBy"
+              ? relations.overriddenBy
+              : relations.disjoint;
       bucket.push(rivalOf(other));
     }
     const total =
-      relations.conflicts.length + relations.overrides.length + relations.overriddenBy.length;
+      relations.conflicts.length +
+      relations.overrides.length +
+      relations.overriddenBy.length +
+      relations.disjoint.length;
     if (total > 0) found.push(relations);
   }
   return found;
@@ -561,11 +595,11 @@ export type SaveResult = { ok: true; warnings?: Problem[] } | { ok: false; probl
 // builder will not accept one typed: it would make a site indistinguishable
 // from Common, and the two differ in what they may run.
 function patternProblems(sites: Site[]): Problem[] {
-  return sites.flatMap((site) =>
-    site.patterns.filter(overBroadPattern).map((pattern) => ({
-      message: `site "${site.name}": the pattern "${pattern}" claims every website — name the sites it reaches, or put those routines in Common`
-    }))
-  );
+  return sites
+    .filter((site) => overBroadPattern(site.host))
+    .map((site) => ({
+      message: `site "${site.name}": "${site.host}" claims every website — name the site it reaches, or put those routines in Common`
+    }));
 }
 
 function scopeProblems(routines: Routine[]): Problem[] {

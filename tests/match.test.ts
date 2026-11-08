@@ -3,15 +3,11 @@ import {
   applicableSections,
   overBroadPattern,
   fetchOrigin,
-  groupSites,
   injectableOrigins,
   patternHost,
   patternsOverlap,
   patternPath,
   permissionOrigin,
-  siteHost,
-  sitesOverlap,
-  siteScope,
   applicableRoutines,
   expandPattern,
   isCommon,
@@ -19,21 +15,22 @@ import {
   matchesUrl,
   patternLevel,
   patternToRegExp,
-  siteFor,
-  siteLevel,
-  sitesFor
+  siteForUrl,
+  siteMatchesUrl,
+  siteOrigins
 } from "../src/core/match";
 import type { Config, Site, Routine } from "../src/core/schema";
 import { SCHEMA_VERSION } from "../src/core/schema";
 
-function routine(id: string, code: string, siteId?: string | null): Routine {
+function routine(id: string, code: string, siteId?: string | null, pages: string[] = []): Routine {
   return {
     id,
     name: id,
     binding: { code, ctrl: true, alt: true, shift: false, meta: false },
     enabled: true,
     steps: [{ id: "s1", type: "readBySelector", selector: "#x", saveAs: "s1" }],
-    siteId
+    siteId,
+    pages
   };
 }
 
@@ -41,8 +38,8 @@ function config(routines: Routine[], sites: Site[] = []): Config {
   return { schemaVersion: SCHEMA_VERSION, routines, sites };
 }
 
-const local: Site = { id: "local", name: "dzo.lh", patterns: ["dzo.lh"] };
-const test: Site = { id: "test", name: "test", patterns: ["https://test.dzo.com.ua/*"] };
+const local: Site = { id: "local", name: "dzo.lh", host: "dzo.lh", includeSubdomains: false };
+const test: Site = { id: "test", name: "test", host: "test.dzo.com.ua", includeSubdomains: false };
 
 describe("expandPattern", () => {
   it("reads a bare host as any scheme and any path", () => {
@@ -100,8 +97,6 @@ describe("matchesUrl", () => {
   });
 });
 
-const page: Site = { id: "page", name: "new tender", patterns: ["dzo.lh/tenders/new"] };
-
 describe("patternLevel", () => {
   it("calls a host-only pattern a domain, however it is spelled", () => {
     expect(patternLevel("dzo.lh")).toBe("domain");
@@ -116,72 +111,63 @@ describe("patternLevel", () => {
   });
 });
 
-describe("siteLevel", () => {
-  it("is null for a site that does not claim the URL", () => {
-    expect(siteLevel("https://example.com/", local)).toBeNull();
+describe("siteOrigins", () => {
+  it("is just the host when subdomains are not included", () => {
+    expect(siteOrigins(local)).toEqual(["dzo.lh"]);
   });
 
-  it("reports the level of the pattern that actually matched", () => {
-    expect(siteLevel("http://dzo.lh/x", local)).toBe("domain");
-    expect(siteLevel("http://dzo.lh/tenders/new", page)).toBe("url");
-  });
-
-  it("counts a mixed site as the narrower level once the narrow pattern matches", () => {
-    const mixed: Site = { id: "m", name: "m", patterns: ["dzo.lh", "dzo.lh/cabinet/*"] };
-
-    expect(siteLevel("http://dzo.lh/other", mixed)).toBe("domain");
-    expect(siteLevel("http://dzo.lh/cabinet/x", mixed)).toBe("url");
+  it("adds the wildcard host when subdomains are included — Chrome's own *.host pattern never also covers the bare host", () => {
+    expect(siteOrigins({ ...local, includeSubdomains: true })).toEqual(["dzo.lh", "*.dzo.lh"]);
   });
 });
 
-describe("sitesFor", () => {
-  it("returns every site that claims the URL, not just the first", () => {
-    // The case the three tiers exist for: a domain-wide site and a page-specific
-    // one on the same host.
-    expect(sitesFor("http://dzo.lh/tenders/new", [local, page]).map((m) => m.site.id)).toEqual([
-      "local",
-      "page"
-    ]);
+describe("siteMatchesUrl", () => {
+  it("matches the bare host", () => {
+    expect(siteMatchesUrl(local, "http://dzo.lh/x")).toBe(true);
   });
 
-  it("leaves out a site whose narrow pattern does not match this page", () => {
-    expect(sitesFor("http://dzo.lh/other", [local, page]).map((m) => m.site.id)).toEqual(["local"]);
+  it("does not match a subdomain unless included", () => {
+    expect(siteMatchesUrl(local, "http://api.dzo.lh/x")).toBe(false);
+    expect(siteMatchesUrl({ ...local, includeSubdomains: true }, "http://api.dzo.lh/x")).toBe(true);
+  });
+
+  it("does not match an unrelated host", () => {
+    expect(siteMatchesUrl(local, "https://example.com/")).toBe(false);
   });
 });
 
-describe("siteFor", () => {
-  it("returns the narrowest matching site, since only one answer fits", () => {
-    expect(siteFor("http://dzo.lh/tenders/new", [local, page])?.id).toBe("page");
-    expect(siteFor("http://dzo.lh/other", [local, page])?.id).toBe("local");
-  });
-
-  it("falls back to config order among sites of the same level", () => {
-    expect(siteFor("http://dzo.lh/x", [local, test])?.id).toBe("local");
-    expect(siteFor("https://test.dzo.com.ua/x", [local, test])?.id).toBe("test");
+describe("siteForUrl", () => {
+  it("returns the site whose host claims this URL", () => {
+    expect(siteForUrl("http://dzo.lh/x", [local, test])?.id).toBe("local");
+    expect(siteForUrl("https://test.dzo.com.ua/x", [local, test])?.id).toBe("test");
   });
 
   it("returns null when nothing matches", () => {
-    expect(siteFor("https://example.com/", [local, test])).toBeNull();
+    expect(siteForUrl("https://example.com/", [local, test])).toBeNull();
   });
 });
 
 describe("applicableSections", () => {
-  it("groups what applies into this URL, this domain, everywhere — in that order", () => {
+  it("groups what applies into these pages, this domain, everywhere — in that order", () => {
     const cfg = config(
-      [routine("c", "Digit1"), routine("d", "Digit2", "local"), routine("u", "Digit3", "page")],
-      [local, page]
+      [
+        routine("c", "Digit1"),
+        routine("d", "Digit2", "local"),
+        routine("u", "Digit3", "local", ["/tenders/new"])
+      ],
+      [local]
     );
 
     // Narrowest first: the one that actually fires here is the one at the top.
     expect(applicableSections(cfg, "http://dzo.lh/tenders/new")).toEqual([
-      { level: "url", label: "This URL · new tender", routines: [cfg.routines[2]] },
+      { level: "url", label: "This page · dzo.lh", routines: [cfg.routines[2]] },
       { level: "domain", label: "This domain · dzo.lh", routines: [cfg.routines[1]] },
       { level: "common", label: "Everywhere", routines: [cfg.routines[0]] }
     ]);
   });
 
   it("omits a tier with no routines in it", () => {
-    const cfg = config([routine("d", "Digit2", "local")], [local, page]);
+    const cfg = config([routine("d", "Digit2", "local")], [local]);
 
     expect(applicableSections(cfg, "http://dzo.lh/tenders/new").map((s) => s.level)).toEqual([
       "domain"
@@ -217,10 +203,14 @@ describe("applicableRoutines", () => {
     expect(applicableRoutines(config([off, offScoped], [local]), "http://dzo.lh/x")).toEqual([]);
   });
 
-  it("lets a URL-level routine beat a domain one, which beats a common one", () => {
+  it("lets a page-specific routine beat a domain one, which beats a common one", () => {
     const cfg = config(
-      [routine("common", "Digit9"), routine("domain", "Digit9", "local"), routine("url", "Digit9", "page")],
-      [local, page]
+      [
+        routine("common", "Digit9"),
+        routine("domain", "Digit9", "local"),
+        routine("url", "Digit9", "local", ["/tenders/new"])
+      ],
+      [local]
     );
 
     // All three share ⌃⌥9; the resolver takes the first, so order is the rule.
@@ -236,9 +226,8 @@ describe("applicableRoutines", () => {
     expect(applicableRoutines(cfg, "https://example.com/").map((s) => s.id)).toEqual(["common"]);
   });
 
-  it("keeps config order between two sites of the same level", () => {
-    const other: Site = { id: "other", name: "other", patterns: ["dzo.lh"] };
-    const cfg = config([routine("a", "Digit1", "local"), routine("b", "Digit2", "other")], [local, other]);
+  it("keeps config order between two routines of the same level on one site", () => {
+    const cfg = config([routine("a", "Digit1", "local"), routine("b", "Digit2", "local")], [local]);
 
     expect(applicableRoutines(cfg, "http://dzo.lh/x").map((s) => s.id)).toEqual(["a", "b"]);
   });
@@ -289,72 +278,6 @@ describe("permissionOrigin", () => {
   });
 });
 
-describe("siteHost / siteScope", () => {
-  const host: Site = { id: "h", name: "stage", patterns: ["stage.dzo.com.ua"] };
-  const area: Site = { id: "a", name: "/tenders", patterns: ["stage.dzo.com.ua/tenders"] };
-
-  it("takes the host from the first usable pattern", () => {
-    expect(siteHost({ ...area, patterns: ["", "stage.dzo.com.ua/x"] })).toBe("stage.dzo.com.ua");
-    expect(siteHost({ ...area, patterns: [] })).toBe("");
-  });
-
-  it("is domain-level as soon as one pattern claims the bare host", () => {
-    expect(siteScope(host)).toBe("domain");
-    expect(siteScope(area)).toBe("url");
-    expect(siteScope({ ...area, patterns: ["stage.dzo.com.ua/x", "stage.dzo.com.ua"] })).toBe(
-      "domain"
-    );
-  });
-});
-
-describe("groupSites", () => {
-  const host: Site = { id: "stage", name: "stage.dzo.com.ua", patterns: ["stage.dzo.com.ua"] };
-  const tenders: Site = {
-    id: "tenders",
-    name: "/tenders",
-    patterns: ["stage.dzo.com.ua/tenders", "stage.dzo.com.ua/tenders/*"]
-  };
-  const contracts: Site = {
-    id: "contracts",
-    name: "/contracts",
-    patterns: ["stage.dzo.com.ua/contracts"]
-  };
-
-  it("nests the path-scoped sites under their host, in config order", () => {
-    expect(groupSites([host, tenders, contracts])).toEqual([
-      { site: host, areas: [tenders, contracts] }
-    ]);
-  });
-
-  it("nests an area listed before its host", () => {
-    expect(groupSites([tenders, host])).toEqual([{ site: host, areas: [tenders] }]);
-  });
-
-  it("leaves an area whose host has no site of its own at the top level", () => {
-    expect(groupSites([tenders, contracts])).toEqual([
-      { site: tenders, areas: [] },
-      { site: contracts, areas: [] }
-    ]);
-  });
-
-  it("treats a second domain-level site on one host as a sibling, not a child", () => {
-    const also: Site = { id: "also", name: "also", patterns: ["https://stage.dzo.com.ua/*"] };
-
-    expect(groupSites([host, also, tenders])).toEqual([
-      { site: host, areas: [tenders] },
-      { site: also, areas: [] }
-    ]);
-  });
-
-  it("keeps a patternless site as its own row", () => {
-    const blank: Site = { id: "blank", name: "New site", patterns: [] };
-
-    expect(groupSites([host, blank])).toEqual([
-      { site: host, areas: [] },
-      { site: blank, areas: [] }
-    ]);
-  });
-});
 describe("patternsOverlap", () => {
   it("sees a host overlapping its own sections", () => {
     expect(patternsOverlap("stage.dzo.com.ua", "stage.dzo.com.ua/tenders")).toBe(true);
@@ -375,21 +298,6 @@ describe("patternsOverlap", () => {
   it("keeps two hosts apart, and never overlaps a blank pattern", () => {
     expect(patternsOverlap("dzo.lh", "example.com")).toBe(false);
     expect(patternsOverlap("dzo.lh", " ")).toBe(false);
-  });
-});
-
-describe("sitesOverlap", () => {
-  const host: Site = { id: "stage", name: "stage", patterns: ["stage.dzo.com.ua"] };
-  const area: Site = { id: "tenders", name: "/tenders", patterns: ["stage.dzo.com.ua/tenders"] };
-  const other: Site = { id: "live", name: "live", patterns: ["dzo.com.ua"] };
-
-  it("is true for a host and its area, false for unrelated hosts", () => {
-    expect(sitesOverlap(host, area)).toBe(true);
-    expect(sitesOverlap(host, other)).toBe(false);
-  });
-
-  it("is true for a site and itself", () => {
-    expect(sitesOverlap(host, { ...host })).toBe(true);
   });
 });
 
@@ -508,7 +416,12 @@ describe("fetchOrigin", () => {
 });
 
 describe("injectableOrigins", () => {
-  const site = (host: string) => ({ id: host, name: host, patterns: [host] });
+  const site = (host: string, includeSubdomains = false): Site => ({
+    id: host,
+    name: host,
+    host,
+    includeSubdomains
+  });
 
   it("keeps a granted origin a site points at", () => {
     expect(injectableOrigins(["*://dzo.lh/*"], [site("dzo.lh")])).toEqual(["*://dzo.lh/*"]);
@@ -520,8 +433,10 @@ describe("injectableOrigins", () => {
     ]);
   });
 
-  it("matches a site scoped to a path, since the grant is host-wide either way", () => {
-    expect(injectableOrigins(["*://dzo.lh/*"], [site("dzo.lh/tenders")])).toEqual(["*://dzo.lh/*"]);
+  it("wants both the bare host and the wildcard origin once subdomains are included", () => {
+    expect(
+      injectableOrigins(["*://dzo.lh/*", "*://*.dzo.lh/*"], [site("dzo.lh", true)])
+    ).toEqual(["*://dzo.lh/*", "*://*.dzo.lh/*"]);
   });
 
   it("keeps an Everywhere grant with no site behind it", () => {

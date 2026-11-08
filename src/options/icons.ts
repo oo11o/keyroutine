@@ -34,7 +34,8 @@ export type IconName =
   | "window"
   | "braces"
   | "newTab"
-  | "navigate";
+  | "navigate"
+  | "lock";
 
 const SHAPES: Record<IconName, string[]> = {
   globe: ["c 12 12 9", "M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"],
@@ -64,7 +65,8 @@ const SHAPES: Record<IconName, string[]> = {
   window: ["r 3 4 18 16 2", "M3 9h18M7 6.5h.01"],
   braces: ["M8 3H7a3 3 0 0 0-3 3v3a3 3 0 0 1-2 3 3 3 0 0 1 2 3v3a3 3 0 0 0 3 3h1", "M16 3h1a3 3 0 0 1 3 3v3a3 3 0 0 0 2 3 3 3 0 0 0-2 3v3a3 3 0 0 1-3 3h-1"],
   newTab: ["M14 4h6v6", "M20 4 11 13", "M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"],
-  navigate: ["M4 12h14M13 6l6 6-6 6"]
+  navigate: ["M4 12h14M13 6l6 6-6 6"],
+  lock: ["r 3 11 18 10 2", "M7 11V7a5 5 0 0 1 10 0v4"]
 };
 
 const NS = "http://www.w3.org/2000/svg";

@@ -60,7 +60,7 @@ export function openImport(onDone: () => void): void {
   const area = h("textarea", {
     class: "mono",
     autofocus: true,
-    placeholder: '{ "schemaVersion": 2, "routines": [], "sites": [] }'
+    placeholder: '{ "schemaVersion": 3, "routines": [], "sites": [] }'
   });
   const problems = h("div", { class: "problems", hidden: true });
   const { el, body, actions } = dialog(

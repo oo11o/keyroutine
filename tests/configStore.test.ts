@@ -147,8 +147,10 @@ describe("parseConfig — migration", () => {
       routines: [{ ...V1.routines[0], siteId: "local" }]
     });
 
-    expect(config.sites[0].patterns).toEqual(["dzo.lh"]);
+    expect(config.sites[0].host).toBe("dzo.lh");
     expect(config.routines[0].siteId).toBe("local");
+    // A bare-domain legacy pattern has nothing to narrow a page to.
+    expect(config.routines[0].pages).toEqual([]);
   });
 
   it("defaults an absent enabled to true, and only an explicit false disables", () => {
@@ -222,6 +224,82 @@ describe("parseConfig — ids a config does not supply", () => {
   });
 });
 
+describe("parseConfig — a config from a newer build", () => {
+  // v2→v3 reads forward (see "migration" above); this is the one direction
+  // that is not supported — an old build must not silently misread fields it
+  // has never heard of (routine.pages, site.host) as if they meant nothing.
+  it("refuses rather than guessing, when schemaVersion is newer than this build understands", () => {
+    expect(errorsOf({ schemaVersion: SCHEMA_VERSION + 1, routines: [] })).toEqual([
+      `this config was saved by a newer version of KeyRoutine (schema ${SCHEMA_VERSION + 1}) — update the extension to open it`
+    ]);
+  });
+
+  it("still accepts the current and every older schemaVersion", () => {
+    expect(errorsOf({ schemaVersion: SCHEMA_VERSION, routines: [] })).toEqual([]);
+    expect(errorsOf(V1)).toEqual([]);
+  });
+});
+
+describe("parseConfig — merging sites that share a host", () => {
+  // Two legacy sites at one host with neither a bare-domain pattern of its
+  // own (no "parent" for migrateLegacySites to nest either under) used to
+  // migrate into two separate v3 sites for the same host — the exact bug
+  // reported against a real exported config. mergeDuplicateHostSites (run
+  // unconditionally after parsing) now collapses them into one regardless of
+  // how they got here, so this also heals a config already in v3 shape.
+  it("merges two orphan legacy sites for the same host into one, keeping each routine's own pages", () => {
+    const config = parsed({
+      schemaVersion: 2,
+      sites: [
+        { id: "tenders", name: "stage /tenders", patterns: ["stage.dzo.com.ua/tenders"] },
+        { id: "plans", name: "stage /plans", patterns: ["stage.dzo.com.ua/plans"] }
+      ],
+      routines: [
+        { ...V1.routines[0], id: "a", siteId: "tenders" },
+        { ...V1.routines[0], id: "b", siteId: "plans" }
+      ]
+    });
+
+    expect(config.sites.map((s) => s.host)).toEqual(["stage.dzo.com.ua"]);
+    const survivor = config.sites[0].id;
+    expect(config.routines.map((r) => r.siteId)).toEqual([survivor, survivor]);
+    expect(config.routines.find((r) => r.id === "a")?.pages).toEqual(["/tenders"]);
+    expect(config.routines.find((r) => r.id === "b")?.pages).toEqual(["/plans"]);
+  });
+
+  it("merges two already-v3 sites that share a host, favouring one with subdomains included", () => {
+    const config = parsed({
+      schemaVersion: 3,
+      sites: [
+        { id: "a", name: "stage", host: "stage.dzo.com.ua", includeSubdomains: false },
+        { id: "b", name: "stage (2)", host: "stage.dzo.com.ua", includeSubdomains: true }
+      ],
+      routines: [
+        { ...V1.routines[0], id: "r1", siteId: "a", pages: ["/tenders"] },
+        { ...V1.routines[0], id: "r2", siteId: "b", pages: ["/plans"] }
+      ]
+    });
+
+    expect(config.sites).toHaveLength(1);
+    expect(config.sites[0]).toMatchObject({ id: "b", includeSubdomains: true });
+    expect(config.routines.map((r) => r.siteId)).toEqual(["b", "b"]);
+    expect(config.routines.find((r) => r.id === "r1")?.pages).toEqual(["/tenders"]);
+  });
+
+  it("leaves sites with distinct hosts untouched", () => {
+    const config = parsed({
+      schemaVersion: 3,
+      sites: [
+        { id: "a", name: "a", host: "a.test", includeSubdomains: false },
+        { id: "b", name: "b", host: "b.test", includeSubdomains: false }
+      ],
+      routines: []
+    });
+
+    expect(config.sites.map((s) => s.id)).toEqual(["a", "b"]);
+  });
+});
+
 describe("parseConfig — errors as data", () => {
   it("never throws on rubbish", () => {
     expect(errorsOf(null)).toEqual(["the config is not an object"]);
@@ -288,7 +366,7 @@ describe("parseConfig — errors as data", () => {
 
   it("rejects a site with no usable pattern, which would match nothing", () => {
     const raw = { routines: [], sites: [{ id: "s", name: "s", patterns: ["", "  "] }] };
-    expect(errorsOf(raw)).toContain('site "s": needs at least one URL pattern');
+    expect(errorsOf(raw)).toContain('site "s": needs a domain');
   });
 
   it("rejects a binding with no key code", () => {

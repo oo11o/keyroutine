@@ -24,12 +24,15 @@ export type Step =
   | { id: string; type: "openUrlInCurrentTab"; url: string }
   | { id: string; type: "fetchUrl"; url: string; saveAs?: string };
 
-// A named set of URL patterns. Routines point at one of these to stop being
-// global — see core/match.ts for what a pattern may look like.
+// A domain. Routines point at one of these to stop being global — which
+// page(s) of it they fire on is the routine's own `pages`, not the site's:
+// one host can carry several routines, each scoped to a different page, and
+// a site itself only ever answers "which domain."
 export type Site = {
   id: string;
   name: string; // "test.example.com", "partner-api" — the label shown in the builder
-  patterns: string[]; // ["https://test.example.com/*", "*://*.partner-api.com/*"]
+  host: string; // "test.example.com" — no scheme, no path
+  includeSubdomains: boolean; // true: also every *.host
 };
 
 export type Routine = {
@@ -43,9 +46,13 @@ export type Routine = {
   // common one on the same chord, and that precedence is only decidable
   // while each routine has a single owner.
   siteId?: string | null;
+  // Which page(s) of that site it fires on; empty means every page of it.
+  // Several entries is one routine answering to more than one page — not a
+  // list of sites, since the site is already fixed by siteId.
+  pages: string[];
 };
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export type Config = {
   schemaVersion: typeof SCHEMA_VERSION;

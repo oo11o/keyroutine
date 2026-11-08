@@ -125,8 +125,9 @@ describe("the Sites column", () => {
   });
 
   it("says which site claims the page the builder was opened from", () => {
-    // dzo.lh owns the site-scoped Sync Tender routine.
-    expect(texts(panes.sites, ".row .rowsub")[1]).toBe("1 routine · this page");
+    // dzo.lh owns the site-scoped Sync Tender routine, which fires on every
+    // page of it (no pages of its own), so the page count is 0.
+    expect(texts(panes.sites, ".row .rowsub")[1]).toBe("1 routine · 0 pages · this page");
   });
 
   it("selects Common when clicked, and the Routines column follows", () => {
@@ -137,14 +138,17 @@ describe("the Sites column", () => {
     expect(texts(panes.routines, ".routinename")).toEqual(["Show Tender"]);
   });
 
-  it("shows the selected site's patterns as chips, and removes one", () => {
+  it("shows the selected site's domain, and lets it change", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     draw();
-    expect(texts(panes.sites, ".chip")).toEqual(["dzo.lh"]);
 
-    (panes.sites.querySelector('[aria-label="Remove dzo.lh"]') as HTMLElement).click();
+    const domain = panes.sites.querySelector("#site-domain") as HTMLInputElement;
+    expect(domain.value).toBe("dzo.lh");
 
-    expect(store.getConfig().sites[0].patterns).toEqual([]);
+    domain.value = "other.lh";
+    domain.dispatchEvent(new Event("change"));
+
+    expect(store.getConfig().sites[0].host).toBe("other.lh");
   });
 
   it("opens a site's settings right under its own row, not after Add site", () => {
@@ -160,30 +164,50 @@ describe("the Sites column", () => {
     expect(settingsIndex).toBeLessThan(addIndex);
   });
 
-  it("adds a pattern on Enter, and says so while there are none", () => {
+  it("says a site with no domain matches nothing", () => {
     store.selectScope({ kind: "site", siteId: "local" });
-    store.patchSite("local", { patterns: [] });
+    store.patchSite("local", { host: "" });
     draw();
+
     expect(panes.sites.textContent).toContain("matches nothing");
-
-    const add = panes.sites.querySelector("#site-add-pattern") as HTMLInputElement;
-    add.value = "*.dzo.com.ua";
-    add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-
-    expect(store.getConfig().sites[0].patterns).toEqual(["*.dzo.com.ua"]);
   });
 
-  it("adding a pattern never asks Chrome on its own — the grant row below is the only path", async () => {
-    const fake = stubChromePermissions();
+  it("refuses a domain that claims every website, and says where those routines go", () => {
     store.selectScope({ kind: "site", siteId: "local" });
     draw();
 
-    const add = panes.sites.querySelector("#site-add-pattern") as HTMLInputElement;
-    add.value = "dzo.lh/new";
-    add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    const domain = panes.sites.querySelector("#site-domain") as HTMLInputElement;
+    domain.value = "*";
+    domain.dispatchEvent(new Event("change"));
 
-    expect(store.getConfig().sites[0].patterns).toContain("dzo.lh/new");
-    expect(fake.requested).toEqual([]);
+    expect(store.getConfig().sites[0].host).toBe("dzo.lh"); // unchanged
+    expect(panes.sites.textContent).toContain("claims every website");
+    expect(panes.sites.textContent).toContain("use Common");
+  });
+
+  it("refuses a domain another site already has, instead of silently duplicating it", () => {
+    store.addSite("Test", "test.dzo.com.ua", false);
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    const domain = panes.sites.querySelector("#site-domain") as HTMLInputElement;
+    domain.value = "test.dzo.com.ua";
+    domain.dispatchEvent(new Event("change"));
+
+    expect(store.getConfig().sites.find((s) => s.id === "local")?.host).toBe("dzo.lh"); // unchanged
+    expect(panes.sites.textContent).toContain("is already");
+  });
+
+  it("toggles subdomains on from a checkbox", () => {
+    store.selectScope({ kind: "site", siteId: "local" });
+    draw();
+
+    const checkbox = panes.sites.querySelector('.field-check input[type="checkbox"]') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+
+    checkbox.click();
+
+    expect(store.getConfig().sites[0].includeSubdomains).toBe(true);
   });
 
   it("offers the current host as a new site only when no site claims it", async () => {
@@ -195,67 +219,15 @@ describe("the Sites column", () => {
 
     expect(store.getConfig().sites.at(-1)).toMatchObject({
       name: "example.com",
-      patterns: ["example.com"]
+      host: "example.com"
     });
   });
 
-  // The host is already a site, so the thing left to add is this section of it.
-  it("offers this section of a host that is already a site", () => {
-    expect(panes.sites.textContent).toContain("Add dzo.lh/tenders");
-    clickWithText(panes.sites, "button", "Add dzo.lh/tenders");
-
-    // One pattern: a path with no wildcard already covers its subtree.
-    expect(store.getConfig().sites.at(-1)).toMatchObject({
-      name: "/tenders",
-      patterns: ["dzo.lh/tenders"]
-    });
-  });
-
-  it("nests an area under its host, and opens it on its own routines", () => {
-    store.addSite("/tenders", ["dzo.lh/tenders"]);
-    store.addRoutine("Area routine");
-    draw();
-
-    expect(texts(panes.sites, ".row .rowtitle")).toEqual(["Common", "dzo.lh", "/tenders"]);
-    expect(texts(panes.sites, ".arealist .row .rowtitle")).toEqual(["/tenders"]);
-    // Both claim the page the builder was opened from, at their own level.
-    expect(texts(panes.sites, ".row .rowsub").slice(1)).toEqual([
-      "1 routine · this page",
-      "1 routine · this page"
-    ]);
-    expect(texts(panes.routines, ".routinename")).toEqual(["Area routine"]);
-  });
-
-  it("offers nothing in particular once an area already claims the page", () => {
-    store.addSite("/tenders", ["dzo.lh/tenders"]);
-    draw();
-
+  // Pages of an existing site are chosen from a routine now (see
+  // routinesPane.ts), not by adding a second row for the same host here.
+  it("offers nothing host-specific once the host already has a site", () => {
     expect(panes.sites.textContent).toContain("Add site");
     expect(panes.sites.textContent).not.toContain("Add dzo.lh");
-  });
-
-  it("warns that a host's areas outlive it when the host is deleted", () => {
-    store.addSite("/tenders", ["dzo.lh/tenders"]);
-    store.selectScope({ kind: "site", siteId: "local" });
-    draw();
-
-    const asked: string[] = [];
-    vi.stubGlobal("confirm", (message: string) => {
-      asked.push(message);
-      return false;
-    });
-    clickWithText(panes.sites, "button", "Delete site");
-
-    expect(asked[0]).toContain("1 area (/tenders)");
-    expect(store.getConfig().sites.map((s) => s.id)).toEqual(["local", "tenders"]);
-  });
-
-  it("names an area's settings card for what it is, and says what it beats", () => {
-    store.addSite("/tenders", ["dzo.lh/tenders"]);
-    draw();
-
-    expect(texts(panes.sites, ".settings-head")).toEqual(["Area settings"]);
-    expect(panes.sites.textContent).toContain("An area of dzo.lh");
   });
 
   it("says when a selected site's access is not yet granted, and grants it on click", async () => {
@@ -265,7 +237,10 @@ describe("the Sites column", () => {
 
     await vi.waitFor(() => expect(panes.sites.textContent).toContain("Not granted yet"));
 
-    const grantBtn = [...panes.sites.querySelectorAll(".grantrow button")][0] as HTMLElement;
+    // Common's own card auto-opens while it is ungranted too (see sitesPane.ts),
+    // so the site's own grant button is scoped to its settings card rather than
+    // just "the first .grantrow in the pane".
+    const grantBtn = panes.sites.querySelector(".card.settings .grantrow button") as HTMLElement;
     grantBtn.click();
 
     await vi.waitFor(() => expect(panes.sites.textContent).toContain("Access granted"));
@@ -289,42 +264,10 @@ describe("the Sites column", () => {
     stubChromePermissions(["*://dzo.lh/*"]); // Common not granted, dzo.lh is
     draw();
 
-    await vi.waitFor(() =>
-      expect(texts(panes.sites, ".row .outchip, .row .errchip")).toEqual(["Not granted"])
-    );
-  });
-
-  it("spells out the pattern shapes a user can type, and the one they cannot, as one line", () => {
-    store.selectScope({ kind: "site", siteId: "local" });
-    draw();
-
-    const legend = panes.sites.querySelector(".patternlegend")?.textContent;
-    expect(legend).toContain("example.com — every page on this domain.");
-    expect(legend).toContain("example.com/reports — this page, and everything under it.");
-    expect(legend).toContain("*.example.com — every subdomain of it.");
-    expect(legend).toContain("A pattern cannot claim every website — that is what Common is for.");
-    expect(panes.sites.querySelectorAll(".patternlegend li")).toHaveLength(0);
-  });
-
-  it("says pressing Enter is what adds a typed pattern", () => {
-    store.selectScope({ kind: "site", siteId: "local" });
-    draw();
-
-    expect(panes.sites.textContent).toContain("Write the domain, then press Enter to add it.");
-  });
-
-  it("refuses a pattern that claims every website, and says where those routines go", () => {
-    store.selectScope({ kind: "site", siteId: "local" });
-    draw();
-
-    const add = panes.sites.querySelector("#site-add-pattern") as HTMLInputElement;
-    add.value = "*";
-    add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-
-    expect(store.getConfig().sites[0].patterns).toEqual(["dzo.lh"]); // unchanged
-    expect(panes.sites.textContent).toContain("claims every website");
-    expect(panes.sites.textContent).toContain("use Common");
-    expect(add.value).toBe("*"); // left in the box to be edited, not swallowed
+    await vi.waitFor(() => {
+      const locks = [...panes.sites.querySelectorAll(".row .lockbadge")] as HTMLElement[];
+      expect(locks.map((el) => el.hidden)).toEqual([false, true]); // Common (locked), then dzo.lh (granted)
+    });
   });
 });
 
@@ -364,7 +307,7 @@ describe("the Routines column", () => {
   });
 
   it("moves a routine to a site through the Site dropdown, and follows it there", () => {
-    const select = panes.routines.querySelector("#routine-site") as HTMLSelectElement;
+    const select = panes.routines.querySelector("#routine-move") as HTMLSelectElement;
     select.value = "local";
     select.dispatchEvent(new Event("change"));
     draw();
@@ -849,7 +792,7 @@ describe("the Site dropdown and a routine that cannot be Common", () => {
     store.selectRoutine("sync-tender");
     draw();
 
-    const select = panes.routines.querySelector("#routine-site") as HTMLSelectElement;
+    const select = panes.routines.querySelector("#routine-move") as HTMLSelectElement;
     const common = [...select.options].find((o) => o.value === "")!;
     expect(common.disabled).toBe(true);
     expect(panes.routines.textContent).toContain("cannot move to Common");
@@ -860,7 +803,7 @@ describe("the Site dropdown and a routine that cannot be Common", () => {
     store.addRoutine("Plain");
     draw();
 
-    const select = panes.routines.querySelector("#routine-site") as HTMLSelectElement;
+    const select = panes.routines.querySelector("#routine-move") as HTMLSelectElement;
     expect([...select.options].find((o) => o.value === "")!.disabled).toBe(false);
   });
 });
