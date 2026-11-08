@@ -136,6 +136,7 @@ svg.i {
   margin: 0 8px 0 0;
 }
 .brandmark { flex: none; opacity: 0.9; }
+.version { font-size: 12px; font-weight: 500; color: var(--faint); letter-spacing: 0; margin-left: -4px; }
 .tabs { display: flex; gap: 4px; }
 .tabs button {
   height: 34px;

@@ -7,8 +7,6 @@ import { renderSteps } from "./stepsPane";
 import { loadVarNames, renderVars } from "./varsPane";
 import { openExport, openImport } from "./portJson";
 import { hasAnyAccess } from "./grant";
-import { hasEverywhere, hasOrigin } from "./grant";
-import { isCommon, siteOrigins } from "../core/match";
 
 // The builder's entry point: boot the draft, draw the three columns, and keep
 // the top bar honest about whether there is anything unsaved.
@@ -207,6 +205,10 @@ async function currentPageUrl(): Promise<string | null> {
 
 async function boot(): Promise<void> {
   renderTabs();
+  // The installed manifest's version, not package.json's — what the user can
+  // actually compare against chrome://extensions is the one worth showing.
+  const versionLabel = document.getElementById("app-version");
+  if (versionLabel) versionLabel.textContent = `v${chrome.runtime.getManifest().version}`;
   builder.before(accessBanner, problems);
   store.subscribe(render);
   // A match count or a run report changes what the columns show without
