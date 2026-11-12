@@ -73,7 +73,8 @@ export type StepIcon =
   | "newTab"
   | "navigate"
   | "keyboard"
-  | "repeat";
+  | "repeat"
+  | "chevronDown";
 
 export type StepMeta = {
   label: string;
@@ -258,6 +259,27 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         required: true,
         placeholder: "$text",
         help: "Typed here literally — a password, an email — it travels with the routine in Export and Copy JSON. Put it in the Variables tab instead and reference it as $name; that value stays on this profile."
+      }
+    ]
+  },
+  selectOption: {
+    label: "Choose option",
+    group: "write",
+    icon: "chevronDown",
+    siteOnly: true,
+    help: "Picks an option in a <select> dropdown by its value, or its visible text if no value matches, then fires input/change so React-style forms notice.",
+    produces: false,
+    outNote: "No result — it only changes the selection.",
+    summary: (s) => `${text(s, "value", '""')} → ${text(s, "selector")}`,
+    fields: [
+      selectorField,
+      {
+        name: "value",
+        label: "Option",
+        kind: "template",
+        required: true,
+        placeholder: "United Kingdom",
+        help: "Matched against each option's value first ($var-friendly for a value you don't type by hand), then its visible text — so either the code (\"GB\") or the label (\"United Kingdom\") works."
       }
     ]
   },

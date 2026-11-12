@@ -13,6 +13,9 @@ export type Step =
   | { id: string; type: "saveValue"; value: string; saveAs?: string }
   | { id: string; type: "regexExtract"; input: string; pattern: string; group?: number; saveAs?: string }
   | { id: string; type: "inputToSelector"; selector: string; value: string }
+  // Matches value against an <option>'s value or its visible text — see
+  // page/dom.ts's selectOption.
+  | { id: string; type: "selectOption"; selector: string; value: string }
   | { id: string; type: "focusBySelector"; selector: string }
   | { id: string; type: "clickBySelector"; selector: string }
   // Goes to whatever has focus — pair with focusBySelector to aim it.

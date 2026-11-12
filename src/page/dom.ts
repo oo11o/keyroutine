@@ -50,3 +50,26 @@ export function writeValue(el: TextField, value: string): void {
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
 }
+
+// Same reasoning as setNativeValue above, for <select>'s own value setter.
+function setNativeSelectValue(el: HTMLSelectElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!;
+  setter.call(el, value);
+}
+
+// Picks the <option> whose value or visible text matches — value first,
+// since two options can show the same label but never the same value, and
+// falling back to text is what makes a plain-language pattern ("United
+// Kingdom") work on a select whose option values are codes ("GB") the
+// routine's author never saw. Returns the option actually chosen, so the
+// step can report what it picked rather than just the pattern it was given.
+export function selectOption(el: HTMLSelectElement, match: string): HTMLOptionElement {
+  const option =
+    [...el.options].find((o) => o.value === match) ??
+    [...el.options].find((o) => o.text.trim() === match);
+  if (!option) throw new Error(`No option "${match}" in this select`);
+  setNativeSelectValue(el, option.value);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  return option;
+}
