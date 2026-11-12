@@ -36,6 +36,7 @@ describe("STEP_META", () => {
     // and the variable picker would be offering names that never exist.
     expect(STEP_TYPES.filter((t) => STEP_META[t].produces).sort()).toEqual([
       "fetchUrl",
+      "promptInput",
       "readBySelector",
       "regexExtract",
       "saveValue"
@@ -131,7 +132,7 @@ describe("blankStep", () => {
     });
   });
 
-  it("produces something the parser rejects for the right reason — a blank required field", () => {
+  it("produces something the parser flags for the right reason — a blank required field", () => {
     const routine = {
       id: "new",
       name: "New",
@@ -141,8 +142,10 @@ describe("blankStep", () => {
     };
     const result = parseConfig({ routines: [routine] });
 
-    expect(isParsed(result)).toBe(false);
-    expect(isParsed(result) ? [] : result.errors).toContain('routine "new" step #1: fetchUrl needs "URL"');
+    // A blank required field is recoverable — the step is dropped, not the
+    // whole config — so this still parses, with the problem in `warnings`.
+    expect(isParsed(result)).toBe(true);
+    expect(isParsed(result) ? result.warnings : []).toContain('routine "new" step #1: fetchUrl needs "URL"');
   });
 });
 

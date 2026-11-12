@@ -619,6 +619,11 @@ export async function save(): Promise<SaveResult> {
   const result = parseConfig(config);
   if (!isParsed(result)) {
     problems.push(...result.errors.map((message) => ({ message })));
+  } else {
+    // Loading tolerates a step that didn't parse (dropped, config still
+    // usable) — see ParseResult. Saving does not: a step the user wrote
+    // vanishing silently would be a surprise here in a way it is not on load.
+    problems.push(...result.warnings.map((message) => ({ message })));
   }
   // The check the runtime cannot make until the hotkey is pressed: a $name
   // nothing will have produced by then. Advisory, not blocking — see
@@ -664,6 +669,12 @@ export async function save(): Promise<SaveResult> {
 export function replaceDraft(raw: unknown): SaveResult {
   const result = parseConfig(raw);
   if (!isParsed(result)) return { ok: false, problems: result.errors.map((message) => ({ message })) };
+  // See save()'s comment: a step that failed to parse is tolerated on load,
+  // not here — an explicit Import silently losing part of what was pasted
+  // would be a surprise.
+  if (result.warnings.length > 0) {
+    return { ok: false, problems: result.warnings.map((message) => ({ message })) };
+  }
   // Refused here rather than accepted and failed on Save: an import is one
   // deliberate act with its own dialog to report into, so the message belongs
   // where the paste happened. Nothing is touched, so the draft survives.
@@ -708,6 +719,10 @@ export function importRoutine(raw: unknown): SaveResult {
 
   const result = parseConfig({ schemaVersion: SCHEMA_VERSION, sites: config.sites, routines: [candidate] });
   if (!isParsed(result)) return { ok: false, problems: result.errors.map((message) => ({ message })) };
+  // See save()'s comment: tolerated on load, not on an explicit paste.
+  if (result.warnings.length > 0) {
+    return { ok: false, problems: result.warnings.map((message) => ({ message })) };
+  }
 
   const imported: Routine = {
     ...result.config.routines[0],

@@ -21,9 +21,20 @@ export const EMPTY_CONFIG: Config = { schemaVersion: SCHEMA_VERSION, routines: [
 // Errors are returned, not thrown: this runs inside a keydown listener on one
 // side and inside a form on the other, and neither wants an exception. The
 // builder shows the whole list; the content script shows the first line.
-export type ParseResult = { config: Config } | { errors: string[] };
+//
+// `errors` is fatal — the input is not a usable config at all (not an object,
+// no routines array, a schema from the future) and nothing is returned.
+// `warnings` is the opposite: one step (or routine, or site) did not parse —
+// commonly an unknown step type left behind by a renamed/removed one — and it
+// was dropped, but `config` is still everything else, because a config that
+// loads with one action missing beats a builder that cannot open at all (see
+// the scopeProblems comment on save() for why this codebase already leans
+// that way). loadConfig/seedIfEmpty ignore warnings; the builder's own Save
+// and Import treat them as problems, since silently dropping a step on an
+// explicit user action would be a surprise there in a way it is not on load.
+export type ParseResult = { config: Config; warnings: string[] } | { errors: string[] };
 
-export function isParsed(result: ParseResult): result is { config: Config } {
+export function isParsed(result: ParseResult): result is { config: Config; warnings: string[] } {
   return "config" in result;
 }
 
@@ -51,14 +62,16 @@ function parseBinding(raw: unknown, where: string, errors: string[]): Binding | 
   };
 }
 
-function parseStep(rawStep: unknown, where: string, errors: string[]): Step | null {
+// Problems pushed here are recoverable: the step is dropped and parsing
+// continues, rather than the whole config being refused — see ParseResult.
+function parseStep(rawStep: unknown, where: string, warnings: string[]): Step | null {
   if (!isRecord(rawStep)) {
-    errors.push(`${where}: not a step`);
+    warnings.push(`${where}: not a step`);
     return null;
   }
   const raw = rawStep;
   if (!isStepType(raw.type)) {
-    errors.push(`${where}: unknown step type "${String(raw.type)}"`);
+    warnings.push(`${where}: unknown step type "${String(raw.type)}"`);
     return null;
   }
   // Generated rather than required: a hand-written or exported-elsewhere
@@ -79,7 +92,7 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
   if (STEP_META[raw.type].produces) {
     const name = typeof raw.saveAs === "string" && raw.saveAs !== "" ? raw.saveAs : id;
     if (!/^\w+$/.test(name)) {
-      errors.push(`${where}: "${name}" may only use letters, digits and _ — it is read back as $${name}`);
+      warnings.push(`${where}: "${name}" may only use letters, digits and _ — it is read back as $${name}`);
     } else {
       step.saveAs = name;
     }
@@ -87,28 +100,28 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
   for (const spec of STEP_META[raw.type].fields) {
     const value = raw[spec.name];
     if (value === undefined || value === "") {
-      if (spec.required) errors.push(`${where}: ${raw.type} needs "${spec.label}"`);
+      if (spec.required) warnings.push(`${where}: ${raw.type} needs "${spec.label}"`);
       continue;
     }
     if (spec.kind === "number") {
       const n = Number(value);
       if (!Number.isFinite(n)) {
-        errors.push(`${where}: "${spec.label}" must be a number, got ${String(value)}`);
+        warnings.push(`${where}: "${spec.label}" must be a number, got ${String(value)}`);
         continue;
       }
       if (spec.min !== undefined && n < spec.min) {
-        errors.push(`${where}: "${spec.label}" must be at least ${spec.min}`);
+        warnings.push(`${where}: "${spec.label}" must be at least ${spec.min}`);
         continue;
       }
       if (spec.max !== undefined && n > spec.max) {
-        errors.push(`${where}: "${spec.label}" is capped at ${spec.max}, got ${n}`);
+        warnings.push(`${where}: "${spec.label}" is capped at ${spec.max}, got ${n}`);
         continue;
       }
       step[spec.name] = n;
       continue;
     }
     if (typeof value !== "string") {
-      errors.push(`${where}: "${spec.label}" must be text`);
+      warnings.push(`${where}: "${spec.label}" must be text`);
       continue;
     }
     // Every field a $var may appear in — the same three kinds templateFields
@@ -120,7 +133,7 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
     // A name read back as $<name> has to survive core/context.ts's \w+ regex,
     // or it could never be referenced at all.
     if (spec.kind === "varName" && !/^\w+$/.test(value)) {
-      errors.push(`${where}: "${spec.label}" may only use letters, digits and _`);
+      warnings.push(`${where}: "${spec.label}" may only use letters, digits and _`);
       continue;
     }
     step[spec.name] = value;
@@ -131,7 +144,13 @@ function parseStep(rawStep: unknown, where: string, errors: string[]): Step | nu
   return step as unknown as Step;
 }
 
-function parseRoutine(raw: unknown, index: number, siteIds: Set<string>, errors: string[]): Routine | null {
+function parseRoutine(
+  raw: unknown,
+  index: number,
+  siteIds: Set<string>,
+  errors: string[],
+  warnings: string[]
+): Routine | null {
   const where = `routine #${index + 1}`;
   if (!isRecord(raw)) {
     errors.push(`${where}: not a routine`);
@@ -149,12 +168,14 @@ function parseRoutine(raw: unknown, index: number, siteIds: Set<string>, errors:
   const steps: Step[] = [];
   const stepIds = new Set<string>();
   raw.steps.forEach((rawStep, i) => {
-    const step = parseStep(rawStep, `${label} step #${i + 1}`, errors);
+    const step = parseStep(rawStep, `${label} step #${i + 1}`, warnings);
     if (!step) return;
     if (stepIds.has(step.id)) {
       // Duplicate ids are not cosmetic: $<id> would silently mean the later
       // one, so a template written against the first reads the wrong value.
-      errors.push(`${label}: two steps share the id "${step.id}"`);
+      // Recoverable the same way an unparseable step is: drop this one, keep
+      // the rest running.
+      warnings.push(`${label}: two steps share the id "${step.id}" — the second was dropped`);
       return;
     }
     stepIds.add(step.id);
@@ -217,6 +238,7 @@ function parseSite(raw: unknown, index: number, errors: string[]): Site | null {
 // a silent misread of fields this build does not know about yet.
 export function parseConfig(raw: unknown): ParseResult {
   const errors: string[] = [];
+  const warnings: string[] = [];
   if (!isRecord(raw)) return { errors: ["the config is not an object"] };
   if (typeof raw.schemaVersion === "number" && raw.schemaVersion > SCHEMA_VERSION) {
     return {
@@ -263,7 +285,7 @@ export function parseConfig(raw: unknown): ParseResult {
   const routines: Routine[] = [];
   const routineIds = new Set<string>();
   routineInputs.forEach((rawRoutine, i) => {
-    const routine = parseRoutine(rawRoutine, i, siteIds, errors);
+    const routine = parseRoutine(rawRoutine, i, siteIds, errors, warnings);
     if (!routine) return;
     if (routineIds.has(routine.id)) {
       // A duplicate id breaks resume, which finds its routine by id.
@@ -276,7 +298,7 @@ export function parseConfig(raw: unknown): ParseResult {
 
   if (errors.length > 0) return { errors };
   const merged = mergeDuplicateHostSites(sites, routines);
-  return { config: { schemaVersion: SCHEMA_VERSION, routines: merged.routines, sites: merged.sites } };
+  return { config: { schemaVersion: SCHEMA_VERSION, routines: merged.routines, sites: merged.sites }, warnings };
 }
 
 // Memoized, and invalidated by the storage change below — so a keydown reads a

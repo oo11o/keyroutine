@@ -87,7 +87,7 @@ export async function runRoutine(
           await park(i + 1);
         }
 
-        const { value, note, navigateTo } = await handler(step, ctx);
+        const { value, note, navigateTo, stop } = await handler(step, ctx);
         if (value !== undefined) {
           // MAX_VARS caps what *steps* write; seeded values are not charged
           // against that budget.
@@ -101,6 +101,7 @@ export async function runRoutine(
           if ("saveAs" in step && step.saveAs) remember(ctx, written, step.saveAs, value);
         }
         if (note) notes.push(note);
+        if (stop) break; // a clean end, not a failure — see StepResult.stop
         if (navigateTo) {
           // Park the rest of the routine *before* the page starts unloading;
           // once location.assign runs there is no guarantee another await

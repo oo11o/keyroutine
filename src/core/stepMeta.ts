@@ -71,7 +71,8 @@ export type StepIcon =
   | "window"
   | "braces"
   | "newTab"
-  | "navigate";
+  | "navigate"
+  | "keyboard";
 
 export type StepMeta = {
   label: string;
@@ -139,7 +140,8 @@ const titleField: FieldSpec = {
   kind: "template",
   required: false,
   advanced: true,
-  placeholder: "Result"
+  placeholder: "Result",
+  help: "The panel's heading, shown at the top — not the message below it. Left blank, it uses the routine's name."
 };
 
 // Record<Step["type"], …> on purpose: adding an arm to the union without
@@ -380,6 +382,27 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         kind: "multiline",
         required: true,
         placeholder: "$response"
+      }
+    ]
+  },
+  promptInput: {
+    label: "Prompt for input",
+    group: "read",
+    icon: "keyboard",
+    help: "Pauses the routine and shows an in-page panel with your message and a text field. Esc, ×, or Cancel stops the routine right here — nothing after it runs.",
+    produces: true,
+    outNote: "The text you typed.",
+    varName: "input",
+    summary: (s) => text(s, "body"),
+    fields: [
+      titleField,
+      {
+        name: "body",
+        label: "Message",
+        kind: "multiline",
+        required: true,
+        placeholder: "What should I put here?",
+        help: "The question shown above the text field — e.g. \"Which order number?\" or \"Paste the tracking code\"."
       }
     ]
   },
