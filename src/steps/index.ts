@@ -15,6 +15,7 @@ import { promptInput } from "./promptInput";
 import { openUrlInNewTab } from "./openUrlInNewTab";
 import { openUrlInCurrentTab } from "./openUrlInCurrentTab";
 import { fetchUrl } from "./fetchUrl";
+import { repeatLastRoutine } from "./repeatLastRoutine";
 
 export const handlers: Record<Step["type"], Handler> = {
   readBySelector,
@@ -31,5 +32,6 @@ export const handlers: Record<Step["type"], Handler> = {
   promptInput,
   openUrlInNewTab,
   openUrlInCurrentTab,
-  fetchUrl
+  fetchUrl,
+  repeatLastRoutine
 };

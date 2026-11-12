@@ -8,6 +8,7 @@ import { present } from "./presenter";
 import { loadVars } from "./vars";
 import { loadSettingsFromBackground } from "../background/client";
 import { showStartedToast, type RunOutcome } from "../ui/toast";
+import { rememberLastRoutine } from "./lastRoutine";
 
 // Asked of the worker rather than fetched here directly — see
 // background/protocol.ts for why: a content script fetching its own
@@ -64,7 +65,16 @@ export async function executeRoutine(
   // Not for a resumed run: there was no keypress on *this* page, so nothing
   // to acknowledge here — the routine already got its toast on the page that
   // started it, before the navigation that parked it.
-  if (!resume) showStartedToast(chord, routine.name, settings.toast);
+  if (!resume) {
+    showStartedToast(chord, routine.name, settings.toast);
+    // Except a routine that itself holds a repeatLastRoutine step: recording
+    // it as "last" would make the next Repeat press find itself and recurse
+    // forever. Skipping it here is the only guard repeatLastRoutine needs —
+    // see its own comment in steps/repeatLastRoutine.ts.
+    if (!routine.steps.some((step) => step.type === "repeatLastRoutine")) {
+      await rememberLastRoutine(location.hostname, routine.id);
+    }
+  }
 
   const outcome = await resolveOutcome(routine, sections, vars, resume);
   if (!outcome.ok) present(chord, routine, outcome, settings);
