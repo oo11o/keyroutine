@@ -8,6 +8,7 @@ import { present } from "./presenter";
 import { loadVars } from "./vars";
 import { loadSettingsFromBackground } from "../background/client";
 import { showStartedToast, type RunOutcome } from "../ui/toast";
+import { recordUse } from "../core/usageStats";
 
 // Asked of the worker rather than fetched here directly — see
 // background/protocol.ts for why: a content script fetching its own
@@ -64,7 +65,12 @@ export async function executeRoutine(
   // Not for a resumed run: there was no keypress on *this* page, so nothing
   // to acknowledge here — the routine already got its toast on the page that
   // started it, before the navigation that parked it.
-  if (!resume) showStartedToast(chord, routine.name, settings.toast);
+  if (!resume) {
+    showStartedToast(chord, routine.name, settings.toast);
+    // Common (no siteId) is excluded — see core/usageStats.ts for why there
+    // is no site to attribute the use to.
+    if (routine.siteId) await recordUse(routine.siteId, routine.id);
+  }
 
   const outcome = await resolveOutcome(routine, sections, vars, resume);
   if (!outcome.ok) present(chord, routine, outcome, settings);

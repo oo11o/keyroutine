@@ -777,6 +777,20 @@ textarea.wrapbox {
 .patternlegend { margin: 0; line-height: 1.6; }
 .patternlegend code { font-size: 12px; }
 
+/* ── statistics tab ───────────────────────────────────────────────────── */
+
+.vars h3 { font-size: 15px; margin: 24px 0 8px; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.stats-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.stats-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.stats-table th:not(:first-child), .stats-table td:not(:first-child) { text-align: right; }
+
 /* ── import / export dialog ────────────────────────────────────────────── */
 
 dialog {

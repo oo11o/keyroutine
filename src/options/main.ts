@@ -5,6 +5,7 @@ import { renderSites } from "./sitesPane";
 import { renderRoutines } from "./routinesPane";
 import { renderSteps } from "./stepsPane";
 import { loadVarNames, renderVars } from "./varsPane";
+import { renderStats } from "./statsPane";
 import { openExport, openImport } from "./portJson";
 import { hasAnyAccess } from "./grant";
 
@@ -13,6 +14,7 @@ import { hasAnyAccess } from "./grant";
 
 const builder = document.getElementById("builder") as HTMLElement;
 const varsPane = document.getElementById("vars") as HTMLElement;
+const statsPane = document.getElementById("stats") as HTMLElement;
 const tabs = document.getElementById("tabs") as HTMLElement;
 const topActions = document.getElementById("topbar-actions") as HTMLElement;
 
@@ -46,7 +48,7 @@ async function refreshAccessBanner(): Promise<void> {
   accessBanner.hidden = await hasAnyAccess();
 }
 
-type Tab = "builder" | "vars";
+type Tab = "builder" | "vars" | "stats";
 let tab: Tab = "builder";
 
 /* ── the three columns ─────────────────────────────────────────────────── */
@@ -103,13 +105,14 @@ function renderTabs(): void {
       "aria-selected": tab === id ? "true" : "false",
       onClick: () => void selectTab(id)
     });
-  tabs.append(button("builder", "Builder"), button("vars", "Variables"));
+  tabs.append(button("builder", "Builder"), button("vars", "Variables"), button("stats", "Statistics"));
 }
 
 async function selectTab(next: Tab): Promise<void> {
   tab = next;
   builder.hidden = next !== "builder";
   varsPane.hidden = next !== "vars";
+  statsPane.hidden = next !== "stats";
   renderTabs();
   if (next === "vars") {
     await renderVars(varsPane, (names: string[]) => {
@@ -117,6 +120,8 @@ async function selectTab(next: Tab): Promise<void> {
       // one must start.
       void store.init(store.getPageUrl(), names);
     });
+  } else if (next === "stats") {
+    await renderStats(statsPane);
   }
 }
 

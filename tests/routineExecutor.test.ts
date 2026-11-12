@@ -4,6 +4,7 @@ import { showStartedToast } from "../src/ui/toast";
 import { stubChromeStorage } from "./fakeChrome";
 import type { Routine } from "../src/core/schema";
 import type { ResumeRecord } from "../src/background/protocol";
+import { currentMonthUsage } from "../src/core/usageStats";
 
 // executeRoutine wires three things together: the instant "this is what
 // fired" toast, running the routine, and — only on failure — the detailed
@@ -134,5 +135,54 @@ describe("executeRoutine", () => {
     await executeRoutine(routine, [], resume);
 
     expect(toastDetail()).toBe("Baseline"); // still the baseline — nothing fired
+  });
+
+  it("records a use for a site-scoped routine, keyed by site and routine id", async () => {
+    const routine: Routine = {
+      id: "scoped",
+      name: "Scoped",
+      binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      siteId: "site-a",
+      steps: [{ id: "s1", type: "wait", ms: 0 }]
+    };
+
+    await executeRoutine(routine, []);
+
+    expect(await currentMonthUsage()).toEqual({ "site-a": { scoped: 1 } });
+  });
+
+  it("never records a Common routine — there is no single site to credit it to", async () => {
+    const routine: Routine = {
+      id: "common",
+      name: "Common",
+      binding: { code: "Digit4", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      steps: [{ id: "s1", type: "wait", ms: 0 }]
+    };
+
+    await executeRoutine(routine, []);
+
+    expect(await currentMonthUsage()).toEqual({});
+  });
+
+  it("does not record a resumed run — it was already counted when it first fired", async () => {
+    const routine: Routine = {
+      id: "scoped",
+      name: "Scoped",
+      binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      siteId: "site-a",
+      steps: [{ id: "s1", type: "wait", ms: 0 }]
+    };
+    const resume: Pick<ResumeRecord, "nextStep" | "vars" | "notes"> = {
+      nextStep: 0,
+      vars: [],
+      notes: []
+    };
+
+    await executeRoutine(routine, [], resume);
+
+    expect(await currentMonthUsage()).toEqual({});
   });
 });
