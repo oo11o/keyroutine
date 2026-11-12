@@ -13,10 +13,14 @@
 export const USAGE_STATS_KEY = "usageStats";
 export const MONTHS_KEPT = 3;
 
-// What a use is assumed to be worth, in seconds — the same flat number for
-// every routine (no per-routine field to configure or migrate), simply
-// multiplied by however many times it ran.
-export const SECONDS_SAVED_PER_USE = 5;
+// What a use is assumed to be worth, in seconds, until the person looking at
+// the Statistics tab says otherwise for a particular routine — see
+// secondsSavedByRoutine below. Deliberately not a Routine field: it is a
+// display preference about how to read the numbers, not part of what the
+// routine does, so it has no business in the builder or in Export/Import.
+export const DEFAULT_SECONDS_SAVED = 5;
+
+const ROUTINE_SECONDS_KEY = "secondsSavedByRoutine"; // routineId -> seconds
 
 export type MonthlyUsage = Record<string, Record<string, number>>; // siteId -> routineId -> count
 export type UsageStats = Record<string, MonthlyUsage>; // "YYYY-MM" -> MonthlyUsage
@@ -53,4 +57,18 @@ export async function recordUse(siteId: string, routineId: string): Promise<void
 export async function currentMonthUsage(): Promise<MonthlyUsage> {
   const stats = await readStats();
   return stats[monthKey()] ?? {};
+}
+
+// Every override anyone has typed into the Statistics tab, routineId ->
+// seconds. A routine missing here just means nobody has changed it from
+// DEFAULT_SECONDS_SAVED yet.
+export async function secondsSavedByRoutine(): Promise<Record<string, number>> {
+  const stored = (await chrome.storage.local.get(ROUTINE_SECONDS_KEY)) as Record<string, unknown>;
+  return (stored[ROUTINE_SECONDS_KEY] as Record<string, number> | undefined) ?? {};
+}
+
+export async function setSecondsSaved(routineId: string, seconds: number): Promise<void> {
+  const map = { ...(await secondsSavedByRoutine()) };
+  map[routineId] = seconds;
+  await chrome.storage.local.set({ [ROUTINE_SECONDS_KEY]: map });
 }

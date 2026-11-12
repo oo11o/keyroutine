@@ -790,6 +790,7 @@ textarea.wrapbox {
 }
 .stats-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .stats-table th:not(:first-child), .stats-table td:not(:first-child) { text-align: right; }
+.stats-seconds { width: 64px; text-align: right; }
 
 /* ── import / export dialog ────────────────────────────────────────────── */
 

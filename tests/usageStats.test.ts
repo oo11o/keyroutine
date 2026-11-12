@@ -4,7 +4,9 @@ import {
   MONTHS_KEPT,
   monthKey,
   recordUse,
-  currentMonthUsage
+  currentMonthUsage,
+  secondsSavedByRoutine,
+  setSecondsSaved
 } from "../src/core/usageStats";
 import { stubChromeStorage } from "./fakeChrome";
 
@@ -55,5 +57,30 @@ describe("usageStats", () => {
     const stats = storage.data[USAGE_STATS_KEY] as Record<string, unknown>;
     expect(Object.keys(stats).sort()).toEqual(["2000-03", "2000-04", monthKey()].sort());
     expect(Object.keys(stats)).toHaveLength(MONTHS_KEPT);
+  });
+});
+
+describe("secondsSavedByRoutine", () => {
+  it("has no overrides until one is set", async () => {
+    stubChromeStorage();
+    expect(await secondsSavedByRoutine()).toEqual({});
+  });
+
+  it("remembers a per-routine override, leaving others at the default", async () => {
+    stubChromeStorage();
+    await setSecondsSaved("routine-1", 12);
+
+    const overrides = await secondsSavedByRoutine();
+    expect(overrides["routine-1"]).toBe(12);
+    expect(overrides["routine-2"]).toBeUndefined(); // statsPane reads a missing entry as DEFAULT_SECONDS_SAVED
+  });
+
+  it("updates one routine's override without disturbing another's", async () => {
+    stubChromeStorage();
+    await setSecondsSaved("routine-1", 12);
+    await setSecondsSaved("routine-2", 30);
+    await setSecondsSaved("routine-1", 8);
+
+    expect(await secondsSavedByRoutine()).toEqual({ "routine-1": 8, "routine-2": 30 });
   });
 });
