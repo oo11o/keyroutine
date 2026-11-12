@@ -8,6 +8,9 @@ import type { RunContext } from "../core/context";
 // the step only declares the destination. Stated as data rather than as a
 // step type the runner recognises, so the loop stays ignorant of which
 // steps exist.
-export type StepResult = { value?: string; note?: string; navigateTo?: string };
+// `stop` = the routine ends here, cleanly — not a failure, just nothing left
+// to run. For promptDate's Esc/Cancel: the user declined to provide the
+// value later steps would need, so running them anyway would be a guess.
+export type StepResult = { value?: string; note?: string; navigateTo?: string; stop?: boolean };
 
 export type Handler = (step: Step, ctx: RunContext) => Promise<StepResult>;

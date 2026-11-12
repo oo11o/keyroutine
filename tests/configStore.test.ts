@@ -105,16 +105,24 @@ describe("a config saved before a step type was retired", () => {
     expect(config.routines[0].steps[0]).not.toHaveProperty("saveAs");
   });
 
-  it("still refuses a type that never existed", () => {
-    expect(errorsOf(routineWith([{ id: "s1", type: "teleport", selector: "#x" }]))).toEqual([
-      'routine "logout" step #1: unknown step type "teleport"'
-    ]);
+  it("drops a step whose type never existed, as a warning rather than refusing the config", () => {
+    // A renamed/removed step type (teleport never existed; promptDate is the
+    // real-world case — see ParseResult) must not block the rest of the
+    // config from loading: the step is dropped, everything else survives.
+    const raw = routineWith([{ id: "s1", type: "teleport", selector: "#x" }]);
+    expect(warningsOf(raw)).toEqual(['routine "logout" step #1: unknown step type "teleport"']);
+    expect(parsed(raw).routines[0].steps).toEqual([]);
   });
 });
 
 function errorsOf(raw: unknown): string[] {
   const result = parseConfig(raw);
   return isParsed(result) ? [] : result.errors;
+}
+
+function warningsOf(raw: unknown): string[] {
+  const result = parseConfig(raw);
+  return isParsed(result) ? result.warnings : [];
 }
 
 function parsed(raw: unknown) {
@@ -308,36 +316,36 @@ describe("parseConfig — errors as data", () => {
     expect(errorsOf({ routines: "not an array" })).toEqual(['no "routines" array in the config']);
   });
 
-  it("names an unknown step type", () => {
+  it("names an unknown step type, as a warning — the rest of the config still loads", () => {
     const raw = { routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "openUrl", url: "x" }] }] };
     // The v0.5 rename: an old config says openUrl and there is no such handler.
-    expect(errorsOf(raw)).toContain('routine "copy-id" step #1: unknown step type "openUrl"');
+    expect(warningsOf(raw)).toContain('routine "copy-id" step #1: unknown step type "openUrl"');
   });
 
-  it("names a required field that is missing or blank", () => {
+  it("names a required field that is missing or blank, as a warning", () => {
     const raw = { routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "readBySelector", saveAs: "s1" }] }] };
-    expect(errorsOf(raw)).toContain('routine "copy-id" step #1: readBySelector needs "Element"');
+    expect(warningsOf(raw)).toContain('routine "copy-id" step #1: readBySelector needs "Element"');
 
     const blank = { routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "fetchUrl", url: "", saveAs: "s1" }] }] };
-    expect(errorsOf(blank)).toContain('routine "copy-id" step #1: fetchUrl needs "URL"');
+    expect(warningsOf(blank)).toContain('routine "copy-id" step #1: fetchUrl needs "URL"');
   });
 
   it("enforces the shared wait cap, so a form and a handler cannot disagree", () => {
     const raw = { routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "wait", ms: 600000 }] }] };
-    expect(errorsOf(raw)).toContain('routine "copy-id" step #1: "Milliseconds" is capped at 30000, got 600000');
+    expect(warningsOf(raw)).toContain('routine "copy-id" step #1: "Milliseconds" is capped at 30000, got 600000');
   });
 
-  it("rejects a saveAs name that could never be referenced", () => {
+  it("flags a saveAs name that could never be referenced", () => {
     // $my-var would resolve as $my, because core/context.ts's regex is \w+.
     const raw = {
       routines: [{ ...V1.routines[0], steps: [{ id: "s1", type: "readBySelector", selector: "#x", saveAs: "my-var" }] }]
     };
-    expect(errorsOf(raw)).toContain(
+    expect(warningsOf(raw)).toContain(
       'routine "copy-id" step #1: "my-var" may only use letters, digits and _ — it is read back as $my-var'
     );
   });
 
-  it("rejects duplicate step ids, because $<id> would silently mean the later one", () => {
+  it("flags duplicate step ids, because $<id> would silently mean the later one", () => {
     const raw = {
       routines: [
         {
@@ -349,7 +357,7 @@ describe("parseConfig — errors as data", () => {
         }
       ]
     };
-    expect(errorsOf(raw)).toContain('routine "copy-id": two steps share the id "s1"');
+    expect(warningsOf(raw)).toContain('routine "copy-id": two steps share the id "s1" — the second was dropped');
   });
 
   it("rejects duplicate routine ids, because resume finds its routine by id", () => {
@@ -386,14 +394,14 @@ describe("parseConfig — errors as data", () => {
     });
   });
 
-  it("collects every problem, so the builder can list them all at once", () => {
+  it("collects every warning, so the builder can list them all at once", () => {
     const raw = {
       routines: [
         { ...V1.routines[0], steps: [{ id: "s1", type: "readBySelector", saveAs: "s1" }] },
         { id: "b", binding: { code: "Digit2" }, steps: [{ id: "s1", type: "nope" }] }
       ]
     };
-    expect(errorsOf(raw).length).toBeGreaterThan(1);
+    expect(warningsOf(raw).length).toBeGreaterThan(1);
   });
 });
 

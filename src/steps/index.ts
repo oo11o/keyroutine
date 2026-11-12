@@ -11,9 +11,11 @@ import { wait } from "./wait";
 import { waitForSelector } from "./waitForSelector";
 import { popup } from "./popup";
 import { popupJson } from "./popupJson";
+import { promptInput } from "./promptInput";
 import { openUrlInNewTab } from "./openUrlInNewTab";
 import { openUrlInCurrentTab } from "./openUrlInCurrentTab";
 import { fetchUrl } from "./fetchUrl";
+import { repeatLastRoutine } from "./repeatLastRoutine";
 
 export const handlers: Record<Step["type"], Handler> = {
   readBySelector,
@@ -27,7 +29,9 @@ export const handlers: Record<Step["type"], Handler> = {
   waitForSelector,
   popup,
   popupJson,
+  promptInput,
   openUrlInNewTab,
   openUrlInCurrentTab,
-  fetchUrl
+  fetchUrl,
+  repeatLastRoutine
 };

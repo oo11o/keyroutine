@@ -786,11 +786,12 @@ describe("a Common routine and the actions it may not hold", () => {
     const enabled = [...panes.steps.querySelectorAll(".type-menu button")].filter(
       (b) => !(b as HTMLButtonElement).disabled
     );
-    // Fourteen types; seven are site-only now (Fetch URL plus the five
-    // selector-based actions plus Wait for element — see siteOnly in
-    // core/stepMeta.ts), leaving seven Common can actually offer: Save value,
-    // Regex, wait, the two popups, and the two navigate actions.
-    expect(enabled).toHaveLength(7);
+    // Sixteen types; eight are site-only now (Fetch URL, Repeat last routine,
+    // plus the five selector-based actions, plus Wait for element — see
+    // siteOnly in core/stepMeta.ts), leaving eight Common can actually offer:
+    // Save value, Regex, Prompt for input, wait, the two popups, and the two
+    // navigate actions.
+    expect(enabled).toHaveLength(8);
   });
 
   it("flags a fetch that is already there, from an older config", () => {

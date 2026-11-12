@@ -21,9 +21,17 @@ export type Step =
   | { id: string; type: "waitForSelector"; selector: string; timeoutMs: number }
   | { id: string; type: "popup"; title?: string; body: string }
   | { id: string; type: "popupJson"; title?: string; body: string }
+  // Pauses for a line of text typed into an in-page panel. Esc/Cancel/×
+  // stops the routine here — see promptInput's StepResult.stop in
+  // steps/types.ts.
+  | { id: string; type: "promptInput"; title?: string; body: string; saveAs?: string }
   | { id: string; type: "openUrlInNewTab"; url: string }
   | { id: string; type: "openUrlInCurrentTab"; url: string }
-  | { id: string; type: "fetchUrl"; url: string; saveAs?: string };
+  | { id: string; type: "fetchUrl"; url: string; saveAs?: string }
+  // Re-runs whatever routine last ran on this host — see
+  // content/lastRoutine.ts and steps/repeatLastRoutine.ts. No fields: there
+  // is nothing to configure, it always means "that, again."
+  | { id: string; type: "repeatLastRoutine" };
 
 // A domain. Routines point at one of these to stop being global — which
 // page(s) of it they fire on is the routine's own `pages`, not the site's:

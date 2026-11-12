@@ -9,6 +9,7 @@ import { loadVars } from "./vars";
 import { loadSettingsFromBackground } from "../background/client";
 import { showStartedToast, type RunOutcome } from "../ui/toast";
 import { recordUse } from "../core/usageStats";
+import { rememberLastRoutine } from "./lastRoutine";
 
 // Asked of the worker rather than fetched here directly — see
 // background/protocol.ts for why: a content script fetching its own
@@ -70,6 +71,13 @@ export async function executeRoutine(
     // Common (no siteId) is excluded — see core/usageStats.ts for why there
     // is no site to attribute the use to.
     if (routine.siteId) await recordUse(routine.siteId, routine.id);
+    // Except a routine that itself holds a repeatLastRoutine step: recording
+    // it as "last" would make the next Repeat press find itself and recurse
+    // forever. Skipping it here is the only guard repeatLastRoutine needs —
+    // see its own comment in steps/repeatLastRoutine.ts.
+    if (!routine.steps.some((step) => step.type === "repeatLastRoutine")) {
+      await rememberLastRoutine(location.hostname, routine.id);
+    }
   }
 
   const outcome = await resolveOutcome(routine, sections, vars, resume);

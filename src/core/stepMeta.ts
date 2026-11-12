@@ -55,7 +55,7 @@ export type FieldSpec = {
   max?: number;
 };
 
-export type StepGroup = "read" | "write" | "wait" | "show" | "navigate";
+export type StepGroup = "read" | "write" | "wait" | "show" | "navigate" | "repeat";
 
 // The glyph the builder puts on this step's tile. A name, not markup: core
 // knows nothing about SVG, and options/icons.ts owns the drawing.
@@ -71,7 +71,9 @@ export type StepIcon =
   | "window"
   | "braces"
   | "newTab"
-  | "navigate";
+  | "navigate"
+  | "keyboard"
+  | "repeat";
 
 export type StepMeta = {
   label: string;
@@ -139,7 +141,8 @@ const titleField: FieldSpec = {
   kind: "template",
   required: false,
   advanced: true,
-  placeholder: "Result"
+  placeholder: "Result",
+  help: "The panel's heading, shown at the top — not the message below it. Left blank, it uses the routine's name."
 };
 
 // Record<Step["type"], …> on purpose: adding an arm to the union without
@@ -383,6 +386,27 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
       }
     ]
   },
+  promptInput: {
+    label: "Prompt for input",
+    group: "read",
+    icon: "keyboard",
+    help: "Pauses the routine and shows an in-page panel with your message and a text field. Esc, ×, or Cancel stops the routine right here — nothing after it runs.",
+    produces: true,
+    outNote: "The text you typed.",
+    varName: "input",
+    summary: (s) => text(s, "body"),
+    fields: [
+      titleField,
+      {
+        name: "body",
+        label: "Message",
+        kind: "multiline",
+        required: true,
+        placeholder: "What should I put here?",
+        help: "The question shown above the text field — e.g. \"Which order number?\" or \"Paste the tracking code\"."
+      }
+    ]
+  },
   openUrlInNewTab: {
     label: "Open URL in a new tab",
     group: "navigate",
@@ -418,6 +442,21 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         placeholder: "https://example.com/logout"
       }
     ]
+  },
+  repeatLastRoutine: {
+    label: "Repeat last routine",
+    group: "repeat",
+    icon: "repeat",
+    // "Last on this host" means nothing for a Common routine — it fires on
+    // every host, so there is no single site whose last routine it could
+    // mean. Site-scoped only, same reasoning siteOnlySteps already enforces
+    // for fetchUrl and the selector-based actions.
+    siteOnly: true,
+    help: "Finds whatever routine last ran on this site and runs it again — the quickest way to bind one hotkey to \"do that again.\" Refuses if nothing has run here yet, or if that routine no longer applies to this page.",
+    produces: false,
+    outNote: "No result — it runs the last routine again and nothing else.",
+    summary: () => "whatever last ran on this site",
+    fields: []
   }
 };
 
@@ -442,7 +481,8 @@ export const STEP_GROUPS: { group: StepGroup; label: string }[] = [
   { group: "write", label: "Act on the page" },
   { group: "wait", label: "Wait" },
   { group: "show", label: "Show" },
-  { group: "navigate", label: "Navigate" }
+  { group: "navigate", label: "Navigate" },
+  { group: "repeat", label: "Repeat" }
 ];
 
 export function isStepType(type: unknown): type is Step["type"] {
