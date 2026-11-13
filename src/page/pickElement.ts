@@ -16,6 +16,15 @@ function isPlainIdent(value: string): boolean {
   return /^[A-Za-z][\w-]*$/.test(value);
 }
 
+// For a value going inside [attr="…"], not a bare identifier like #id or
+// .class — so it does not need to look like one. A quoted CSS string accepts
+// almost anything verbatim (spaces, brackets, colons — exactly what a
+// framework's nested field name is made of, e.g. name="data[period][end]"),
+// as long as a literal " or \ in the value does not end the string early.
+function escapeAttrValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 function usefulClasses(el: Element): string[] {
   return [...el.classList]
     .filter((c) => isPlainIdent(c) && !STATE_CLASS.test(c) && !NOISY_CLASS.test(c))
@@ -38,7 +47,7 @@ function segment(el: Element): string {
   const tag = el.tagName.toLowerCase();
   for (const attr of ["data-testid", "data-test-id", "data-qa", "name"]) {
     const value = el.getAttribute(attr);
-    if (value && isPlainIdent(value)) return `${tag}[${attr}="${value}"]`;
+    if (value) return `${tag}[${attr}="${escapeAttrValue(value)}"]`;
   }
   if (el.id && isPlainIdent(el.id)) return `${tag}#${el.id}`;
 

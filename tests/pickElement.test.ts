@@ -61,4 +61,20 @@ describe("cssSelectorFor", () => {
     expect(selector).not.toContain("#2nd");
     expect(document.querySelectorAll(selector)).toHaveLength(1);
   });
+
+  it("uses a name even when it is not a plain identifier, like a framework's nested field name", () => {
+    set('<div><input name="data[tenderPeriod][endDate]"></div>');
+
+    const selector = pick("input");
+    expect(selector).toBe('input[name="data[tenderPeriod][endDate]"]');
+    expect(document.querySelectorAll(selector)).toHaveLength(1);
+  });
+
+  it("escapes a quote in the attribute value, so the generated selector still parses", () => {
+    set('<div><input name="say &quot;hi&quot;"></div>');
+
+    const selector = pick("input");
+    expect(selector).toBe('input[name="say \\"hi\\""]');
+    expect(document.querySelectorAll(selector)).toHaveLength(1);
+  });
 });
