@@ -34,7 +34,22 @@ export type Step =
   // Re-runs whatever routine last ran on this host — see
   // content/lastRoutine.ts and steps/repeatLastRoutine.ts. No fields: there
   // is nothing to configure, it always means "that, again."
-  | { id: string; type: "repeatLastRoutine" };
+  | { id: string; type: "repeatLastRoutine" }
+  // Shifts `base` (usually $now) by amount*unit and saves the result as an
+  // ISO 8601 UTC string — see steps/addTime.ts.
+  | {
+      id: string;
+      type: "addTime";
+      base: string;
+      amount: number;
+      unit: "seconds" | "minutes" | "hours" | "days";
+      saveAs?: string;
+    }
+  // One binary operation on two numbers — not a general expression language
+  // (no precedence, no parentheses): chain more Calculate actions for
+  // anything longer, the same way the rest of KeyRoutine composes. See
+  // steps/calculate.ts.
+  | { id: string; type: "calculate"; a: string; operator: "+" | "-" | "*" | "/"; b: string; saveAs?: string };
 
 // A domain. Routines point at one of these to stop being global — which
 // page(s) of it they fire on is the routine's own `pages`, not the site's:

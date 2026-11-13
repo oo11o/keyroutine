@@ -63,4 +63,7 @@ export function seedBuiltins(ctx: RunContext, sections: RoutineSection[], curren
   ctx.set("selection", window.getSelection()?.toString() ?? "");
   ctx.set("routines", formatRoutineList(sections));
   ctx.set("routineName", current?.name ?? "");
+  // ISO 8601 UTC, so it is already what a Fetch URL param or a Save value
+  // wants — see steps/addTime.ts for shifting it by an amount.
+  ctx.set("now", new Date().toISOString());
 }

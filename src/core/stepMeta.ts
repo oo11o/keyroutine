@@ -26,6 +26,8 @@ import { MAX_WAIT_MS } from "./limits";
 //   key       — a KeyboardEvent.key name, e.g. "Enter"
 //   varName   — the name a value is stored under, so \w+ only (it is read back
 //               as $<name>, and core/context.ts's template regex is \w+)
+//   select    — one of a small fixed set (`options`); a <select>, not $vars —
+//               the choice is structure (which operation, which unit), not data
 export type FieldKind =
   | "selector"
   | "text"
@@ -34,7 +36,8 @@ export type FieldKind =
   | "multiline"
   | "number"
   | "key"
-  | "varName";
+  | "varName"
+  | "select";
 
 export type FieldSpec = {
   name: string;
@@ -53,6 +56,8 @@ export type FieldSpec = {
   default?: string | number;
   min?: number;
   max?: number;
+  // kind: "select" only — the choices, in the order the <select> offers them.
+  options?: string[];
 };
 
 export type StepGroup = "read" | "write" | "wait" | "show" | "navigate" | "repeat";
@@ -74,7 +79,8 @@ export type StepIcon =
   | "navigate"
   | "keyboard"
   | "repeat"
-  | "chevronDown";
+  | "chevronDown"
+  | "math";
 
 export type StepMeta = {
   label: string;
@@ -238,6 +244,77 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         min: 0,
         placeholder: "1",
         help: "Which capture group to save (1, 2, …), or 0 for the whole match. Left blank, it is group 1 if the pattern has one, otherwise the whole match."
+      }
+    ]
+  },
+  addTime: {
+    label: "Add time",
+    group: "read",
+    icon: "clock",
+    help: "Shifts a date by an amount of time and saves the result as an ISO date — the base is usually $now, but any parseable date works. A destination field that wants a narrower format (like a datetime-local input) can slice the result with a Regex action afterward.",
+    produces: true,
+    outNote: "The shifted date, as a full ISO 8601 UTC string.",
+    varName: "time",
+    summary: (s) => `${text(s, "base", "$now")} ${Number(field(s, "amount")) >= 0 ? "+" : ""}${text(s, "amount", "0")} ${text(s, "unit", "")}`,
+    fields: [
+      {
+        name: "base",
+        label: "Base",
+        kind: "template",
+        required: true,
+        default: "$now",
+        placeholder: "$now"
+      },
+      {
+        name: "amount",
+        label: "Amount",
+        kind: "number",
+        required: true,
+        default: 0,
+        placeholder: "15",
+        help: "Negative shifts backward — e.g. -7 days is a week ago."
+      },
+      {
+        name: "unit",
+        label: "Unit",
+        kind: "select",
+        required: true,
+        default: "minutes",
+        options: ["seconds", "minutes", "hours", "days"]
+      }
+    ]
+  },
+  calculate: {
+    label: "Calculate",
+    group: "read",
+    icon: "math",
+    help: "One arithmetic operation on two numbers. Not a full expression — chain more Calculate actions for anything longer, the same way the rest of KeyRoutine composes.",
+    produces: true,
+    outNote: "The numeric result, as text.",
+    varName: "result",
+    summary: (s) => `${text(s, "a", "?")} ${text(s, "operator", "?")} ${text(s, "b", "?")}`,
+    fields: [
+      {
+        name: "a",
+        label: "A",
+        kind: "template",
+        required: true,
+        placeholder: "$count"
+      },
+      {
+        name: "operator",
+        label: "Operator",
+        kind: "select",
+        required: true,
+        default: "+",
+        options: ["+", "-", "*", "/"]
+      },
+      {
+        name: "b",
+        label: "B",
+        kind: "template",
+        required: true,
+        placeholder: "1"
       }
     ]
   },

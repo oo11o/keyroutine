@@ -36,7 +36,8 @@ export type IconName =
   | "newTab"
   | "navigate"
   | "lock"
-  | "repeat";
+  | "repeat"
+  | "math";
 
 const SHAPES: Record<IconName, string[]> = {
   globe: ["c 12 12 9", "M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"],
@@ -68,7 +69,8 @@ const SHAPES: Record<IconName, string[]> = {
   newTab: ["M14 4h6v6", "M20 4 11 13", "M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"],
   navigate: ["M4 12h14M13 6l6 6-6 6"],
   lock: ["r 3 11 18 10 2", "M7 11V7a5 5 0 0 1 10 0v4"],
-  repeat: ["M17 2l4 4-4 4", "M3 11V9a4 4 0 0 1 4-4h14", "M7 22l-4-4 4-4", "M21 13v2a4 4 0 0 1-4 4H3"]
+  repeat: ["M17 2l4 4-4 4", "M3 11V9a4 4 0 0 1 4-4h14", "M7 22l-4-4 4-4", "M21 13v2a4 4 0 0 1-4 4H3"],
+  math: ["M5 9h14", "M5 15h14"]
 };
 
 const NS = "http://www.w3.org/2000/svg";

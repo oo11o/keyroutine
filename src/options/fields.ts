@@ -46,6 +46,8 @@ export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
     ? h("textarea", { id, class: mono, value: current, placeholder: spec.placeholder ?? "", rows: 6 })
     : WRAPPED.includes(spec.kind)
     ? oneLineBox(id, mono, current, spec.placeholder ?? "")
+    : spec.kind === "select"
+    ? selectBox(id, mono, current || String(spec.default ?? ""), spec.options ?? [])
     : h("input", {
         id,
         class: mono,
@@ -76,10 +78,14 @@ export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
   });
 
   if (spec.kind === "selector") {
+    // Never a <select> — "selector" and "select" are a different FieldKind,
+    // and selectorControls/variableRow below only ever see a text box, same
+    // reasoning as this cast.
+    const textInput = input as HTMLInputElement | HTMLTextAreaElement;
     // A test result is about one spelling of the selector; editing it makes the
     // result a statement about the past.
-    input.addEventListener("input", () => probe.forgetTest(ctx.testKey));
-    field.append(selectorControls(input, ctx));
+    textInput.addEventListener("input", () => probe.forgetTest(ctx.testKey));
+    field.append(selectorControls(textInput, ctx));
     field.append(problem);
     const result = probe.testResult(ctx.testKey);
     if (result) field.append(matchPill(result));
@@ -90,7 +96,10 @@ export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
 
   field.append(input, problem);
 
-  if (INTERPOLATED.includes(spec.kind)) field.append(variableRow(input, ctx));
+  // INTERPOLATED never includes "select" — the choice is structure, not data.
+  if (INTERPOLATED.includes(spec.kind)) {
+    field.append(variableRow(input as HTMLInputElement | HTMLTextAreaElement, ctx));
+  }
 
   if (spec.help) field.append(h("span", { class: "hint", text: spec.help }));
   check();
@@ -120,6 +129,17 @@ function oneLineBox(
     box.setSelectionRange(caret, caret);
   });
   return box;
+}
+
+// `selected` is marked on the <option> rather than set as the <select>'s own
+// value attribute: h() sets attributes before it appends children, so a value
+// set that way would have no options yet to match against.
+function selectBox(id: string, cls: string, current: string, options: string[]): HTMLSelectElement {
+  return h(
+    "select",
+    { id, class: cls },
+    ...options.map((opt) => h("option", { value: opt, text: opt, selected: opt === current }))
+  );
 }
 
 function selectorControls(input: HTMLInputElement | HTMLTextAreaElement, ctx: FieldContext): HTMLElement {

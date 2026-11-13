@@ -24,7 +24,7 @@ export function resolve(
 // Names of the built-in variables seeded by page/builtins.ts. Declared here
 // (not there) so anything needing the list doesn't have to import something
 // DOM-touching.
-export const BUILTINS = ["url", "title", "selection", "routines", "routineName"] as const;
+export const BUILTINS = ["url", "title", "selection", "routines", "routineName", "now"] as const;
 
 // The variables you define in the Variables tab, seeded next to the builtins
 // before step 1 and read as $<name> — a token, a base URL, a test password.

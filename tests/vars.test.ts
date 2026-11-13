@@ -22,7 +22,7 @@ const names = (routine: Routine, at: number, vars: string[] = []) =>
 
 describe("availableVars", () => {
   it("offers nothing from the routine itself to the first step", () => {
-    expect(names(jsonShow(), 0)).toEqual(["url", "title", "selection", "routines", "routineName"]);
+    expect(names(jsonShow(), 0)).toEqual(["url", "title", "selection", "routines", "routineName", "now"]);
   });
 
   it("offers an earlier producer by the name in its Save as", () => {

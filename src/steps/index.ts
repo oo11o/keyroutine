@@ -17,6 +17,8 @@ import { openUrlInNewTab } from "./openUrlInNewTab";
 import { openUrlInCurrentTab } from "./openUrlInCurrentTab";
 import { fetchUrl } from "./fetchUrl";
 import { repeatLastRoutine } from "./repeatLastRoutine";
+import { addTime } from "./addTime";
+import { calculate } from "./calculate";
 
 export const handlers: Record<Step["type"], Handler> = {
   readBySelector,
@@ -35,5 +37,7 @@ export const handlers: Record<Step["type"], Handler> = {
   openUrlInNewTab,
   openUrlInCurrentTab,
   fetchUrl,
-  repeatLastRoutine
+  repeatLastRoutine,
+  addTime,
+  calculate
 };

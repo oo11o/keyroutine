@@ -35,6 +35,8 @@ describe("STEP_META", () => {
     // If this list grows, content/runner.ts's saveAs handling has to as well —
     // and the variable picker would be offering names that never exist.
     expect(STEP_TYPES.filter((t) => STEP_META[t].produces).sort()).toEqual([
+      "addTime",
+      "calculate",
       "fetchUrl",
       "promptInput",
       "readBySelector",
