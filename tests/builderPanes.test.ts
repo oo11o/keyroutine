@@ -691,6 +691,31 @@ describe("the Actions column", () => {
     expect(texts(panes.steps, ".steptitle").at(-1)).toBe("Wait (fixed)");
     expect(store.currentStep()).toMatchObject({ type: "wait", ms: 0 });
   });
+
+  it("keeps a typed leading '-' in a number field across the redraw every keystroke triggers", () => {
+    // type="number" reports "" — not "-" — while the number is incomplete, so
+    // a naive redraw-from-the-draft wipes it the instant it's typed. See the
+    // comment on the "number" branch in options/fields.ts.
+    store.deleteStep("s3");
+    draw();
+    clickWithText(panes.steps, "button", "Add action");
+    clickStepType(panes.steps, "Add time");
+    draw();
+
+    const amount = () => panes.steps.querySelector("#f-amount") as HTMLInputElement;
+    amount().value = "-";
+    amount().dispatchEvent(new Event("input"));
+    draw(); // the full-column redraw every edit causes
+
+    expect(amount().value).toBe("-");
+
+    amount().value = "-7";
+    amount().dispatchEvent(new Event("input"));
+    draw();
+
+    expect(amount().value).toBe("-7");
+    expect(store.currentStep()).toMatchObject({ type: "addTime", amount: -7 });
+  });
 });
 
 describe("checking a routine against a real page", () => {

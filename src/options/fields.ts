@@ -51,11 +51,17 @@ export function renderField(spec: FieldSpec, ctx: FieldContext): HTMLElement {
     : h("input", {
         id,
         class: mono,
-        type: spec.kind === "number" ? "number" : "text",
+        // Not type="number": that widget reports "" — not "-" or "1." — while
+        // the number is incomplete, because the spec calls those "invalid
+        // intermediate values." Every keystroke here redraws the form from
+        // the stored draft, so that blank got written back immediately and a
+        // leading "-" (any negative amount) could never be typed at all.
+        // Validity is already checked in JS by validate() below and again in
+        // core/configStore.ts, so the native widget's enforcement adds nothing.
+        type: "text",
+        inputmode: spec.kind === "number" ? "decimal" : undefined,
         value: current,
-        placeholder: spec.placeholder ?? "",
-        min: spec.min,
-        max: spec.max
+        placeholder: spec.placeholder ?? ""
       });
 
   const problem = h("div", { class: "errtext", hidden: true });
