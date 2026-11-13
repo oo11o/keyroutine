@@ -1,5 +1,7 @@
 // Types now, so v0.2+ doesn't need a rewrite — see .claude/plan/plan.md.
 
+import type { DateFormatName } from "./dateFormats";
+
 export type Binding = {
   code: string; // KeyboardEvent.code, e.g. "Digit1" — NOT .key (layout-independent)
   ctrl: boolean;
@@ -35,14 +37,16 @@ export type Step =
   // content/lastRoutine.ts and steps/repeatLastRoutine.ts. No fields: there
   // is nothing to configure, it always means "that, again."
   | { id: string; type: "repeatLastRoutine" }
-  // Shifts `base` (usually $now) by amount*unit and saves the result as an
-  // ISO 8601 UTC string — see steps/addTime.ts.
+  // Shifts `base` (usually $now) by amount*unit and saves the result in
+  // `format` — absent (an older config, from before this field existed)
+  // means "ISO", same as it always behaved. See steps/addTime.ts.
   | {
       id: string;
       type: "addTime";
       base: string;
       amount: number;
       unit: "seconds" | "minutes" | "hours" | "days";
+      format?: DateFormatName;
       saveAs?: string;
     }
   // One binary operation on two numbers — not a general expression language

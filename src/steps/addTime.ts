@@ -1,5 +1,6 @@
 import type { Handler } from "./types";
 import { resolve } from "../core/context";
+import { formatDate } from "../core/dateFormats";
 
 const UNIT_MS: Record<"seconds" | "minutes" | "hours" | "days", number> = {
   seconds: 1000,
@@ -13,7 +14,7 @@ export const addTime: Handler = async (step, ctx) => {
   const base = resolve(step.base, ctx);
   const ms = Date.parse(base);
   if (Number.isNaN(ms)) throw new Error(`"${base}" is not a date addTime can parse`);
-  const shifted = new Date(ms + step.amount * UNIT_MS[step.unit]).toISOString();
+  const value = formatDate(new Date(ms + step.amount * UNIT_MS[step.unit]), step.format);
   const sign = step.amount >= 0 ? "+" : "";
-  return { value: shifted, note: `${base} ${sign}${step.amount} ${step.unit} → ${shifted}` };
+  return { value, note: `${base} ${sign}${step.amount} ${step.unit} → ${value}` };
 };

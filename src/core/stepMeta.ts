@@ -1,6 +1,7 @@
 import type { Routine, Step } from "./schema";
 import { isCommon } from "./match";
 import { MAX_WAIT_MS } from "./limits";
+import { DATE_FORMAT_NAMES, formatDate } from "./dateFormats";
 
 // What each step type looks like *as a form*. Until now a step's parameters
 // existed only as an arm of the `Step` union plus prose comments, and their
@@ -57,7 +58,10 @@ export type FieldSpec = {
   min?: number;
   max?: number;
   // kind: "select" only — the choices, in the order the <select> offers them.
-  options?: string[];
+  // A plain string is both the stored value and what the dropdown shows; use
+  // {value, label} when they need to differ — Add time's Format field, for
+  // instance, shows a live example next to the stored format's name.
+  options?: (string | { value: string; label: string })[];
 };
 
 export type StepGroup = "read" | "write" | "wait" | "show" | "navigate" | "repeat";
@@ -251,9 +255,9 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     label: "Add time",
     group: "read",
     icon: "clock",
-    help: "Shifts a date by an amount of time and saves the result as an ISO date — the base is usually $now, but any parseable date works. A destination field that wants a narrower format (like a datetime-local input) can slice the result with a Regex action afterward.",
+    help: "Shifts a date by an amount of time and saves the result — the base is usually $now, but any parseable date works.",
     produces: true,
-    outNote: "The shifted date, as a full ISO 8601 UTC string.",
+    outNote: "The shifted date, in the Format chosen below (ISO 8601 UTC by default).",
     varName: "time",
     summary: (s) => `${text(s, "base", "$now")} ${Number(field(s, "amount")) >= 0 ? "+" : ""}${text(s, "amount", "0")} ${text(s, "unit", "")}`,
     fields: [
@@ -281,6 +285,23 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         required: true,
         default: "minutes",
         options: ["seconds", "minutes", "hours", "days"]
+      },
+      {
+        name: "format",
+        label: "Format",
+        kind: "select",
+        required: true,
+        default: "ISO 8601",
+        // Each label carries a live example (today, right now) so the choice
+        // is never a guess at what "DD MMM YYYY" looks like. Computed once
+        // when the builder loads this module, not on every render — close
+        // enough for an illustration, and not worth restructuring how a
+        // select field's options reach the DOM for.
+        options: DATE_FORMAT_NAMES.map((name) => ({
+          value: name,
+          label: `${name} — ${formatDate(new Date(), name)}`
+        })),
+        help: "What the result reads as — a database-ready value, a human date, or a plain count of seconds. The two ISO options and Unix seconds are UTC; every other format uses this browser's own local time, since those are meant for a person to read. Anything this list doesn't cover still needs a Regex action afterward to slice out."
       }
     ]
   },

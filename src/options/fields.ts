@@ -140,11 +140,17 @@ function oneLineBox(
 // `selected` is marked on the <option> rather than set as the <select>'s own
 // value attribute: h() sets attributes before it appends children, so a value
 // set that way would have no options yet to match against.
-function selectBox(id: string, cls: string, current: string, options: string[]): HTMLSelectElement {
+function selectBox(
+  id: string,
+  cls: string,
+  current: string,
+  options: NonNullable<FieldSpec["options"]>
+): HTMLSelectElement {
+  const normalized = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
   return h(
     "select",
     { id, class: cls },
-    ...options.map((opt) => h("option", { value: opt, text: opt, selected: opt === current }))
+    ...normalized.map((opt) => h("option", { value: opt.value, text: opt.label, selected: opt.value === current }))
   );
 }
 
