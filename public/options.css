@@ -319,7 +319,7 @@ svg.i {
   border-color: var(--selline);
   box-shadow: inset 0 0 0 1px var(--selline);
 }
-.card.is-off .routinename { color: var(--muted); }
+.card.is-off .routinename, .card.is-off .steptitle { color: var(--muted); }
 .cardbody {
   border-top: 1px solid var(--line);
   padding: 16px;
@@ -532,7 +532,7 @@ textarea.wrapbox {
 .pagehead { display: flex; align-items: center; justify-content: space-between; margin: 10px 2px 2px; }
 .pagehead:first-child { margin-top: 2px; }
 
-.outchip, .errchip {
+.outchip, .errchip, .warnchip {
   display: inline-flex;
   align-items: center;
   font-size: 12px;
@@ -542,6 +542,7 @@ textarea.wrapbox {
 }
 .outchip { background: var(--okbg); color: var(--okfg); border: 1px solid var(--okline); }
 .errchip { background: var(--errbg); color: var(--danger); border: 1px solid var(--errline); }
+.warnchip { background: var(--warnbg); color: var(--warnfg); border: 1px solid var(--warnline); }
 
 .res {
   display: inline-flex;
@@ -603,6 +604,7 @@ textarea.wrapbox {
 .node svg.i { width: 15px; height: 15px; stroke-width: 2.4; }
 .node-trigger { background: #283553; border-color: #3a5288; color: var(--accent); }
 .node-add { border-style: dashed; color: var(--faint); background: transparent; }
+.node-off { background: var(--warnbg); border-color: var(--warnline); color: var(--warnfg); }
 .seg { width: 2px; background: var(--line2); flex: none; }
 .line { width: 2px; background: var(--line2); flex: 1; min-height: 10px; }
 

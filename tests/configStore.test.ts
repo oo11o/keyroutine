@@ -105,6 +105,18 @@ describe("a config saved before a step type was retired", () => {
     expect(config.routines[0].steps[0]).not.toHaveProperty("saveAs");
   });
 
+  it("keeps a paused step's enabled: false, and drops the field entirely otherwise", () => {
+    const config = parsed(
+      routineWith([
+        { id: "s1", type: "popup", body: "hi", enabled: false },
+        { id: "s2", type: "popup", body: "bye" }
+      ])
+    );
+
+    expect(config.routines[0].steps[0]).toMatchObject({ enabled: false });
+    expect(config.routines[0].steps[1]).not.toHaveProperty("enabled");
+  });
+
   it("drops a step whose type never existed, as a warning rather than refusing the config", () => {
     // A renamed/removed step type (teleport never existed; promptDate is the
     // real-world case — see ParseResult) must not block the rest of the

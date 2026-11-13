@@ -10,50 +10,60 @@ export type Binding = {
   meta: boolean;
 };
 
-export type Step =
-  | { id: string; type: "readBySelector"; selector: string; saveAs?: string }
-  | { id: string; type: "saveValue"; value: string; saveAs?: string }
-  | { id: string; type: "regexExtract"; input: string; pattern: string; group?: number; saveAs?: string }
-  | { id: string; type: "inputToSelector"; selector: string; value: string }
-  // Matches value against an <option>'s value or its visible text — see
-  // page/dom.ts's selectOption.
-  | { id: string; type: "selectOption"; selector: string; value: string }
-  | { id: string; type: "focusBySelector"; selector: string }
-  | { id: string; type: "clickBySelector"; selector: string }
-  // Goes to whatever has focus — pair with focusBySelector to aim it.
-  | { id: string; type: "pressKey"; key: string }
-  | { id: string; type: "wait"; ms: number }
-  | { id: string; type: "waitForSelector"; selector: string; timeoutMs: number }
-  | { id: string; type: "popup"; title?: string; body: string }
-  | { id: string; type: "popupJson"; title?: string; body: string }
-  // Pauses for a line of text typed into an in-page panel. Esc/Cancel/×
-  // stops the routine here — see promptInput's StepResult.stop in
-  // steps/types.ts.
-  | { id: string; type: "promptInput"; title?: string; body: string; saveAs?: string }
-  | { id: string; type: "openUrlInNewTab"; url: string }
-  | { id: string; type: "openUrlInCurrentTab"; url: string }
-  | { id: string; type: "fetchUrl"; url: string; saveAs?: string }
-  // Re-runs whatever routine last ran on this host — see
-  // content/lastRoutine.ts and steps/repeatLastRoutine.ts. No fields: there
-  // is nothing to configure, it always means "that, again."
-  | { id: string; type: "repeatLastRoutine" }
-  // Shifts `base` (usually $now) by amount*unit and saves the result in
-  // `format` — absent (an older config, from before this field existed)
-  // means "ISO", same as it always behaved. See steps/addTime.ts.
-  | {
-      id: string;
-      type: "addTime";
-      base: string;
-      amount: number;
-      unit: "seconds" | "minutes" | "hours" | "days";
-      format?: DateFormatName;
-      saveAs?: string;
-    }
-  // One binary operation on two numbers — not a general expression language
-  // (no precedence, no parentheses): chain more Calculate actions for
-  // anything longer, the same way the rest of KeyRoutine composes. See
-  // steps/calculate.ts.
-  | { id: string; type: "calculate"; a: string; operator: "+" | "-" | "*" | "/"; b: string; saveAs?: string };
+// Every step carries `enabled` via this intersection rather than repeating it
+// on each arm below — absent means enabled, same convention as Routine's own
+// `enabled`. A disabled step is skipped by the runner (content/runner.ts)
+// without otherwise disturbing the routine: later steps still run, and a
+// $var it would have produced is simply never defined, the same as if the
+// step were deleted.
+type StepBase = { enabled?: boolean };
+
+export type Step = StepBase &
+  (
+    | { id: string; type: "readBySelector"; selector: string; saveAs?: string }
+    | { id: string; type: "saveValue"; value: string; saveAs?: string }
+    | { id: string; type: "regexExtract"; input: string; pattern: string; group?: number; saveAs?: string }
+    | { id: string; type: "inputToSelector"; selector: string; value: string }
+    // Matches value against an <option>'s value or its visible text — see
+    // page/dom.ts's selectOption.
+    | { id: string; type: "selectOption"; selector: string; value: string }
+    | { id: string; type: "focusBySelector"; selector: string }
+    | { id: string; type: "clickBySelector"; selector: string }
+    // Goes to whatever has focus — pair with focusBySelector to aim it.
+    | { id: string; type: "pressKey"; key: string }
+    | { id: string; type: "wait"; ms: number }
+    | { id: string; type: "waitForSelector"; selector: string; timeoutMs: number }
+    | { id: string; type: "popup"; title?: string; body: string }
+    | { id: string; type: "popupJson"; title?: string; body: string }
+    // Pauses for a line of text typed into an in-page panel. Esc/Cancel/×
+    // stops the routine here — see promptInput's StepResult.stop in
+    // steps/types.ts.
+    | { id: string; type: "promptInput"; title?: string; body: string; saveAs?: string }
+    | { id: string; type: "openUrlInNewTab"; url: string }
+    | { id: string; type: "openUrlInCurrentTab"; url: string }
+    | { id: string; type: "fetchUrl"; url: string; saveAs?: string }
+    // Re-runs whatever routine last ran on this host — see
+    // content/lastRoutine.ts and steps/repeatLastRoutine.ts. No fields: there
+    // is nothing to configure, it always means "that, again."
+    | { id: string; type: "repeatLastRoutine" }
+    // Shifts `base` (usually $now) by amount*unit and saves the result in
+    // `format` — absent (an older config, from before this field existed)
+    // means "ISO", same as it always behaved. See steps/addTime.ts.
+    | {
+        id: string;
+        type: "addTime";
+        base: string;
+        amount: number;
+        unit: "seconds" | "minutes" | "hours" | "days";
+        format?: DateFormatName;
+        saveAs?: string;
+      }
+    // One binary operation on two numbers — not a general expression language
+    // (no precedence, no parentheses): chain more Calculate actions for
+    // anything longer, the same way the rest of KeyRoutine composes. See
+    // steps/calculate.ts.
+    | { id: string; type: "calculate"; a: string; operator: "+" | "-" | "*" | "/"; b: string; saveAs?: string }
+  );
 
 // A domain. Routines point at one of these to stop being global — which
 // page(s) of it they fire on is the routine's own `pages`, not the site's:

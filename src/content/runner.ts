@@ -66,6 +66,7 @@ export async function runRoutine(
   try {
     for (let i = resume?.nextStep ?? 0; i < routine.steps.length; i++) {
       const step = routine.steps[i];
+      if (step.enabled === false) continue; // paused in the builder — skipped, not run
       try {
         // The builder will not put a site-only action in a Common routine and
         // will not save one that holds it, but a config edited by hand or

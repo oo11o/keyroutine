@@ -667,6 +667,30 @@ describe("the Actions column", () => {
     expect(texts(panes.steps, ".steptitle")).toEqual(["Fetch URL", "Show popup (JSON)"]);
   });
 
+  it("pauses and resumes an action from its own tools, marking the step number", () => {
+    const tool = (index: number, label: string) =>
+      panes.steps.querySelectorAll(".step")[index].querySelector(
+        `[aria-label="${label}"]`
+      ) as HTMLButtonElement;
+    const nodeFor = (index: number) => panes.steps.querySelectorAll(".node")[index + 1]; // +1: the trigger node is first
+
+    expect(store.currentRoutine()!.steps[0]).not.toHaveProperty("enabled");
+    expect(nodeFor(0).className).not.toContain("node-off");
+
+    tool(0, "Pause action").click();
+    draw();
+
+    expect(store.currentRoutine()!.steps[0]).toMatchObject({ enabled: false });
+    expect(nodeFor(0).className).toContain("node-off");
+    expect(panes.steps.textContent).toContain("Paused — skipped when this routine runs");
+
+    tool(0, "Resume action").click();
+    draw();
+
+    expect(store.currentRoutine()!.steps[0]).toMatchObject({ enabled: true });
+    expect(nodeFor(0).className).not.toContain("node-off");
+  });
+
   it("ends the pipeline at a popup instead of asking what comes next", () => {
     // The seeded routine finishes with Show popup (JSON) — the answer the hotkey
     // was pressed for, so there is nothing sensible to add after it.

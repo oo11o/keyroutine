@@ -189,3 +189,41 @@ describe("runRoutine — the popup step", () => {
     expect(getPopup()).toBeNull(); // nothing was shown
   });
 });
+
+describe("runRoutine — a paused action", () => {
+  it("skips a step marked enabled: false, running everything around it", async () => {
+    document.body.innerHTML = `<input id="out" />`;
+    const routine: Routine = {
+      id: "r",
+      name: "R",
+      binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      siteId: "site",
+      steps: [
+        { id: "s1", type: "saveValue", value: "before", saveAs: "s1" },
+        { id: "s2", type: "inputToSelector", selector: "#out", value: "should not run", enabled: false },
+        { id: "s3", type: "saveValue", value: "after", saveAs: "s3" }
+      ]
+    };
+
+    const notes = await runRoutine(routine);
+
+    expect(document.querySelector<HTMLInputElement>("#out")!.value).toBe("");
+    expect(notes).toEqual(['saved "before"', 'saved "after"']); // no note from the skipped step
+  });
+
+  it("treats enabled: true and an absent field the same — both run", async () => {
+    const routine: Routine = {
+      id: "r",
+      name: "R",
+      binding: { code: "Digit3", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      steps: [
+        { id: "s1", type: "saveValue", value: "a", enabled: true },
+        { id: "s2", type: "saveValue", value: "b" }
+      ]
+    };
+
+    expect(await runRoutine(routine)).toEqual(['saved "a"', 'saved "b"']);
+  });
+});

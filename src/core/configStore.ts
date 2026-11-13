@@ -80,6 +80,9 @@ function parseStep(rawStep: unknown, where: string, warnings: string[]): Step | 
   // writing one by hand could usefully have chosen anyway.
   const id = typeof raw.id === "string" && raw.id !== "" ? raw.id : newId();
   const step: Record<string, unknown> = { id, type: raw.type };
+  // Absent means enabled, same convention as a routine's own `enabled` —
+  // only an explicit false pauses it (see Step's StepBase in schema.ts).
+  if (raw.enabled === false) step.enabled = false;
   // The name a producer's result is read back by. Not one of the step's form
   // fields — the builder edits it in its own Save as box — so it is carried
   // across by hand, under the same \w+ rule core/context.ts's resolve() needs

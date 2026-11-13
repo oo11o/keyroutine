@@ -111,7 +111,10 @@ function triggerRow(): HTMLElement {
 }
 
 function actionRow(step: Step, index: number, total: number, open: boolean): HTMLElement {
-  const node = h("span", { class: "node", text: String(index + 1) });
+  const node = h("span", {
+    class: `node ${step.enabled === false ? "node-off" : ""}`.trim(),
+    text: String(index + 1)
+  });
 
   return h(
     "div",
@@ -134,7 +137,8 @@ function actionCard(step: Step, index: number, total: number, open: boolean): HT
   const ends = meta.endsRoutine === true;
   const next = routine.steps[index + 1];
   const endsAfter = next !== undefined && STEP_META[next.type].endsRoutine === true;
-  const card = h("div", { class: `card step ${open ? "is-open" : ""}`.trim() });
+  const enabled = step.enabled !== false;
+  const card = h("div", { class: `card step ${open ? "is-open" : ""} ${enabled ? "" : "is-off"}`.trim() });
 
   const text = h(
     "span",
@@ -168,7 +172,13 @@ function actionCard(step: Step, index: number, total: number, open: boolean): HT
           disabled: index === total - 1 || endsAfter
         }),
         iconButton("copy", "Duplicate action", () => store.duplicateStep(step.id)),
-        iconButton("trash", "Delete action", () => store.deleteStep(step.id))
+        iconButton(
+          enabled ? "pause" : "play",
+          enabled ? "Pause action" : "Resume action",
+          () => store.patchStep(step.id, { enabled: !enabled }),
+          { "aria-pressed": enabled ? "false" : "true" }
+        ),
+        iconButton("close", "Delete action", () => store.deleteStep(step.id))
       )
     )
   );
@@ -177,6 +187,9 @@ function actionCard(step: Step, index: number, total: number, open: boolean): HT
   // already fight for width on a narrow column, and a chip squeezed in next
   // to them reads as cut off rather than as its own fact.
   const chips: HTMLElement[] = [];
+  if (!enabled) {
+    chips.push(h("span", { class: "warnchip", text: "Paused — skipped when this routine runs" }));
+  }
   // An older config, or an import, can hold an action this routine's scope may
   // not run. The runner refuses it; the card says so before the hotkey does.
   const outOfScope = meta.siteOnly === true && store.getScope().kind === "common";
