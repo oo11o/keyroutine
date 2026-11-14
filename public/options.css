@@ -653,6 +653,13 @@ textarea.wrapbox {
   text-overflow: ellipsis;
 }
 .steptools { display: flex; align-items: center; }
+/* A slim "+" between one action and the next, rather than a full dashed row
+   like the bottom "Add action" — repeated after every card, it has to stay
+   quiet until it's actually wanted. */
+.insertctrl { padding: 2px 0; }
+.insertctrl > .iconbtn { width: 24px; height: 24px; opacity: 0.45; }
+.insertctrl > .iconbtn:hover { opacity: 1; }
+.insertctrl > .iconbtn svg.i { width: 15px; height: 15px; }
 .typeicon {
   width: 38px;
   height: 38px;

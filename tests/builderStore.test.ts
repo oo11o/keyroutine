@@ -190,6 +190,21 @@ describe("adding things", () => {
     expect(store.currentStep()!.id).toMatch(/^[a-z0-9]{16}$/);
   });
 
+  it("inserts a new action right after a given index, not just at the end", async () => {
+    await open();
+    store.selectRoutine("copy-id"); // starts with one step: wait (s1)
+
+    store.addStep("wait"); // appended -> [s1, appended] at indices 0, 1
+    const appendedId = store.currentRoutine()!.steps[1].id;
+
+    store.addStep("popup", 0); // insert right after index 0, between the two waits
+
+    const steps = store.currentRoutine()!.steps;
+    expect(steps.map((s) => s.type)).toEqual(["wait", "popup", "wait"]);
+    expect(steps[2].id).toBe(appendedId); // the one added first kept its identity, just shifted down
+    expect(store.currentStep()?.type).toBe("popup"); // the newly inserted one is what's now open
+  });
+
   it("selects a new site so its routines can be added straight away", async () => {
     await open();
 

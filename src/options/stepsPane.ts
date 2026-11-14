@@ -115,6 +115,9 @@ function actionRow(step: Step, index: number, total: number, open: boolean): HTM
     class: `node ${step.enabled === false ? "node-off" : ""}`.trim(),
     text: String(index + 1)
   });
+  // Nothing may follow a popup — it is where the routine ends — so there is
+  // no "insert here" below it.
+  const ends = STEP_META[step.type].endsRoutine === true;
 
   return h(
     "div",
@@ -124,7 +127,12 @@ function actionRow(step: Step, index: number, total: number, open: boolean): HTM
       node,
       h("span", { class: "line" })
     ),
-    h("div", { class: "prow-body" }, actionCard(step, index, total, open))
+    h(
+      "div",
+      { class: "prow-body" },
+      actionCard(step, index, total, open),
+      ends ? null : insertControl(index)
+    )
   );
 }
 
@@ -402,6 +410,47 @@ function endNote(last: Step): HTMLElement {
   );
 }
 
+// Shared by the bottom "Add action" row and each step's own "Insert action
+// here" — a disclosure listing every type, grouped, with a line of help
+// each (or the reason it is blocked), which is what makes the list browsable
+// by someone who does not already know the vocabulary. `onPick` is the only
+// difference between the two: where the new step lands.
+function typeMenu(onPick: (type: Step["type"]) => void): HTMLElement {
+  const menu = h("div", { class: "type-menu" });
+  for (const { group, label } of STEP_GROUPS) {
+    const types = STEP_TYPES.filter((t) => STEP_META[t].group === group);
+    if (types.length === 0) continue;
+    menu.append(h("div", { class: "cat", text: label }));
+    for (const type of types) {
+      const meta = STEP_META[type];
+      // Offered but disabled, with the reason in place of the help: hiding
+      // it would leave someone looking for Fetch URL in a Common routine
+      // wondering where it went, which is worse than being told.
+      const blocked = meta.siteOnly === true && store.getScope().kind === "common";
+      menu.append(
+        h(
+          "button",
+          {
+            type: "button",
+            disabled: blocked,
+            onClick: () => {
+              if (!blocked) onPick(type);
+            }
+          },
+          h("span", { class: "typeicon" }, icon(meta.icon)),
+          h(
+            "span",
+            {},
+            h("div", { class: "name", text: meta.label }),
+            h("div", { class: "note", text: blocked ? siteOnlyReason(type) : meta.help })
+          )
+        )
+      );
+    }
+  }
+  return menu;
+}
+
 function addRow(): HTMLElement {
   const wrap = h("div", { class: "prow-body" });
   const toggle = h(
@@ -412,9 +461,6 @@ function addRow(): HTMLElement {
   );
   let menu: HTMLElement | null = null;
 
-  // A disclosure rather than a <select>: the types are grouped and each carries
-  // a line of help, which is what makes the list browsable by someone who does
-  // not already know the vocabulary.
   toggle.addEventListener("click", () => {
     if (menu) {
       menu.remove();
@@ -422,38 +468,7 @@ function addRow(): HTMLElement {
       toggle.setAttribute("aria-expanded", "false");
       return;
     }
-    menu = h("div", { class: "type-menu" });
-    for (const { group, label } of STEP_GROUPS) {
-      const types = STEP_TYPES.filter((t) => STEP_META[t].group === group);
-      if (types.length === 0) continue;
-      menu.append(h("div", { class: "cat", text: label }));
-      for (const type of types) {
-        const meta = STEP_META[type];
-        // Offered but disabled, with the reason in place of the help: hiding
-        // it would leave someone looking for Fetch URL in a Common routine
-        // wondering where it went, which is worse than being told.
-        const blocked = meta.siteOnly === true && store.getScope().kind === "common";
-        menu.append(
-          h(
-            "button",
-            {
-              type: "button",
-              disabled: blocked,
-              onClick: () => {
-                if (!blocked) store.addStep(type);
-              }
-            },
-            h("span", { class: "typeicon" }, icon(meta.icon)),
-            h(
-              "span",
-              {},
-              h("div", { class: "name", text: meta.label }),
-              h("div", { class: "note", text: blocked ? siteOnlyReason(type) : meta.help })
-            )
-          )
-        );
-      }
-    }
+    menu = typeMenu((type) => store.addStep(type));
     toggle.setAttribute("aria-expanded", "true");
     wrap.append(menu);
   });
@@ -465,6 +480,27 @@ function addRow(): HTMLElement {
     rail(h("span", { class: "seg", style: "height:6px" }), h("span", { class: "node node-add" }, icon("plus"))),
     wrap
   );
+}
+
+// A slim "+" under each action — reaching the middle of a long routine used
+// to mean adding at the bottom and moving it up one step at a time. This
+// drops the new action in right where it was asked for.
+function insertControl(index: number): HTMLElement {
+  const wrap = h("div", { class: "insertctrl" });
+  let menu: HTMLElement | null = null;
+
+  const toggle = iconButton("plus", "Insert action here", () => {
+    if (menu) {
+      menu.remove();
+      menu = null;
+      return;
+    }
+    menu = typeMenu((type) => store.addStep(type, index));
+    wrap.append(menu);
+  });
+
+  wrap.append(toggle);
+  return wrap;
 }
 
 function coerce(kind: string, value: string): string | number {

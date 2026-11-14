@@ -691,6 +691,24 @@ describe("the Actions column", () => {
     expect(nodeFor(0).className).not.toContain("node-off");
   });
 
+  it("inserts a new action right where asked, via each step's own insert control", () => {
+    // Read element, Fetch URL, Show popup (JSON) — the last ends the
+    // routine, so there is no insert control after it.
+    const inserts = () => [...panes.steps.querySelectorAll(".insertctrl .iconbtn")] as HTMLButtonElement[];
+    expect(inserts()).toHaveLength(2);
+
+    inserts()[0].click(); // open the menu right after "Read element"
+    clickStepType(panes.steps, "Wait (fixed)");
+    draw();
+
+    expect(texts(panes.steps, ".steptitle")).toEqual([
+      "Read element",
+      "Wait (fixed)",
+      "Fetch URL",
+      "Show popup (JSON)"
+    ]);
+  });
+
   it("ends the pipeline at a popup instead of asking what comes next", () => {
     // The seeded routine finishes with Show popup (JSON) — the answer the hotkey
     // was pressed for, so there is nothing sensible to add after it.

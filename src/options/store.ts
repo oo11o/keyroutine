@@ -325,7 +325,11 @@ function withSteps(id: string, fn: (steps: Step[]) => Step[]): void {
   announce();
 }
 
-export function addStep(type: Step["type"]): void {
+// `afterIndex` lands the new action right after that one instead of at the
+// end of the pipeline — the builder's own "Insert action here" on a step's
+// own toolbar, so reaching the middle of a long routine no longer means
+// adding at the bottom and moving it up one step at a time.
+export function addStep(type: Step["type"], afterIndex?: number): void {
   const routine = currentRoutine();
   if (!routine) return;
   // Two separate things, deliberately: an opaque id nobody edits, and — for a
@@ -336,7 +340,11 @@ export function addStep(type: Step["type"]): void {
     freshId(new Set(routine.steps.map((s) => s.id))),
     freeVarName(type, varNamesIn(routine.steps)) ?? undefined
   );
-  withSteps(routine.id, (steps) => [...steps, step]);
+  withSteps(routine.id, (steps) => {
+    if (afterIndex === undefined) return [...steps, step];
+    const at = afterIndex + 1;
+    return [...steps.slice(0, at), step, ...steps.slice(at)];
+  });
   stepId = step.id;
   announce();
 }
