@@ -5,6 +5,7 @@ import { saveValue } from "./saveValue";
 import { regexExtract } from "./regexExtract";
 import { inputToSelector } from "./inputToSelector";
 import { selectOptionStep } from "./selectOption";
+import { setAttribute } from "./setAttribute";
 import { focusBySelector } from "./focusBySelector";
 import { clickBySelector } from "./clickBySelector";
 import { pressKey } from "./pressKey";
@@ -26,6 +27,7 @@ export const handlers: Record<Step["type"], Handler> = {
   regexExtract,
   inputToSelector,
   selectOption: selectOptionStep,
+  setAttribute,
   focusBySelector,
   clickBySelector,
   pressKey,

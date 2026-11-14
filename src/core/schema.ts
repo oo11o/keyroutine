@@ -27,6 +27,9 @@ export type Step = StepBase &
     // Matches value against an <option>'s value or its visible text — see
     // page/dom.ts's selectOption.
     | { id: string; type: "selectOption"; selector: string; value: string }
+    // Sets the named attribute to value, or removes it entirely when value
+    // resolves to "" — see steps/setAttribute.ts.
+    | { id: string; type: "setAttribute"; selector: string; attribute: string; value: string }
     | { id: string; type: "focusBySelector"; selector: string }
     | { id: string; type: "clickBySelector"; selector: string }
     // Goes to whatever has focus — pair with focusBySelector to aim it.

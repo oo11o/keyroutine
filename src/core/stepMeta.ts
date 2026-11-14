@@ -381,6 +381,35 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
       }
     ]
   },
+  setAttribute: {
+    label: "Set attribute",
+    group: "write",
+    icon: "pencil",
+    siteOnly: true,
+    help: "Sets an attribute on an element — show a hidden one by changing its style, re-enable a disabled button, toggle a class. Leaving Value blank removes the attribute instead of setting it to an empty string.",
+    produces: false,
+    outNote: "No result — it only changes the attribute.",
+    summary: (s) => `${text(s, "attribute", "?")} → ${text(s, "selector")}`,
+    fields: [
+      selectorField,
+      {
+        name: "attribute",
+        label: "Attribute",
+        kind: "text",
+        required: true,
+        placeholder: "style",
+        help: "Any HTML attribute: style, class, disabled, hidden, data-foo…"
+      },
+      {
+        name: "value",
+        label: "Value",
+        kind: "template",
+        required: false,
+        placeholder: "display:block",
+        help: "Blank removes the attribute — the way to clear \"disabled\" or \"hidden\" rather than setting them to nothing."
+      }
+    ]
+  },
   focusBySelector: {
     label: "Focus element",
     group: "write",
