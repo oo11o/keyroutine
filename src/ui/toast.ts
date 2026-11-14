@@ -115,8 +115,27 @@ export function getSpinnerSlot(): HTMLElement {
 const TOAST_DURATION_MS = 3000;
 const SEPARATOR = "-----------------------";
 
-function numberList(items: string[]): string[] {
-  return items.map((item, i) => `${i + 1}. ${item}`);
+function numberList(items: string[], offset = 0): string[] {
+  return items.map((item, i) => `${offset + i + 1}. ${item}`);
+}
+
+const FAILURE_LIST_HEAD = 5;
+const FAILURE_LIST_TAIL = 3;
+// Only worth collapsing once it would actually hide something — a list one
+// or two over head+tail would ellipsize a line to save none.
+const FAILURE_LIST_THRESHOLD = FAILURE_LIST_HEAD + FAILURE_LIST_TAIL + 2;
+
+// The steps that ran before a failure, for a routine long enough that
+// restating every one of them buries the thing the toast exists to show:
+// which step broke. The first few establish the routine actually started
+// right; the last few are what led straight into the failure; the point is
+// made without the toast turning into a full transcript.
+function failureNumberList(notes: string[]): string[] {
+  if (notes.length <= FAILURE_LIST_THRESHOLD) return numberList(notes);
+  const head = numberList(notes.slice(0, FAILURE_LIST_HEAD));
+  const tail = numberList(notes.slice(-FAILURE_LIST_TAIL), notes.length - FAILURE_LIST_TAIL);
+  const omitted = notes.length - FAILURE_LIST_HEAD - FAILURE_LIST_TAIL;
+  return [...head, `… ${omitted} more`, ...tail];
 }
 
 // detail lines: [0] is the title (routine name + status), then a blank line,
@@ -200,7 +219,7 @@ export function showResultToast(
   if (outcome.ok) {
     showToast(chord, [`✓ ${routineName}`, "", ...numberList(outcome.notes)], true);
   } else {
-    const lines = numberList(outcome.notes);
+    const lines = failureNumberList(outcome.notes);
     lines.push("", SEPARATOR, `${outcome.stepIndex + 1}. ✗ ${outcome.stepType}: ${outcome.message}`);
     showToast(chord, [`✗ ${routineName}`, "", ...lines], false);
   }
