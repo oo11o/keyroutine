@@ -77,4 +77,24 @@ describe("cssSelectorFor", () => {
     expect(selector).toBe('input[name="say \\"hi\\""]');
     expect(document.querySelectorAll(selector)).toHaveLength(1);
   });
+
+  it("adds :nth-of-type when a sibling shares every one of the element's classes too", () => {
+    // A classifier/row list: every item carries the same two classes, so the
+    // class path alone (and every ancestor above it, being just as repeated)
+    // never becomes unique on its own — the picker used to hand back a
+    // selector that matched all three rows instead of the one clicked.
+    set(`
+      <div class="list">
+        <div class="selected class_text">one</div>
+        <div class="selected class_text">two</div>
+        <div class="selected class_text">three</div>
+      </div>
+    `);
+
+    const rows = document.querySelectorAll(".class_text");
+    const selector = cssSelectorFor(rows[1]);
+
+    expect(document.querySelectorAll(selector)).toHaveLength(1);
+    expect(document.querySelector(selector)).toBe(rows[1]);
+  });
 });

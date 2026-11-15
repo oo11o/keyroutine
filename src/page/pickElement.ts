@@ -41,8 +41,10 @@ function unique(selector: string, root: Document | ShadowRoot): boolean {
 
 // One element as a selector segment, without its ancestors: the most specific
 // thing that is still about the element itself — a test id, then an id, then a
-// tag with up to two real classes, and :nth-of-type only when the tag alone
-// cannot tell it from its siblings.
+// tag with up to two real classes, and :nth-of-type whenever some sibling
+// would still answer to that tag+classes too — a repeated row in a list
+// (classifier codes, table lines) commonly shares every class with the one
+// the user actually clicked, and the tag alone was never the only risk.
 function segment(el: Element): string {
   const tag = el.tagName.toLowerCase();
   for (const attr of ["data-testid", "data-test-id", "data-qa", "name"]) {
@@ -53,11 +55,12 @@ function segment(el: Element): string {
 
   const classes = usefulClasses(el);
   let base = tag + classes.map((c) => `.${c}`).join("");
-  const siblings = [...(el.parentElement?.children ?? [])].filter(
-    (s) => s.tagName === el.tagName
+  const sameTag = [...(el.parentElement?.children ?? [])].filter((s) => s.tagName === el.tagName);
+  const indistinct = sameTag.some(
+    (s) => s !== el && classes.every((c) => s.classList.contains(c))
   );
-  if (siblings.length > 1 && classes.length === 0) {
-    base += `:nth-of-type(${siblings.indexOf(el) + 1})`;
+  if (sameTag.length > 1 && indistinct) {
+    base += `:nth-of-type(${sameTag.indexOf(el) + 1})`;
   }
   return base;
 }
