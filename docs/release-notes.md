@@ -1,5 +1,37 @@
 # Release notes
 
+## 0.4.0
+
+- New "Set text" action: sets a plain element's text directly, for a label
+  or status line "Set field value" can't reach since it only accepts an
+  input or textarea.
+- New "Set attribute" action: show a hidden element by changing its style,
+  re-enable a disabled button, toggle a class — leaving Value blank removes
+  the attribute entirely rather than setting it to "".
+- New "Choose option" action for `<select>` dropdowns, matched by value or
+  visible text.
+- New "Repeat last routine" action: re-runs whatever routine last ran on
+  this site.
+- New "Prompt for input" action: pauses for a line of typed text; a bad
+  step no longer blocks the rest of the config from loading.
+- New `$now` builtin, plus "Add time" and "Calculate" actions — shift a
+  date, do one arithmetic operation — with a full local-time-aware date
+  format list for Add time.
+- Per-site usage statistics, with seconds-saved-per-use editable per
+  routine.
+- Each action gets a pause toggle, and a "+" to insert a new action right
+  where you need it instead of only at the bottom of the list.
+- A long failure toast's completed-step list now collapses past 10 steps
+  instead of listing every one.
+- Fix: a number field couldn't take a leading minus sign.
+- Fix: Pick refused a `name` attribute with brackets or spaces in it.
+- Fix: Pick's selector builder couldn't tell apart identically-classed
+  siblings — a repeated row in a list (a classifier or search result) could
+  come back as a selector matching every row instead of the one clicked.
+- Fix: the URL field rejected a relative URL starting with `/` or `?`,
+  even though the runtime has always resolved one against the current
+  page.
+
 ## 0.3.1
 
 - Fix: an "Allow access" button that should have disappeared once access
