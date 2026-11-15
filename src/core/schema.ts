@@ -30,6 +30,10 @@ export type Step = StepBase &
     // Sets the named attribute to value, or removes it entirely when value
     // resolves to "" — see steps/setAttribute.ts.
     | { id: string; type: "setAttribute"; selector: string; attribute: string; value: string }
+    // Sets an element's textContent directly — for a plain display node
+    // (a label, a status line) that inputToSelector cannot reach because it
+    // is not an <input>/<textarea>. See steps/setText.ts.
+    | { id: string; type: "setText"; selector: string; value: string }
     | { id: string; type: "focusBySelector"; selector: string }
     | { id: string; type: "clickBySelector"; selector: string }
     // Goes to whatever has focus — pair with focusBySelector to aim it.

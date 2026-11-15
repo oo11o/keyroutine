@@ -376,8 +376,8 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         label: "Option",
         kind: "template",
         required: true,
-        placeholder: "United Kingdom",
-        help: "Matched against each option's value first ($var-friendly for a value you don't type by hand), then its visible text — so either the code (\"GB\") or the label (\"United Kingdom\") works."
+        placeholder: "Medium",
+        help: "Matched against each option's value first ($var-friendly for a value you don't type by hand), then its visible text — so either the code (\"M\") or the label (\"Medium\") works."
       }
     ]
   },
@@ -407,6 +407,27 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
         required: false,
         placeholder: "display:block",
         help: "Blank removes the attribute — the way to clear \"disabled\" or \"hidden\" rather than setting them to nothing."
+      }
+    ]
+  },
+  setText: {
+    label: "Set text",
+    group: "write",
+    icon: "pencil",
+    siteOnly: true,
+    help: "Sets an element's text directly — for a label, status line or other plain display node that Set field value cannot reach because it is not an input or textarea.",
+    produces: false,
+    outNote: "No result — it only changes the element's text.",
+    summary: (s) => `${text(s, "value", '""')} → ${text(s, "selector")}`,
+    fields: [
+      selectorField,
+      {
+        name: "value",
+        label: "Text",
+        kind: "template",
+        required: true,
+        placeholder: "$text",
+        help: "Replaces the element's entire text content."
       }
     ]
   },
