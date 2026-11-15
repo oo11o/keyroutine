@@ -458,6 +458,61 @@ describe("loadConfig", () => {
 
     await expect(loadConfig()).resolves.toMatchObject({ routines: [] });
   });
+
+  // Confirms an actual update — not just parseConfig in isolation — carries a
+  // user's v2 storage forward with nothing dropped: a domain site, a
+  // page-scoped site nested under it, and a routine's own steps all survive
+  // the host/pages rewrite migrateLegacySites performs.
+  it("upgrades a stored schemaVersion 2 config in place, keeping every site, routine and step", async () => {
+    stubChromeStorage({
+      [CONFIG_KEY]: {
+        schemaVersion: 2,
+        sites: [
+          { id: "local", name: "dzo.lh", patterns: ["dzo.lh"] },
+          { id: "new-tender", name: "new tender form", patterns: ["dzo.lh/tenders/new"] }
+        ],
+        routines: [
+          {
+            id: "sync-common",
+            name: "Sync (anywhere)",
+            binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
+            enabled: true,
+            steps: [{ id: "s1", type: "readBySelector", selector: "#x", saveAs: "s1" }]
+          },
+          {
+            id: "new-tender-only",
+            name: "New tender form only",
+            binding: { code: "Digit9", ctrl: true, alt: true, shift: false, meta: false },
+            enabled: true,
+            siteId: "new-tender",
+            steps: [{ id: "s1", type: "readBySelector", selector: "#w", saveAs: "s1" }]
+          }
+        ]
+      }
+    });
+
+    const config = await loadConfig();
+
+    expect(config.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(config.sites).toEqual([{ id: "local", name: "dzo.lh", host: "dzo.lh", includeSubdomains: false }]);
+    expect(config.routines.map((r) => r.id)).toEqual(["sync-common", "new-tender-only"]);
+    // The page-only legacy site had no domain sibling under its own id, so it
+    // is folded onto "local" and its path survives as that routine's pages.
+    expect(config.routines[1]).toMatchObject({ siteId: "local", pages: ["/tenders/new"] });
+    expect(config.routines[0].steps).toEqual([
+      { id: "s1", type: "readBySelector", selector: "#x", saveAs: "s1" }
+    ]);
+    expect(config.routines[1].steps).toEqual([
+      { id: "s1", type: "readBySelector", selector: "#w", saveAs: "s1" }
+    ]);
+
+    // loadConfig() only upgrades in memory; it is the builder's own Save that
+    // writes the migrated shape back. Round-tripping it through saveConfig
+    // confirms that write actually lands as v3, not v2, once it happens.
+    await saveConfig(config);
+    const stored = (await chrome.storage.local.get(CONFIG_KEY)) as Record<string, unknown>;
+    expect((stored[CONFIG_KEY] as { schemaVersion: number }).schemaVersion).toBe(SCHEMA_VERSION);
+  });
 });
 
 describe("seedIfEmpty", () => {
