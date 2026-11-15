@@ -300,10 +300,17 @@ function validate(spec: FieldSpec, value: string): string | null {
   if (spec.kind === "url") {
     // The template is checked, not the result: $vars are unknown until the
     // routine runs, so anything but a clearly wrong scheme has to be allowed.
+    // A leading "/" or "?" is also allowed — page/navigate.ts's toHttpUrl
+    // resolves it against the current page, same as a plain href would, so
+    // "?accelerator=$input" is a legitimate way to keep this page's own path
+    // and just change the query.
     const looksTemplated = referencedVars(value).length > 0;
-    if (!looksTemplated && !/^https?:\/\//i.test(trimmed)) return "must start with http:// or https://";
-    if (looksTemplated && !/^(https?:\/\/|\$)/i.test(trimmed)) {
-      return "must start with http:// or https:// (or a $value that supplies it)";
+    const looksRelative = /^[/?]/.test(trimmed);
+    if (!looksTemplated && !looksRelative && !/^https?:\/\//i.test(trimmed)) {
+      return "must start with http://, https://, / or ? (relative to this page)";
+    }
+    if (looksTemplated && !looksRelative && !/^(https?:\/\/|\$)/i.test(trimmed)) {
+      return "must start with http://, https://, /, ? or $ (or a $value that supplies it)";
     }
   }
 
