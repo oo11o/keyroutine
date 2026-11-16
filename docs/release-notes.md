@@ -1,5 +1,17 @@
 # Release notes
 
+## 0.4.1
+
+- Fix: "Import routine" ignored the site/page column it was opened from —
+  a pasted routine with no siteId (or one from a different config) always
+  landed in Common, even standing on a site's own page group, which could
+  refuse the import outright if it held a site-only action like Choose
+  option or Click element. It now lands on whatever site/page the builder
+  is currently showing, the same as a brand new routine would. A siteId
+  that's still valid in this profile (copying a routine within it) keeps
+  exactly where it was exported from, and an explicit "Common" import
+  still means Common.
+
 ## 0.4.0
 
 - New "Set text" action: sets a plain element's text directly, for a label
