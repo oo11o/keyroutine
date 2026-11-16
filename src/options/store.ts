@@ -719,10 +719,16 @@ export function importRoutine(raw: unknown): SaveResult {
   const candidate: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
   delete candidate.id; // always fresh — never collide with what's already here
   const siteIds = new Set(config.sites.map((s) => s.id));
-  if (typeof candidate.siteId === "string" && !siteIds.has(candidate.siteId)) {
-    // A site from a different config: land it in Common rather than refusing
-    // the whole paste over an id that could never have meant anything here.
-    candidate.siteId = null;
+  // No siteId at all (a hand-written snippet, or one Copy'd from a Common
+  // routine), or one from a different config that means nothing here: land
+  // it wherever the builder is currently looking, the same as addRoutine()
+  // above — not always Common. An explicit null stays Common; that is a
+  // deliberate "everywhere," not a gap to fill in.
+  if (
+    candidate.siteId === undefined ||
+    (typeof candidate.siteId === "string" && !siteIds.has(candidate.siteId))
+  ) {
+    candidate.siteId = scope.kind === "common" ? null : scope.siteId;
   }
 
   const result = parseConfig({ schemaVersion: SCHEMA_VERSION, sites: config.sites, routines: [candidate] });

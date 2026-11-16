@@ -669,7 +669,7 @@ describe("copying and importing a single routine", () => {
     expect(added.steps).toEqual([{ id: "s1", type: "popup", body: "hi" }]);
   });
 
-  it("lands an unrecognized siteId in Common instead of refusing", async () => {
+  it("lands an unrecognized siteId in Common when that is where the builder is looking", async () => {
     await open();
 
     const result = store.importRoutine({
@@ -677,6 +677,63 @@ describe("copying and importing a single routine", () => {
       binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
       enabled: true,
       siteId: "some-other-config-site",
+      steps: [{ id: "s1", type: "popup", body: "hi" }]
+    });
+
+    expect(result).toEqual({ ok: true });
+    const routines = store.getConfig().routines;
+    expect(routines[routines.length - 1].siteId).toBeNull();
+  });
+
+  // addRoutine() already scopes a brand new routine to whatever site/page
+  // column the builder is currently showing (see its own siteId line) —
+  // importRoutine used to ignore that entirely and always fall back to
+  // Common, even when "Import routine" sits in that same column right next
+  // to "+ New routine". A missing or unrecognized siteId in the pasted JSON
+  // now lands on the current scope instead, the same as a brand new routine
+  // would.
+  it("lands a missing siteId on the site/page the builder is currently showing", async () => {
+    await open();
+    store.selectScope({ kind: "site", siteId: "local" });
+
+    const result = store.importRoutine({
+      name: "No siteId at all",
+      binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      steps: [{ id: "s1", type: "clickBySelector", selector: "#go" }]
+    });
+
+    expect(result).toEqual({ ok: true });
+    const routines = store.getConfig().routines;
+    expect(routines[routines.length - 1].siteId).toBe("local");
+  });
+
+  it("lands an unrecognized siteId on the current site scope too, not always Common", async () => {
+    await open();
+    store.selectScope({ kind: "site", siteId: "local" });
+
+    const result = store.importRoutine({
+      name: "From elsewhere",
+      binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      siteId: "some-other-config-site",
+      steps: [{ id: "s1", type: "clickBySelector", selector: "#go" }]
+    });
+
+    expect(result).toEqual({ ok: true });
+    const routines = store.getConfig().routines;
+    expect(routines[routines.length - 1].siteId).toBe("local");
+  });
+
+  it("keeps an explicit null siteId as Common, even while viewing a site", async () => {
+    await open();
+    store.selectScope({ kind: "site", siteId: "local" });
+
+    const result = store.importRoutine({
+      name: "Explicitly common",
+      binding: { code: "Digit8", ctrl: true, alt: true, shift: false, meta: false },
+      enabled: true,
+      siteId: null,
       steps: [{ id: "s1", type: "popup", body: "hi" }]
     });
 
