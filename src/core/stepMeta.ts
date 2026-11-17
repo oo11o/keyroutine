@@ -442,6 +442,25 @@ export const STEP_META: Record<Step["type"], StepMeta> = {
     summary: (s) => text(s, "selector"),
     fields: [selectorField]
   },
+  copyToClipboard: {
+    label: "Copy to clipboard",
+    group: "write",
+    icon: "copy",
+    help: "Copies a literal or a combination of $vars to the system clipboard. To copy an element's text, add a Read element action first and put $text here.",
+    produces: false,
+    outNote: "No result — it only copies to the clipboard.",
+    summary: (s) => text(s, "value"),
+    fields: [
+      {
+        name: "value",
+        label: "Value",
+        kind: "template",
+        required: true,
+        placeholder: "$text",
+        help: "What to copy. For an element on the page, add a Read element action before this one and reference its result here, e.g. $text."
+      }
+    ]
+  },
   clickBySelector: {
     label: "Click element",
     group: "write",

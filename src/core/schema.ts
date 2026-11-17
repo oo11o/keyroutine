@@ -35,6 +35,11 @@ export type Step = StepBase &
     // is not an <input>/<textarea>. See steps/setText.ts.
     | { id: string; type: "setText"; selector: string; value: string }
     | { id: string; type: "focusBySelector"; selector: string }
+    // Writes value (after $var substitution) to the system clipboard. Pair
+    // with readBySelector first (value: "$text") to copy from an element —
+    // this step itself takes no selector, the same composition readBySelector
+    // + any other step already uses. See steps/copyToClipboard.ts.
+    | { id: string; type: "copyToClipboard"; value: string }
     | { id: string; type: "clickBySelector"; selector: string }
     // Goes to whatever has focus — pair with focusBySelector to aim it.
     | { id: string; type: "pressKey"; key: string }

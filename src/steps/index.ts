@@ -8,6 +8,7 @@ import { selectOptionStep } from "./selectOption";
 import { setAttribute } from "./setAttribute";
 import { setText } from "./setText";
 import { focusBySelector } from "./focusBySelector";
+import { copyToClipboard } from "./copyToClipboard";
 import { clickBySelector } from "./clickBySelector";
 import { pressKey } from "./pressKey";
 import { wait } from "./wait";
@@ -31,6 +32,7 @@ export const handlers: Record<Step["type"], Handler> = {
   setAttribute,
   setText,
   focusBySelector,
+  copyToClipboard,
   clickBySelector,
   pressKey,
   wait,

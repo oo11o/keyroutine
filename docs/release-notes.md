@@ -1,5 +1,10 @@
 # Release notes
 
+## 0.5.0
+
+- New "Copy to clipboard" action: copies a literal or a `$var` combination
+  (e.g. the result of a Read element step) to the system clipboard.
+
 ## 0.4.1
 
 - Fix: "Import routine" ignored the site/page column it was opened from —
